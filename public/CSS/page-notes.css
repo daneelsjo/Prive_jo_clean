@@ -1,0 +1,147 @@
+/* ===== NOTITIESPAGINA ===== */
+.notes-page .page {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 16px;
+    width: 100%;
+    padding: 12px;
+}
+
+@media (max-width: 1200px) {
+    .notes-page .page {
+        grid-template-columns: 1fr;
+    }
+
+    .notes-page .rightcol {
+        order: 2;
+    }
+}
+
+/* bovenste balk met titel + knop nieuw */
+.notes-page .headbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.notes-page .headbar h2 {
+    margin: 0;
+}
+
+/* tabelcontainer */
+.notes-page .table-wrap {
+    width: 100%;
+    overflow: auto;
+}
+
+.notes-page .notes-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.notes-page .notes-table th,
+.notes-page .notes-table td {
+    padding: .55rem .7rem;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+:root[data-theme="dark"] .notes-page .notes-table th,
+:root[data-theme="dark"] .notes-page .notes-table td {
+    border-bottom-color: rgba(255, 255, 255, .14);
+}
+
+.notes-page .notes-table tr:hover {
+    background: rgba(2, 132, 199, .08);
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] .notes-page .notes-table tr:hover {
+    background: rgba(255, 255, 255, .06);
+}
+
+/* Modal layout (zoals bij tasks) */
+#modal-note .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+        "title title"
+        "type  when"
+        "body  body"
+        "link  link";
+    gap: 12px;
+}
+
+#modal-note .fld-title {
+    grid-area: title;
+}
+
+#modal-note .fld-type {
+    grid-area: type;
+}
+
+#modal-note .fld-when {
+    grid-area: when;
+}
+
+#modal-note .fld-body {
+    grid-area: body;
+}
+
+#modal-note .fld-link {
+    grid-area: link;
+}
+
+#modal-note label {
+    display: grid;
+    gap: 6px;
+    font-weight: 600;
+}
+
+#modal-note input,
+#modal-note select,
+#modal-note textarea {
+    width: 100%;
+    padding: .55rem .65rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    background: var(--card, #fff);
+    color: var(--fg, #111);
+}
+
+#modal-note textarea {
+    min-height: 140px;
+}
+
+:root[data-theme="dark"] #modal-note input,
+:root[data-theme="dark"] #modal-note select,
+:root[data-theme="dark"] #modal-note textarea {
+    border-color: rgba(255, 255, 255, .18);
+    background: #0b1220;
+    color: #e5e7eb;
+}
+
+/* input + open-knop */
+#modal-note .input-with-action {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+#modal-note .btn.tiny {
+    padding: .45rem .6rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    background: var(--card, #fff);
+    cursor: pointer;
+}
+
+:root[data-theme="dark"] #modal-note .btn.tiny {
+    border-color: rgba(255, 255, 255, .22);
+    background: #0b1220;
+    color: #e5e7eb;
+}

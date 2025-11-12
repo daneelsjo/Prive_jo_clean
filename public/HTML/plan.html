@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
+  <title>Weekplanner – School</title>
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('app.theme') || 'system';
+        var final = pref === 'system' ?
+          (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') :
+          pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) {}
+    })();
+  </script>
+  <script>document.documentElement.setAttribute('data-theme','dark');</script>
+
+  <!-- Gedeelde CSS -->
+  <link rel="stylesheet" href="../CSS/main.css" />
+  <link rel="stylesheet" href="../CSS/components-menu.css" />
+  <link rel="stylesheet" href="../CSS/components-sidemenu.css" />
+  <!-- Pagina CSS -->
+  <link rel="stylesheet" href="../CSS/page-planner.css" />
+</head>
+
+<body class="planner-page">
+  <!-- AUTH -->
+  <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
+
+  <!-- APP -->
+  <div id="app" style="display:none;">
+    <div class="page">
+      <main class="content">
+        <!-- Weekkop met navigatie en print -->
+       <div class="planner-toolbar card">
+  <div class="tb-row tb-title">
+    <button id="prevWeek" class="btn ghost">◀ Vorige periode</button>
+    <h2 id="weekTitle">Week zaterdag 27/09 – vrijdag 03/10</h2>
+    <button id="nextWeek" class="btn ghost">Volgende periode ▶</button>
+  </div>
+
+  <div class="tb-row tb-print">
+    <div class="tb-label">Print lijst geplande items van</div>
+    <div class="tb-inputs">
+      <input id="printFrom" type="text" placeholder="dd / mm / jjjj">
+      <span class="sep">—</span>
+      <input id="printTo"   type="text" placeholder="dd / mm / jjjj">
+      <button id="printList" class="btn primary">
+        <span class="ico">🖨</span> Afdruk (lijst)
+      </button>
+    </div>
+  </div>
+
+  <div class="tb-row tb-view">
+    <div class="tb-label">Weergave:</div>
+    <div class="segmented">
+      <button id="viewWeek" class="seg is-active">Week</button>
+      <button id="viewDay"  class="seg">Dag</button>
+    </div>
+  </div>
+</div>
+
+
+        <!-- Kalender -->
+        <div class="card calender-card">
+          <div id="calendar" class="calendar" aria-label="Weekrooster" role="grid"></div>
+        </div>
+      </main>
+
+      <!-- Backlog rechts -->
+      <aside class="rightcol">
+        <section class="card backlog">
+          <div class="backlog-head">
+            <h3>overzicht taken & toetsen</h3>
+            <div style="display:flex; gap:.5rem;">
+              <button id="manageSubjectsBtn" class="ghost">Vakken</button>
+              <button id="newBacklogBtn" class="primary">＋ NIEUW</button>
+              <button id="quickPlanBtn" class="ghost">➕ Snel plannen</button>
+              <button id="filterBtn" class="ghost">Filter</button>
+
+            </div>
+          </div>
+          <div id="backlogGroups" class="backlog-groups" aria-live="polite"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Gedeelde modals via partials (algemene modals) -->
+  <div data-include="../partials/modals.html"></div>
+
+ <!-- Backlog: nieuw/bewerken -->
+<div id="modal-backlog" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="bl-titlebar" hidden>
+  <form id="bl-form" novalidate>
+    <div class="modal-header">
+      <h3 id="bl-titlebar">Nieuw item</h3>
+      <button class="modal-close" data-modal-close="modal-backlog" aria-label="Sluiten">✕</button>
+    </div>
+
+    <div class="modal-body bl-form">
+      <!-- VAK (verplicht) -->
+      <label class="form-label req" for="bl-subject">Vak</label>
+      <div class="row">
+        <select id="bl-subject" required>
+          <option value="">Kies een vak…</option>
+          <!-- opties worden door JS gevuld -->
+        </select>
+        <span id="bl-swatch" class="swatch" title="Kleur van vak"></span>
+      </div>
+      <div class="error" data-for="bl-subject"></div>
+
+      <!-- TYPE (verplicht) -->
+      <label class="form-label req" id="bl-type-label">Type</label>
+      <input id="bl-type" type="hidden" required value="">
+      <div class="segmented" role="group" aria-labelledby="bl-type-label">
+        <button type="button" class="seg" data-type="taak">📝 Taak</button>
+        <button type="button" class="seg" data-type="toets">🧪 Toets</button>
+        <button type="button" class="seg" data-type="examen">🎓 Examen</button>
+        <button type="button" class="seg" data-type="andere">📚 Andere</button>
+      </div>
+      <div class="error" data-for="bl-type"></div>
+
+      <!-- TITEL (verplicht) -->
+      <label class="form-label req" for="bl-title">Titel / onderwerp</label>
+      <input id="bl-title" type="text" placeholder="bv. Hoofdstuk 3 – Breuken" required />
+      <div class="error" data-for="bl-title"></div>
+
+      <!-- DUUR (optioneel) -->
+      <label class="form-label" for="bl-duration">Duur</label>
+      <input id="bl-duration" type="number" inputmode="decimal" min="0.5" step="0.5" value="1" />
+      <div class="hint">Optioneel – standaard 1u (mag ook 0,5 / 1,5 / …)</div>
+
+      <!-- DEADLINE (verplicht) -->
+      <label class="form-label req" for="bl-due">Deadline</label>
+      <input id="bl-due" type="date" required />
+      <div class="error" data-for="bl-due"></div>
+
+      <!-- verborgen: bewerk-id -->
+      <input id="bl-id" type="hidden" />
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="ghost" data-modal-close="modal-backlog">Annuleren</button>
+      <button id="bl-save" type="submit" class="primary">
+        💾 Bewaren
+      </button>
+    </div>
+  </form>
+</div>
+
+  <!-- Vakken beheren -->
+  <div id="modal-subjects" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-subjects-title"
+    hidden>
+    <div class="modal-header">
+      <h3 id="modal-subjects-title">Vakken beheren</h3>
+      <button class="modal-close" data-modal-close="modal-subjects" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:.75rem;">
+        <label>Vaknaam
+          <input id="sub-name" placeholder="bv. Wiskunde" />
+        </label>
+
+        <div>
+          <div style="font-weight:600;margin-bottom:.25rem;">Kleur (kies 1 van 15)</div>
+          <div id="sub-palette" class="palette" style="display:flex;flex-wrap:wrap;gap:.35rem;"></div>
+          <div style="margin-top:.35rem;display:flex;align-items:center;gap:.5rem;">
+            <span class="muted">Geselecteerd:</span>
+            <span id="sub-color-preview" class="badge"
+              style="min-width:76px;display:inline-flex;align-items:center;gap:.4rem;">
+              <span class="dot"
+                style="width:14px;height:14px;border-radius:50%;display:inline-block;background:#2196F3;"></span>
+              <span id="sub-color-text">#2196F3</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="align-self:end;">
+          <button id="sub-save" class="primary">➕ Toevoegen / bijwerken</button>
+        </div>
+      </div>
+
+
+      <div class="table-wrap" style="max-height:50vh; overflow:auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Vak</th>
+              <th>Kleur</th>
+              <th style="width:140px;">Acties</th>
+            </tr>
+          </thead>
+          <tbody id="subjectsTable">
+            <tr>
+              <td colspan="3" class="muted">Nog geen vakken…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="margin-top:.5rem">Tip: wijzigen = pas naam/kleur aan en klik “Opslaan”.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="ghost" data-modal-close="modal-subjects">Sluiten</button>
+    </div>
+  </div>
+
+  <!-- Snel plannen -->
+  <div id="modal-quick" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-quick-title" hidden>
+    <div class="modal-header">
+      <h3 id="modal-quick-title">Snel plannen</h3>
+      <button class="modal-close" data-modal-close="modal-quick" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label for="qp-title">Titel</label>
+        <input id="qp-title" placeholder="bv. Basket training" />
+
+        <span id="qp-type-label" class="form-label">Type</span>
+        <input id="qp-type" type="hidden" value="andere" />
+        <div class="type-group" role="group" aria-labelledby="qp-type-label">
+          <button type="button" class="type-btn" data-type="taak">📝 Taak</button>
+          <button type="button" class="type-btn" data-type="toets">🧪 Toets</button>
+          <button type="button" class="type-btn is-active" data-type="andere">📚 Andere</button>
+        </div>
+
+        <label for="qp-start">Van (datum)</label>
+        <input id="qp-start" type="date" />
+
+        <label for="qp-end">Tot (datum)</label>
+        <input id="qp-end" type="date" />
+
+        <span class="form-label">Weekdagen</span>
+        <div class="weekdays" style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          <label><input type="checkbox" class="qp-dow" value="1" checked> ma</label>
+          <label><input type="checkbox" class="qp-dow" value="2"> di</label>
+          <label><input type="checkbox" class="qp-dow" value="3"> wo</label>
+          <label><input type="checkbox" class="qp-dow" value="4"> do</label>
+          <label><input type="checkbox" class="qp-dow" value="5"> vr</label>
+          <label><input type="checkbox" class="qp-dow" value="6"> za</label>
+          <label><input type="checkbox" class="qp-dow" value="0"> zo</label>
+        </div>
+
+        <label for="qp-time">Tijd</label>
+        <input id="qp-time" type="time" value="18:00" step="1800" />
+
+        <label for="qp-dur">Duur (uren)</label>
+        <input id="qp-dur" type="number" min="0.5" step="0.5" value="1.5" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="qp-save" class="primary">💾 Inplannen</button>
+      <button class="ghost" data-modal-close="modal-quick">Annuleren</button>
+    </div>
+  </div>
+
+ <!-- Opmerking bij gepland blok (unieke IDs, geen conflict met notes) -->
+<div id="modal-plan-note" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-plan-note-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-plan-note-title">Opmerking</h3>
+    <button class="modal-close" data-modal-close="modal-plan-note" aria-label="Sluiten">✕</button>
+  </div>
+  <div class="modal-body">
+    <input id="plan-note-id" type="hidden" />
+    <label for="plan-note-text" class="form-label">Opmerking voor dit gepland moment</label>
+    <textarea id="plan-note-text" rows="5" placeholder="bv. vandaag samenvatting bekijken…"></textarea>
+  </div>
+  <div class="modal-footer">
+    <button id="plan-note-save" class="primary">💾 Bewaar</button>
+    <button class="ghost" data-modal-close="modal-plan-note">Annuleren</button>
+  </div>
+</div>
+
+<div id="modal-filter" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-filter-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-filter-title">Backlog filter</h3>
+    <button class="modal-close" data-modal-close="modal-filter" aria-label="Sluiten">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <label for="f-text">Zoektekst (titel/onderwerp)</label>
+      <input id="f-text" placeholder="bv. G3, hoofdstuk, …" />
+
+      <label for="f-subject">Vak</label>
+      <select id="f-subject">
+        <option value="">(alle vakken)</option>
+      </select>
+
+      <span id="f-type-label" class="form-label">Type</span>
+      <input id="f-type" type="hidden" value="" />
+      <div class="type-group" role="group" aria-labelledby="f-type-label">
+        <button type="button" class="type-btn" data-type="">Alle</button>
+        <button type="button" class="type-btn" data-type="taak">📝 Taak</button>
+        <button type="button" class="type-btn" data-type="toets">🧪 Toets</button>
+        <button type="button" class="type-btn" data-type="andere">📚 Andere</button>
+      </div>
+
+      <label for="f-from">Deadline vanaf</label>
+      <input id="f-from" type="date" />
+      <label for="f-to">Deadline t/m</label>
+      <input id="f-to" type="date" />
+    </div>
+  </div>
+  <div class="modal-footer" style="justify-content:space-between;">
+    <button id="f-clear" class="ghost">Filter wissen</button>
+    <div>
+      <button class="ghost" data-modal-close="modal-filter">Sluiten</button>
+      <button id="f-apply" class="primary">Toepassen</button>
+    </div>
+  </div>
+</div>
+
+
+
+  <!-- Print-venster template -->
+  <template id="print-template">
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial;
+      }
+
+      h2 {
+        margin: .2rem 0 .6rem
+      }
+
+      .day {
+        margin: .4rem 0 .6rem
+      }
+
+      .item {
+        padding: .2rem .4rem;
+        border-bottom: 1px solid #ddd
+      }
+    </style>
+    <h2>Lijst geplande items</h2>
+    <div id="print-root"></div>
+  </template>
+
+
+  <script type="module" src="../Script/Javascript/modal.js"></script>
+  <script type="module" src="../Script/Javascript/planner.js"></script>
+  <div id="evt-tip" aria-hidden="true"></div>
+
+</body>
+
+</html>

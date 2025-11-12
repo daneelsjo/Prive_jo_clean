@@ -1,0 +1,91 @@
+/* components-sidemenu.css — robuuste drawer */
+
+/* backdrop */
+#sidemenu-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .45);
+    z-index: 1999;
+}
+
+#sidemenu-backdrop[hidden] {
+    display: none;
+}
+
+/* drawer basis */
+#sidemenu {
+    --drawer-w: 300px;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--drawer-w);
+    background: var(--card, #fff);
+    color: var(--fg, #111);
+    border-right: 1px solid var(--border, #e5e7eb);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
+    z-index: 2000;
+    overflow: auto;
+    will-change: transform;
+    transform: translateX(-105%);
+    /* dicht */
+    transition: transform .25s ease;
+    /* animatie */
+}
+
+:root[data-theme="dark"] #sidemenu {
+    background: #0f172a;
+    color: #e5e7eb;
+    border-color: rgba(255, 255, 255, .12);
+}
+
+/* open state */
+#sidemenu[data-state="open"] {
+    transform: translateX(0);
+}
+
+/* inhoud */
+.sidemenu {
+    padding: 1rem;
+}
+
+.sidemenu-section {
+    margin-bottom: .75rem;
+}
+
+.sidemenu-section h4 {
+    margin: .75rem 0 .35rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sidemenu-section ul {
+    list-style: none;
+    margin: 0;
+    padding-left: 0;
+    display: grid;
+    gap: .25rem;
+}
+
+.sidemenu-section a {
+    color: inherit;
+    text-decoration: none;
+    padding: .35rem .5rem;
+    border-radius: 8px;
+    display: block;
+}
+
+.sidemenu-section a:hover {
+    background: rgba(2, 132, 199, .12);
+}
+
+/* Accordion-gedrag: standaard dicht, open via .open */
+.sidemenu-section ul {
+    display: none;
+}
+
+.sidemenu-section.open ul {
+    display: grid;
+}
+
+/* je had al gap-styling; grid is prima */

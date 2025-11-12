@@ -1,0 +1,145 @@
+<!-- partials/modals.html -->
+<div id="modal-backdrop" class="modal-backdrop" aria-hidden="true"></div>
+
+<!-- 1) Notitie bewerken/nieuwe -->
+<div id="modal-note" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-note-title" hidden>
+    <div class="modal-header">
+        <h3 id="modal-note-title">Notitie bewerken</h3>
+        <button class="modal-close" data-modal-close="modal-note" aria-label="Sluiten">✕</button>
+    </div>
+
+    <div class="modal-body">
+        <div class="form-grid">
+            <label class="fld fld-title">Titel
+                <input id="note-title" type="text" placeholder="Titel">
+            </label>
+
+            <label class="fld fld-type">Modus
+                <select id="note-type">
+                    <option value="werk">Werk</option>
+                    <option value="prive">Privé</option>
+                </select>
+            </label>
+
+            <label class="fld fld-when">Tijdstip
+                <input id="note-when" type="datetime-local">
+            </label>
+
+            <label class="fld fld-body">Notitie
+                <textarea id="note-body" rows="8" placeholder="Schrijf hier je notitie..."></textarea>
+            </label>
+
+            <label class="fld fld-link">Link
+                <div class="input-with-action">
+                    <input id="note-link" type="text" placeholder="https://…">
+                    <button type="button" id="note-link-open" class="btn tiny" title="Open link">Open</button>
+                </div>
+            </label>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button id="note-save" class="primary">💾 Opslaan</button>
+        <button id="note-delete" class="danger" style="display:none;">🗑️ Verwijderen</button>
+        <button id="note-cancel" class="ghost" data-modal-close="modal-note">Annuleren</button>
+    </div>
+</div>
+
+
+<!-- 2) Categorie niet aangemaakt (melding) -->
+<div id="modal-alert" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-alert-title" hidden>
+    <div class="modal-header">
+        <h3 id="modal-alert-title">Melding</h3>
+        <button class="modal-close" data-modal-close="modal-alert" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body" id="modal-alert-body"></div>
+    <div class="modal-footer">
+        <button id="modal-alert-ok" class="primary">OK</button>
+    </div>
+</div>
+
+<!-- 3) Categorie hernoemen -->
+<div id="modal-rename" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-rename-title" hidden>
+    <div class="modal-header">
+        <h3 id="modal-rename-title">Categorie hernoemen</h3>
+        <button class="modal-close" data-modal-close="modal-rename" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+        <label for="rename-input">Nieuwe naam</label>
+        <input id="rename-input" type="text" placeholder="Nieuwe naam">
+    </div>
+    <div class="modal-footer">
+        <button id="rename-save" class="primary">💾 Opslaan</button>
+        <button id="rename-cancel" class="ghost">Annuleren</button>
+    </div>
+</div>
+
+<!-- 4) Post-it bekijken -->
+<div id="modal-postit" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-postit-title" hidden>
+    <div class="modal-header">
+        <h3 id="modal-postit-title">Post-it</h3>
+        <button class="modal-close" data-modal-close="modal-postit" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body" id="modal-postit-body"></div>
+    <div class="modal-footer">
+        <button class="primary" data-modal-close="modal-postit">Sluiten</button>
+    </div>
+</div>
+
+<!-- 5) Nieuwe taak -->
+<div id="modal-task" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-task-title" hidden>
+    <div class="modal-header">
+        <h3 id="modal-task-title">Nieuwe taak</h3>
+        <button class="modal-close" data-modal-close="modal-task" aria-label="Sluiten">✕</button>
+    </div>
+
+    <div class="modal-body">
+        <div class="form-grid">
+            <label class="fld fld-title">Taak:
+                <input id="task-title" placeholder="Taaknaam" />
+            </label>
+
+            <label class="fld fld-start">Start datum:
+                <input id="task-start" type="date" />
+            </label>
+
+            <label class="fld fld-end">Eind datum:
+                <input id="task-end" type="date" />
+            </label>
+
+            <label class="fld fld-prio">Prio:
+                <select id="task-priority">
+                    <option value="1">1 – Hoog</option>
+                    <option value="2">2 – Gemiddeld</option>
+                    <option value="3">3 – Laag</option>
+                    <option value="0">0 – Geen prio</option>
+                </select>
+            </label>
+
+
+            <label class="fld fld-cat">Categorie:
+                <input id="task-category-input" list="task-category-list" placeholder="bv. Algemeen (werk)" />
+                <datalist id="task-category-list"></datalist>
+            </label>
+
+            <label class="fld fld-desc">Omschrijving:
+                <textarea id="task-desc" placeholder="Omschrijving (optioneel)"></textarea>
+            </label>
+
+            <label class="fld fld-doc">Document:
+                <div class="input-with-action">
+                    <input id="task-link" placeholder="Link naar bestand (optioneel)" />
+                    <button type="button" id="task-link-open" class="btn tiny" title="Open link">Open</button>
+                </div>
+            </label>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" id="task-save" class="primary">✔️ Opslaan</button>
+        <button type="button" id="task-toggle-done" class="accent" style="display:none;">Voltooien</button>
+        <button type="button" id="task-delete" class="danger" style="display:none;">🗑️ Verwijderen</button>
+        <button type="button" class="ghost" data-modal-close="modal-task">Annuleren</button>
+    </div>
+
+</div>

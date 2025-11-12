@@ -1,0 +1,320 @@
+/* ============ BETALINGEN PAGINA ============ */
+.payments-page .page {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  width: 100%;
+  padding: 12px;
+}
+
+@media (max-width: 1200px) {
+  .payments-page .page {
+    grid-template-columns: 1fr;
+  }
+
+  .payments-page .rightcol {
+    order: 2;
+  }
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.toolbar h2 {
+  margin: 0;
+}
+
+.toolbar .toolbar-actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow: auto;
+}
+
+.bills-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.bills-table th,
+.bills-table td {
+  padding: .55rem .7rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.bills-table tr:hover {
+  background: rgba(2, 132, 199, .08);
+  cursor: pointer;
+}
+
+.monthbar {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: .4rem;
+}
+
+.monthbar label {
+  font-weight: 700;
+}
+
+.sidebar-block {
+  margin-top: .6rem;
+}
+
+.sidebar-block h3 {
+  margin: .2rem 0 .4rem;
+}
+
+.list {
+  display: grid;
+  gap: .25rem;
+}
+
+.list .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .3rem .4rem;
+  border-radius: .5rem;
+  background: rgba(0, 0, 0, .04);
+}
+
+:root[data-theme="dark"] .list .row {
+  background: rgba(255, 255, 255, .06);
+}
+
+.block-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .4rem;
+}
+
+.block-total.grand strong {
+  font-size: 1.15rem;
+}
+
+.selected-payment .hint {
+  opacity: .75;
+}
+
+/* Forms inside modals */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .6rem;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.form-grid input,
+.form-grid select {
+  width: 100%;
+  padding: .55rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.split-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.checkbox {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: .92rem;
+}
+
+
+/* Extra kolom en expander */
+.bills-table th:last-child,
+.bills-table td:last-child {
+  text-align: center;
+}
+
+.bills-table input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+tr.expander-row td {
+  padding: 0 !important;
+  border-bottom: none;
+  background: rgba(0, 0, 0, .03);
+}
+
+:root[data-theme="dark"] tr.expander-row td {
+  background: rgba(255, 255, 255, .05);
+}
+
+.expander {
+  padding: .6rem .8rem;
+  display: none;
+}
+
+.expander.open {
+  display: block;
+}
+
+.expander .list .row {
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+
+.expander .actions {
+  margin-top: .5rem;
+  display: flex;
+  gap: .5rem;
+}
+
+.selectedList-empty {
+  color: var(--muted);
+}
+
+
+/* Betaaldag rood bij overschrijding */
+.bills-table .date-overdue {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Review modal inputs */
+#reviewTable td input[type="text"] {
+  width: 100%;
+  padding: .35rem .45rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Expander caret */
+.caret-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+/* Openstaande som onder de titel */
+.open-sum {
+  margin: .25rem 0 .75rem;
+  font-size: .95rem;
+  color: var(--muted);
+}
+
+.open-sum strong {
+  font-size: 1.05rem;
+}
+
+/* Caret better visible */
+.caret-btn {
+  background: #fff;
+  color: #111;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .15rem .4rem;
+  font-weight: 700;
+  min-width: 28px;
+  min-height: 28px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .15);
+}
+
+:root[data-theme="dark"] .caret-btn {
+  background: #fff;
+  color: #111;
+}
+
+#modal-review.modal-card {
+  max-width: 1000px;
+  width: min(1000px, 96vw);
+}
+
+#modal-review .table-wrap {
+  overflow: auto;
+}
+
+#modal-review table.bills-table th:nth-child(1) {
+  min-width: 180px
+}
+
+#modal-review table.bills-table th:nth-child(2) {
+  min-width: 180px
+}
+
+#modal-review table.bills-table th:nth-child(3) {
+  min-width: 120px;
+  text-align: right
+}
+
+#modal-review table.bills-table th:nth-child(4) {
+  min-width: 240px
+}
+
+#modal-review table.bills-table th:nth-child(5) {
+  min-width: 100px;
+  text-align: center
+}
+
+#reviewTable td:nth-child(3) {
+  text-align: right
+}
+
+#reviewTable td:nth-child(5) {
+  text-align: center
+}
+
+/* Title + openTotal stack on the left */
+.toolbar .title-stack {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+
+.toolbar .title-stack .open-sum {
+  margin: 0;
+  font-size: .95rem;
+  color: var(--fg);
+  opacity: .85;
+}
+
+.toolbar .title-stack .open-sum strong {
+  font-size: 1.1rem;
+}
+
+.bills-table td button.ghost {
+  padding: .2rem .45rem;
+}

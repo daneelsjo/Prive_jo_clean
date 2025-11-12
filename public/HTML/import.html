@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Import tijdsregistraties (segmenten)</title>
+    <link rel="stylesheet" href="../CSS/main.css" />
+    <link rel="stylesheet" href="../CSS/components-menu.css" />
+    <link rel="stylesheet" href="../CSS/components-sidemenu.css" />
+    <link rel="stylesheet" href="../CSS/page-import.css" />
+    <script>
+        (function () {
+            try {
+                const pref = localStorage.getItem('app.theme') || 'system';
+                const final = pref === 'system'
+                    ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : pref;
+                document.documentElement.setAttribute('data-theme', final);
+            } catch (e) { }
+        })();
+    </script>
+</head>
+
+<body class="import-page">
+    <div data-include="../partials/header.html"></div>
+
+    <main class="page">
+        <section class="card">
+            <h2>Importeer tijdsregistraties (CSV of plakken)</h2>
+            <p class="muted">
+                Elke rij = <b>1 segment</b> in Firestore (<code>timelogSegments</code>). Zo kan je meerdere blokken per
+                dag importeren.<br />
+                Kolommen (hoofdletterongevoelig): <b>datum</b>, <b>type</b>, <b>start</b>, <b>start pauze</b>, <b>einde
+                    pauze</b>, <b>einde</b>, <b>opmerking</b>.<br />
+                Datum: <code>yyyy-mm-dd</code> of <code>dd/mm/yyyy</code>. Tijd: <code>HH:mm</code>, <code>HHuMM</code>
+                (bv. 15u36) of <code>HH</code> (dan :00).<br />
+                Types: <code>standaard/standard</code>, <code>sport</code>, <code>feestdag</code>, <code>recup</code>,
+                <code>verlof</code>, <code>oefening</code>, <code>andere</code>.
+            </p>
+
+            <div class="import-grid">
+                <div class="panel">
+                    <label class="filepick">
+                        <input type="file" id="csvFile" accept=".csv,text/csv" />
+                        CSV-bestand kiezen
+                    </label>
+
+                    <label>Of plak CSV/Excel (gescheiden door ; of ,):</label>
+                    <textarea id="csvText" placeholder="datum;type;start;start pauze;einde pauze;einde;opmerking
+2025-08-01;standaard;07:00;12:00;12:30;15:36;
+2025-08-01;sport;;;;;Sport 15:00 – 17:00
+2025-08-01;recup;14:30;;;15:30;Recup weekend
+"></textarea>
+
+                    <div class="row">
+                        <label><input type="checkbox" id="hasHeader" checked /> Eerste rij is header</label>
+                        <button id="btnParse" class="primary">Valideren</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="stats">
+                        <span>Rijen: <b id="statTotal">0</b></span>
+                        <span>Geldig: <b id="statOk">0</b></span>
+                        <span>Fouten: <b id="statErr">0</b></span>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table class="preview">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Datum</th>
+                                    <th>Type</th>
+                                    <th>Start</th>
+                                    <th>Start pauze</th>
+                                    <th>Einde pauze</th>
+                                    <th>Einde</th>
+                                    <th>Opmerking</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="row">
+                        <button id="btnImport" class="success" disabled>Importeer geldige rijen →
+                            timelogSegments</button>
+                        <div class="muted" id="importProgress"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div data-include="../partials/modals.html"></div>
+    <script src="../Script/Javascript/include-partials.js"></script>
+    <script src="../Script/Javascript/menu.js"></script>
+    <script type="module" src="../Script/Javascript/import.js"></script>
+</body>
+
+</html>

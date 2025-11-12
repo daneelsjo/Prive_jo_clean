@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Landingspagina Jo - test</title>
+  <link rel="icon" href="IMG/JD_Web_Solutions.ico">
+
+  <script>
+    // Zet het thema zo vroeg mogelijk (voordat CSS laadt)
+    (function () {
+      try {
+        var pref = localStorage.getItem('theme_pref') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) { /* no-op */ }
+    })();
+  </script>
+
+  <link rel="stylesheet" href="CSS/main.css" />
+  <link rel="stylesheet" href="CSS/components-menu.css" />
+  <link rel="stylesheet" href="CSS/components-sidemenu.css" />
+  <link rel="stylesheet" href="CSS/page-index.css" />
+</head>
+
+<body class="page-index">
+  <!-- AUTH -->
+  <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
+
+  <!-- gedeelde header -->
+  <div data-include="partials/header.html"></div>
+
+  <!-- APP -->
+  <div id="app" style="display:none;">
+    <!-- PAGE -->
+    <div class="page">
+      <main class="content">
+        <!-- Werk/Privé toggle -->
+        <div class="mode-toggle">
+          <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
+          <label for="modeSwitch" class="switch icon-only">
+            <span class="knob"></span>
+            <span class="icon icon-work" title="Werk">🧰</span>
+            <span class="icon icon-prive" title="Privé">🏠</span>
+          </label>
+        </div>
+
+        <div class="workspace">
+          <div id="postits" class="postits-row"></div>
+        </div>
+      </main>
+
+      <aside class="rightcol">
+        <div class="alltasks-container card">
+          <div class="alltasks-header">
+            <button id="toggleAllTasks" class="primary">📁 ALLE TAKEN</button>
+
+          </div>
+        </div>
+
+        <button id="newTaskBtn" class="primary">＋ NIEUW</button>
+
+        <!-- Overige taken -->
+        <div id="uncategorized" class="card">
+          <h3>📌 Overige taken</h3>
+          <div id="uncategorized-list"></div>
+        </div>
+      </aside>
+
+      <!-- Brede tabel: DIRECT kind van .page (sibling van main & aside) -->
+      <input id="allTasksSearch" class="alltasks-search" type="search" placeholder="Zoek op naam, datum, prio, tekst…"
+        style="display:none;">
+      <section id="allTasksPanel" class="card" hidden>
+        <table id="allTasksTable"></table>
+      </section>
+    </div>
+
+
+    <!-- Modals -->
+    <div data-include="partials/modals.html"></div>
+    <script type="module" src="script/javascript/modal.js"></script>
+
+    <!-- Scripts -->
+    <script src="script/javascript/include-partials.js"></script> <script src="script/javascript/menu.js"></script> <script type="module" src="script/javascript/modal.js"></script> <script type="module" src="script/javascript/time.js"></script> <script type="module" src="script/javascript/main.js"></script>
+</body>
+
+</html>

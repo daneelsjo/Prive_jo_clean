@@ -1,0 +1,85 @@
+.import-page .page {
+    padding: 12px;
+}
+
+.import-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 16px;
+}
+
+@media (max-width: 1100px) {
+    .import-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filepick {
+    display: inline-block;
+    border: 1px dashed var(--border);
+    padding: .6rem .8rem;
+    border-radius: 10px;
+    cursor: pointer;
+    width: max-content;
+}
+
+#csvText {
+    width: 100%;
+    min-height: 220px;
+}
+
+.row {
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: .25rem;
+}
+
+.table-wrap {
+    overflow: auto;
+    max-height: 420px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.preview {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.preview th,
+.preview td {
+    border-bottom: 1px solid var(--border);
+    padding: .4rem .6rem;
+    white-space: nowrap;
+}
+
+.preview tr.error {
+    background: #fee2e2;
+}
+
+.preview tr.ok {
+    background: #ecfeff22;
+}
+
+.preview td.status {
+    font-size: .9rem;
+    opacity: .85;
+}
+
+button.success {
+    background: #16a34a;
+    color: white;
+}

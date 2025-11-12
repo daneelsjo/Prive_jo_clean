@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
+  <title>Betalingen</title>
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('app.theme') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) { }
+    })();
+  </script>
+  <link rel="stylesheet" href="../CSS/main.css">
+  <link rel="stylesheet" href="../CSS/components-menu.css">
+  <link rel="stylesheet" href="../CSS/components-sidemenu.css">
+  <link rel="stylesheet" href="../CSS/page-payments.css">
+</head>
+
+<body class="payments-page">
+  <!-- AUTH -->
+  <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
+
+  <!-- gedeelde header -->
+  <div data-include="../partials/header.html"></div>
+
+  <!-- APP -->
+  <div id="app" style="display:none;">
+    <div class="page">
+      <main class="content">
+        <!-- Toolbar -->
+        <section class="card toolbar">
+          <div class="title-stack">
+            <h2>Opvolging betalingen</h2>
+            <div class="open-sum">Nog te betalen: <strong id="openTotal">€ 0,00</strong></div>
+          </div>
+          <div class="toolbar-actions">
+            <button id="newBillBtn" class="primary">＋ Nieuwe rekening</button>
+            <button id="addIncomeBtn" class="ghost">＋ Inkomsten</button>
+            <button id="fixedCostsBtn" class="ghost">⚙️ Vaste uitgaven</button>
+          </div>
+        </section>
+
+        <!-- Openstaande betalingen -->
+        <section class="card">
+          <div class="table-wrap">
+            <table class="bills-table" id="billsTable" aria-describedby="openBillsHelp">
+              <thead>
+                <tr>
+                  <th>Begunstigde</th>
+                  <th>Te betalen</th>
+                  <th>Reeds betaald</th>
+                  <th>Betaaldag</th>
+                  <th style="width:140px;">Actie</th>
+                  <th style="width:140px;">Selecteer voor betaling</th>
+                </tr>
+              </thead>
+              <tbody id="billsBody"></tbody>
+            </table>
+            <p id="openBillsHelp" class="muted" style="opacity:.8;margin:.35rem 0 0;">Toon alle rekeningen waarvan het
+              openstaand saldo &gt; 0 is.</p>
+          </div>
+        </section>
+      </main>
+
+      <aside class="rightcol">
+        <!-- Maandselectie + overzicht -->
+        <section class="card">
+          <div class="monthbar">
+            <label for="monthPicker">Maand</label>
+            <input type="month" id="monthPicker" />
+          </div>
+
+          <div class="sidebar-block">
+            <h3>Inkomsten</h3>
+            <div id="incomeList" class="list"></div>
+            <div class="block-total"><span>Totaal</span><strong id="incomeTotal">€ 0,00</strong></div>
+          </div>
+
+          <div class="sidebar-block">
+            <h3>Vaste kosten</h3>
+            <div id="fixedList" class="list"></div>
+            <div class="block-total"><span>Totaal</span><strong id="fixedTotal">€ 0,00</strong></div>
+          </div>
+
+          <div class="sidebar-block">
+            <h3>Geselecteerde betalingen</h3>
+            <div id="selectedList" class="list"></div>
+            <div class="block-total"><span>Totaal te betalen</span><strong id="selTotal">€ 0,00</strong></div>
+            <div style="margin-top:.4rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+              <button id="payReviewBtn" class="primary">🧾 Betaaloverzicht</button>
+              <button id="clearSelectedBtn" class="ghost">Leeg lijst</button>
+            </div>
+          </div>
+
+          <hr style="opacity:.25;margin:.75rem 0;">
+
+          <div class="sidebar-block">
+            <h3>Balans</h3>
+            <div class="block-total"><span>Inkomsten</span><strong id="sumIncome">€ 0,00</strong></div>
+            <div class="block-total"><span>Vaste kosten</span><strong id="sumFixed">€ 0,00</strong></div>
+            <div class="block-total"><span>Te betalen (selectie)</span><strong id="sumToPay">€ 0,00</strong></div>
+            <div class="block-total grand"><span>Verschil</span><strong id="sumDiff">€ 0,00</strong></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Page-specific modals -->
+  <!-- 1) Nieuwe rekening / bewerken -->
+  <div id="modal-bill" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-bill-title" hidden>
+    <div class="modal-header">
+      <h3 id="modal-bill-title">Nieuwe rekening</h3>
+      <button class="modal-close" data-modal-close="modal-bill" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label>Rekeningnummer
+          <input id="bill-iban" placeholder="BE** **** **** ****" />
+        </label>
+        <label>Begunstigde
+          <input id="bill-beneficiary" placeholder="Naam begunstigde" />
+        </label>
+        <label>Mededeling
+          <input id="bill-comm" placeholder="Mededeling" />
+        </label>
+        <label>Omschrijving
+          <input id="bill-desc" placeholder="Omschrijving (optioneel)" />
+        </label>
+        <label>Bedrag (€)
+          <input id="bill-amount" type="number" step="0.01" min="0" placeholder="0,00" />
+        </label>
+        <label>Betaaldag
+          <input id="bill-due" type="date" />
+        </label>
+        <div class="split-row">
+          <label class="checkbox">
+            <input id="bill-inparts" type="checkbox" /> In delen betalen
+          </label>
+          <label class="parts-count" id="partsCountWrap" hidden>Aantal delen
+            <input id="bill-parts" type="number" min="2" step="1" value="2" />
+          </label>
+        </div>
+        <div id="partsInfo" class="muted" style="display:none;">
+          Per deel: <strong id="perPart">€ 0,00</strong> <span id="lastPartHint" style="opacity:.8;"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="bill-save" class="primary">💾 Opslaan</button>
+      <button class="ghost" data-modal-close="modal-bill">Annuleren</button>
+    </div>
+  </div>
+
+  <!-- 2) Inkomsten toevoegen -->
+  <div id="modal-income" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-income-title" hidden>
+    <div class="modal-header">
+      <h3 id="modal-income-title">Inkomen toevoegen</h3>
+      <button class="modal-close" data-modal-close="modal-income" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label>Bron
+          <select id="income-source">
+            <option value="Jo">Jo</option>
+            <option value="Femke">Femke</option>
+            <option value="Kinderbijslag">Kinderbijslag</option>
+            <option value="Andere">Andere…</option>
+          </select>
+        </label>
+        <label id="income-note-wrap" hidden>Opmerking
+          <input id="income-note" placeholder="Specifieer de bron" />
+        </label>
+        <label>Bedrag (€)
+          <input id="income-amount" type="number" step="0.01" min="0" placeholder="0,00" />
+        </label>
+        <label>Maand
+          <input id="income-month" type="month" />
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="income-save" class="primary">💾 Opslaan</button>
+      <button class="ghost" data-modal-close="modal-income">Annuleren</button>
+    </div>
+  </div>
+
+  <!-- 3) Vaste uitgaven -->
+  <div id="modal-fixed" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-fixed-title" hidden>
+    <div class="modal-header">
+      <h3 id="modal-fixed-title">Vaste uitgaven</h3>
+      <button class="modal-close" data-modal-close="modal-fixed" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <h4 style="margin:.2rem 0;">Overzicht</h4>
+        <div id="fixedListModal" class="list"></div>
+      </div>
+      <hr style="opacity:.2;">
+      <div>
+        <h4 style="margin:.2rem 0;">Toevoegen</h4>
+        <div class="form-grid">
+          <label>Naam
+            <input id="fixed-name" placeholder="Bv. Huur" />
+          </label>
+          <label>Bedrag (€)
+            <input id="fixed-amount" type="number" step="0.01" min="0" placeholder="0,00" />
+          </label>
+          <label>Vanaf maand
+            <input id="fixed-start" type="month" />
+          </label>
+          <label>Tot en met (optioneel)
+            <input id="fixed-end" type="month" />
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="fixed-save" class="primary">💾 Opslaan</button>
+      <button class="ghost" data-modal-close="modal-fixed">Sluiten</button>
+    </div>
+  </div>
+
+  <!-- 4) Betaling uitvoeren -->
+  <div id="modal-pay" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-pay-title" hidden>
+    <div class="modal-header">
+      <h3 id="modal-pay-title">Betaling uitvoeren</h3>
+      <button class="modal-close" data-modal-close="modal-pay" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="payContext" class="muted"></div>
+      <div id="payPartsWrap" style="margin-top:.5rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="pay-confirm" class="primary">✅ Markeer als betaald</button>
+      <button class="ghost" data-modal-close="modal-pay">Annuleren</button>
+    </div>
+  </div>
+
+
+  <!-- 5) Historiek transacties -->
+  <div id="modal-history" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-history-title"
+    hidden>
+    <div class="modal-header">
+      <h3 id="modal-history-title">Historiek betalingen</h3>
+      <button class="modal-close" data-modal-close="modal-history" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="table-wrap">
+        <table class="bills-table" id="historyTable">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Begunstigde</th>
+              <th>Deel</th>
+              <th>Bedrag</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="ghost" data-modal-close="modal-history">Sluiten</button>
+    </div>
+  </div>
+
+  <!-- Modals (gedeeld) -->
+  <div data-include="../partials/modals.html"></div>
+  <script type="module" src="../Script/Javascript/modal.js"></script>
+
+  <!-- Scripts -->
+  <script src="../Script/Javascript/include-partials.js"></script>
+  <script src="../Script/Javascript/menu.js"></script>
+  <script type="module" src="../Script/Javascript/payments.js"></script>
+</body>
+
+</html>
+
+<!-- 6) Betaaloverzicht -->
+<div id="modal-review" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-review-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-review-title">Betaaloverzicht</h3>
+    <button class="modal-close" data-modal-close="modal-review" aria-label="Sluiten">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="table-wrap">
+      <table class="bills-table" id="reviewTable">
+        <thead>
+          <tr>
+            <th>Begunstigde</th>
+            <th>Rekening</th>
+            <th>Bedrag</th>
+            <th>Mededeling</th>
+            <th>Betaald</th>
+          </tr>
+        </thead>
+        <tbody id="reviewBody"></tbody>
+      </table>
+    </div>
+    <p class="muted">Vink aan wat je nu wil markeren als betaald. De rechterlijst blijft staan na het verwerken.</p>
+  </div>
+  <div class="modal-footer">
+    <button id="review-confirm" class="primary">✅ Markeer aangevinkte als betaald</button>
+    <button class="ghost" data-modal-close="modal-review">Sluiten</button>
+  </div>
+</div>
+
+<div class="table-actions">
+  <button id="fixedOverviewBtn" class="ghost">Overzicht vaste kosten</button>
+  <button id="closedHistoryBtn" class="ghost">Historiek afgesloten betalingen</button>
+</div>

@@ -1,0 +1,619 @@
+/* ==========================================================================
+   To-Do & Planner – Page CSS (clean)
+   ========================================================================== */
+
+/* ---------- Design tokens ---------- */
+:root {
+  --slot-h: 28px; /* hoogte per 30 min */
+  --time-col-w: 80px; /* breedte tijdkolom */
+  --gap: 1.25rem;
+
+  /* basis kleuren/afgeleiden – verwacht dat je thema al var(--card/--border) zet */
+  --card: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.12);
+  --primary: #2196f3;
+}
+
+/* ---------- Page layout 75/25 ---------- */
+.planner-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  --gap: 1rem
+  padding-inline: var(--gap);
+}
+.planner-page .page {
+  width: 100% !important;
+  margin: 0 !important;
+  display: grid;
+  grid-template-columns: 3fr 1fr; /* 75 / 25 */
+  column-gap: var(--gap);
+  align-items: start;
+}
+.leftcol {
+  min-width: 0;
+} /* voorkom overflow in grid child */
+.rightcol {
+  min-width: 320px;
+}
+
+.toprow,
+.header-card,
+.weekbar {
+  grid-column: 1 / -1;
+} /* header over beide kolommen */
+
+.rightcol > .card {
+  width: 100%;
+}
+
+/* Left column must be allowed to grow */
+.planner-page .leftcol{ min-width: 0; }
+
+/* Right column stays usable */
+.planner-page .rightcol{ min-width: 320px; }
+
+/* Header row spans both columns */
+.planner-page .toprow,
+.planner-page .header-card,
+.planner-page .weekbar{ grid-column: 1 / -1; }
+
+/* Backlog card fills its column */
+.planner-page .rightcol > .card{ width: 100%; }
+@media (max-width: 1100px) {
+  .planner-page .page {
+    grid-template-columns: 1fr;
+  }
+  .rightcol {
+    order: 2;
+  }
+}
+
+/* ---------- Cards / util ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+/* ---------- Kalender: raster & koppen ---------- */
+.calendar {
+  display: grid;
+  grid-template-columns: var(--time-col-w) repeat(7, 1fr); /* dag-aantal wordt door JS ingesteld, maar raster is gelijk */
+  gap: 0.25rem;
+  user-select: none;/* ====== Sticky + onafhankelijke scroll ====== */
+
+/* Links: alleen de kalender scrolt; bovenste kaart (week/print/…) blijft staan */
+.planner-page .leftcol .calendar-card{
+  /* hoogte: hele viewport minus wat marge; pas zo nodig aan */
+  height: calc(100dvh - 280px);
+  min-height: 320px;
+  overflow: auto;            /* eigen scrollbar voor het raster */
+}
+
+/* Dagenkoppen blijven zichtbaar terwijl je door het raster scrolt */
+.planner-page .leftcol .calendar .col-head{
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--card);
+  /* een subtiele onderrand zodat de sticky-kop loskomt van het raster */
+  box-shadow: 0 2px 0 0 var(--border);
+}
+
+/* Rechts: backlog krijgt eigen scrollbar onder de knoppenbalk */
+.planner-page .rightcol > .card{
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 2 * var(--gap));
+  min-height: 360px;
+}
+
+/* eerste child in de backlog-card is je kop met "Backlog (vakken)" + knoppen */
+.planner-page .rightcol > .card > :first-child{
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: inherit;      /* dezelfde kleur als de kaart */
+  border-bottom: 1px solid var(--border);
+}
+
+/* de lijsten zelf scollen onder de vaste kop */
+#backlogGroups{
+  overflow: auto;
+  min-height: 0;            /* noodzakelijk binnen flex-column */
+}
+
+/* optioneel: iets kleinere buitenmarges zodat de kalender links wat meer ruimte krijgt */
+.planner-page{
+  --gap: 1rem;               /* ruimte tussen kolommen én aan de zijkanten */
+  padding-inline: var(--gap);
+}
+
+}
+
+.col-head {
+  font-weight: 800;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  text-transform: capitalize;
+}
+
+.time-col {
+  grid-column: 1 / 2;
+  display: grid;
+}
+.time-slot {
+  height: calc(var(--slot-h) * 2); /* één label per uur, 2 rijen hoog (30m) */
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+  padding-left: 0.35rem;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.day-col {
+  position: relative; /* absolute events binnenin */
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  display: grid;
+}
+
+/* Dropzones (30 min) */
+.dropzone {
+  height: var(--slot-h);
+  border-top: 1px dashed transparent;
+}
+.dropzone[data-min="30"] {
+  border-top-style: dotted;
+  opacity: 0.9;
+}
+.dropzone:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  border-top-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.dragging-backlog .dropzone,
+.dragging-event .dropzone {
+  border-top-color: color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* ---------- Event blok ---------- */
+.event {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  cursor: grab;
+}
+.event .title {
+  font-weight: 800;
+  line-height: 1.1;
+}
+.event .meta {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+/* geselecteerd */
+.event.is-selected {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+  outline-offset: -2px;
+}
+
+/* actions (delete) */
+.event .evt-actions {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  display: flex;
+  gap: 4px;
+}
+.event .evt-del {
+  padding: 0 0.35rem;
+  height: 20px;
+  line-height: 18px;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.event .evt-del:hover {
+  background: rgba(0, 0, 0, 0.38);
+}
+
+/* note indicator */
+.event.has-note::after {
+  content: "📒";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+/* resize handle onderaan */
+.event .resize-h {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 2px;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: ns-resize;
+  opacity: 0.9;
+}
+.event.resizing {
+  cursor: ns-resize;
+}
+body.resizing-event * {
+  user-select: none !important;
+}
+
+/* ---------- Tooltip ---------- */
+#evt-tip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  display: none;
+}
+#evt-tip .t {
+  font-weight: 800;
+  margin-bottom: 0.15rem;
+}
+#evt-tip .m {
+  opacity: 0.85;
+}
+
+/* ---------- Backlog groepen rechts ---------- */
+.bl-group {
+  margin-bottom: 0.85rem;
+}
+.bl-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.6rem 0.6rem 0 0;
+  font-weight: 800;
+}
+.bl-list {
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 0.6rem 0.6rem;
+  background: var(--card);
+  padding: 0.5rem;
+}
+.bl-item {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.5rem;
+  background: rgba(0, 0, 0, 0.15);
+}
+.bl-item .bl-sym {
+  font-size: 1rem;
+  text-align: center;
+}
+.bl-item .bl-main .t {
+  font-weight: 700;
+}
+.bl-item .bl-main .sub {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.bl-item .bl-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+.btn-icon.sm {
+  font-size: 0.9rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  cursor: pointer;
+}
+.btn-icon.sm.neutral {
+  background: rgba(76, 175, 80, 0.15);
+}
+.btn-icon.sm.danger {
+  background: rgba(244, 67, 54, 0.15);
+}
+
+/* ---------- Filter button active state ---------- */
+#filterBtn.is-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* ---------- Misc ---------- */
+.muted {
+  opacity: 0.7;
+}
+
+/* ===== Planner header / toolbar ===== */
+.planner-toolbar{
+  margin-bottom: 1rem;
+  padding: .9rem 1rem;
+}
+
+.planner-toolbar .tb-row{
+  display: grid;
+  align-items: center;
+  gap: .75rem 1rem;
+  margin-bottom: .6rem;
+}
+.planner-toolbar .tb-row:last-child{ margin-bottom: 0; }
+
+/* Titelrij: 3 kolommen met titel gecentreerd */
+.planner-toolbar .tb-title{
+  grid-template-columns: auto 1fr auto;
+}
+.planner-toolbar .tb-title h2{
+  margin: 0;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* Print rij: label links, inputs + knop rechts */
+.planner-toolbar .tb-print{
+  grid-template-columns: auto 1fr;
+}
+
+/* View rij: label + segmenten */
+.planner-toolbar .tb-view{
+  grid-template-columns: auto 1fr;
+}
+
+/* Labels */
+.planner-toolbar .tb-label{
+  opacity: .85;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Inputs en scheidingstreepje */
+.planner-toolbar .tb-inputs{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.planner-toolbar input[type="text"],
+.planner-toolbar input[type="date"]{
+  height: 38px;
+  padding: 0 .6rem;
+  border-radius: .55rem;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.04);
+  color: inherit;
+  min-width: 11rem;
+}
+.planner-toolbar .sep{
+  opacity: .55;
+  user-select: none;
+}
+
+/* Buttons */
+.btn{
+  height: 38px;
+  padding: 0 .8rem;
+  border-radius: .6rem;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.06);
+  color: inherit;
+  cursor: pointer;
+}
+.btn.ghost:hover{ background: rgba(255,255,255,.1); }
+.btn.primary{
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.btn.primary .ico{ margin-right: .4rem; }
+
+/* Segmented toggle */
+.segmented{
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  overflow: hidden;
+  width: max-content;
+}
+.segmented .seg{
+  padding: .45rem .9rem;
+  background: rgba(255,255,255,.04);
+  border: 0;
+  cursor: pointer;
+}
+.segmented .seg + .seg{ border-left: 1px solid var(--border); }
+.segmented .seg.is-active{
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Responsief: stapel alles netjes onder elkaar */
+@media (max-width: 900px){
+  .planner-toolbar .tb-title{
+    grid-template-columns: 1fr;
+    row-gap: .5rem;
+  }
+  .planner-toolbar .tb-title h2{ text-align: left; }
+  .planner-toolbar .tb-title button{ justify-self: start; }
+  .planner-toolbar .tb-print,
+  .planner-toolbar .tb-view{
+    grid-template-columns: 1fr;
+  }
+  .planner-toolbar .tb-label{ margin-bottom: .25rem; }
+}
+
+/* ----- Backlog form layout ----- */
+.bl-form{ display:grid; gap:.55rem; }
+.bl-form .row{ display:flex; align-items:center; gap:.5rem; }
+
+.form-label{ font-weight:700; opacity:.9; }
+.form-label.req::after{ content:" *"; color:#ff6b6b; }
+
+#bl-subject{ height:38px; padding:0 .6rem; border-radius:.55rem;
+  border:1px solid var(--border); background:rgba(255,255,255,.05); color:inherit; min-width:14rem; }
+#bl-title, #bl-duration, #bl-due{ height:38px; padding:0 .6rem; border-radius:.55rem;
+  border:1px solid var(--border); background:rgba(255,255,255,.05); color:inherit; }
+
+.swatch{ width:24px; height:24px; border-radius:.45rem; border:1px solid var(--border); }
+
+.segmented{ display:inline-flex; border:1px solid var(--border); border-radius:.6rem; overflow:hidden; width:max-content; }
+.segmented .seg{ padding:.45rem .9rem; background:rgba(255,255,255,.05); border:0; cursor:pointer; }
+.segmented .seg + .seg{ border-left:1px solid var(--border); }
+.segmented .seg.is-active{ background:var(--primary); color:#fff; }
+
+.error{ color:#ff8a8a; font-size:.85rem; min-height:1em; }
+.hint{ opacity:.7; font-size:.85rem; }
+
+/* invalid highlight */
+.is-invalid{ border-color:#ff6b6b !important; box-shadow:0 0 0 2px rgba(255,107,107,.15); }
+#bl-subject option{
+  padding:.35rem .6rem;
+}
+
+/* ——— Type segmented: duidelijke 'selected' ——— */
+#modal-backlog .segmented .seg{
+  position: relative;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+#modal-backlog .segmented .seg.is-active{
+  background: var(--primary);
+  color:#fff;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+}
+#modal-backlog .segmented .seg.is-active::after{
+  content:""; position:absolute; left:10px; right:10px; bottom:6px; height:3px;
+  border-radius:3px; background: rgba(255,255,255,.65);
+}
+
+/* ——— Sluitknop (X) in modal beter zichtbaar ——— */
+.modal-card .modal-close{
+  color:#fff; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+}
+.modal-card .modal-close:hover{ background: rgba(255,255,255,.18); }
+
+/* ——— Date input: kalendericoon zichtbaar op dark ——— */
+input[type="date"]::-webkit-calendar-picker-indicator{
+  filter: invert(1) brightness(1.2);
+  opacity:.95;
+}
+input[type="date"]{
+  color-scheme: dark; /* betere native styling in dark */
+}
+
+/* ——— Select: eigen pijl (licht) zodat zichtbaar op dark ——— */
+#bl-subject{
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .65rem center;
+  padding-right: 2rem;
+}
+
+/* opties iets meer lucht */
+#bl-subject option{ padding:.35rem .6rem; }
+
+/* ===== Examen – extra opvallend ===== */
+
+/* Backlog pills */
+.bl-item.type-examen{
+  border-width: 2px;
+  border-color: #ffd54f !important;          /* amber */
+  box-shadow: 0 0 0 2px rgba(255,213,79,.25), 0 8px 18px rgba(0,0,0,.22);
+  position: relative;
+}
+.bl-item.type-examen::before{
+  content: "EXAMEN";
+  position: absolute; top: -10px; right: 8px;
+  font-size: .65rem; letter-spacing: .12em;
+  background: #ffd54f; color: #262626;
+  padding: .1rem .35rem; border-radius: .35rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+
+/* Kalenderblokken */
+.event.type-examen{
+  border: 2px solid #ffd54f !important;
+  box-shadow:
+    0 0 0 2px rgba(255,213,79,.25),
+    0 10px 24px rgba(0,0,0,.28);
+}
+.event.type-examen .title{
+  text-transform: none;
+}
+.event.type-examen .evt-actions .evt-del{
+  border-color: rgba(255,213,79,.6);
+  background: rgba(38,38,38,.4);
+}
+
+/* Optioneel: subtiele "highlight strip" onderaan */
+.event.type-examen .resize-h{
+  background: #ffd54f;
+  opacity: .95;
+}
+/* Kalender-event: delete-knop alleen tonen op hover/selected en rechtsboven plaatsen */
+.event{ position: absolute; }               /* zekerheid: absoluut gepositioneerd */
+.event .evt-actions{
+  position: absolute;
+  top: 6px;
+  right: 6px;                               /* ← stonden links; naar rechts verplaatsen */
+  left: auto;
+  opacity: 0;                               /* standaard onzichtbaar */
+  pointer-events: none;                     /* geen klik-vangers zolang onzichtbaar */
+  transition: opacity .15s ease;
+}
+.event:hover .evt-actions,
+.event.is-selected .evt-actions{
+  opacity: 1;                               /* tonen bij hover of selectie */
+  pointer-events: auto;
+}
+.event .evt-del{
+  font-size: 14px;
+  line-height: 1;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(20,20,20,.35);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.event .evt-del:hover{
+  background: rgba(20,20,20,.55);
+}
+
+/* (optioneel) het notitie-icoon rechts blijft zichtbaar */
+.event.has-note::after{
+  content: "🗒";
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  opacity: .9;
+  font-size: 16px;
+}

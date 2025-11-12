@@ -1,0 +1,420 @@
+/* ==========================================================================
+   INDEX PAGE LAYOUT
+   ========================================================================== */
+.page-index .page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  /* content + (optionele) rechterkolom */
+  gap: 16px;
+  width: 100%;
+  padding-inline: 12px;
+  margin: 0 auto;
+}
+
+.page-index .content,
+.page-index .workspace {
+  max-width: none;
+}
+
+/* Als de tabel open staat: maak de layout één kolom en verberg rightcol */
+
+
+@media (max-width:1200px) {
+  .page-index .page {
+    grid-template-columns: 1fr;
+  }
+
+  .page-index .rightcol {
+    order: 2;
+  }
+}
+
+/* ==========================================================================
+   POST-ITS
+   ========================================================================== */
+.page-index #postits.postits-row {
+  display: grid;
+  grid-auto-flow: column;
+  /* max 2 rijen, dan nieuwe kolom */
+  grid-template-rows: repeat(2, minmax(260px, auto));
+  grid-auto-columns: minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+  justify-content: start;
+  width: 100%;
+}
+
+.page-index .postit {
+  padding: 16px;
+  min-height: 260px;
+  border-radius: 14px;
+  width: 100%;
+  height: 100%;
+  color: #111;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+}
+
+.page-index .postit .postit-head {
+  text-align: center;
+  font-weight: 700;
+  padding-bottom: .25rem;
+  margin-bottom: .5rem;
+  border-bottom: 2px solid rgba(0, 0, 0, .15);
+}
+
+:root[data-theme="dark"] .page-index .postit .postit-head {
+  border-bottom-color: rgba(255, 255, 255, .25);
+}
+
+/* taken op een post-it */
+.page-index .task-row {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: .55rem;
+  align-items: start;
+  padding: .2rem 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.page-index .task-row:hover {
+  background: rgba(0, 0, 0, .05);
+}
+
+:root[data-theme="dark"] .page-index .task-row:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+.page-index .task-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--dot, #9ca3af);
+  margin-top: .35rem;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .15);
+}
+
+:root[data-theme="dark"] .page-index .task-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .20);
+}
+
+.page-index .task-texts {
+  line-height: 1.25;
+}
+
+.page-index .task-title {
+  font-weight: 600;
+}
+
+.page-index .task-deadline {
+  font-size: .85rem;
+  opacity: .8;
+  margin-top: .15rem;
+}
+
+.page-index #uncategorized-list>.task-row {
+  background: rgba(0, 0, 0, .04);
+  padding: .3rem .4rem;
+  border-radius: 6px;
+  margin: .25rem 0;
+}
+
+/* ==========================================================================
+   ALLE TAKEN – PANEL & TABEL
+   ========================================================================== */
+/* paneel over de volle breedte van de grid */
+.page-index #allTasksPanel {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.page-index #allTasksTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.page-index #allTasksTable th,
+.page-index #allTasksTable td {
+  padding: .55rem .7rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-theme="dark"] .page-index #allTasksTable th,
+:root[data-theme="dark"] .page-index #allTasksTable td {
+  border-bottom-color: rgba(255, 255, 255, .14);
+}
+
+.page-index #allTasksTable th {
+  text-align: left;
+  font-weight: 700;
+}
+
+.page-index #allTasksTable .prio-cell {
+  width: 64px;
+}
+
+.page-index #allTasksTable .group-row td {
+  padding: .8rem .6rem .45rem;
+  font-weight: 800;
+  background: transparent;
+  border-bottom-color: transparent;
+  text-align: center;
+}
+
+.page-index #allTasksTable .task-tr {
+  cursor: pointer;
+}
+
+.page-index #allTasksTable .task-tr:hover {
+  background: rgba(2, 132, 199, .08);
+}
+
+:root[data-theme="dark"] .page-index #allTasksTable .task-tr:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+/* prio-bolletje in de tabel */
+.page-index #allTasksTable .prio-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--dot, #9ca3af);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .12);
+}
+
+:root[data-theme="dark"] .page-index #allTasksTable .prio-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .20);
+}
+
+/* zoekbalk */
+.page-index .alltasks-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: .5rem;
+  width: 100%;
+}
+
+.page-index .alltasks-search {
+  flex: 1 1 420px;
+  max-width: 620px;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  background: var(--card);
+  color: var(--fg);
+}
+
+/* ==========================================================================
+   MODAL & KNOPPEN (alleen essentials; rest staat in main.css)
+   ========================================================================== */
+.page-index .modal .modal-card {
+  position: relative;
+  border-radius: 16px;
+  max-width: 760px;
+  padding: 14px 16px 16px;
+}
+
+.page-index .modal .modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.page-index .modal .modal-head h3 {
+  margin: 0;
+  font-weight: 700;
+  text-align: center;
+}
+
+.page-index .modal .modal-body {
+  padding: 8px 6px 10px;
+}
+
+.page-index .modal .modal-foot {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 6px 6px;
+}
+
+.page-index #modal-task .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "title title"
+    "start end"
+    "prio  cat"
+    "desc  desc"
+    "doc   doc";
+  gap: 12px;
+}
+
+.page-index #modal-task .fld-title {
+  grid-area: title;
+}
+
+.page-index #modal-task .fld-start {
+  grid-area: start;
+}
+
+.page-index #modal-task .fld-end {
+  grid-area: end;
+}
+
+.page-index #modal-task .fld-prio {
+  grid-area: prio;
+}
+
+.page-index #modal-task .fld-cat {
+  grid-area: cat;
+}
+
+.page-index #modal-task .fld-desc {
+  grid-area: desc;
+}
+
+.page-index #modal-task .fld-doc {
+  grid-area: doc;
+}
+
+.page-index #modal-task input,
+.page-index #modal-task select,
+.page-index #modal-task textarea {
+  width: 100%;
+  padding: .55rem .65rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--card, #fff);
+  color: var(--fg, #111);
+}
+
+.page-index #modal-task textarea {
+  min-height: 110px;
+}
+
+.page-index #modal-task .input-with-action {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* donkere modus iconen */
+:root[data-theme="dark"] .page-index #modal-task input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.4);
+  opacity: .9;
+}
+
+.page-index #modal-task select {
+  appearance: none;
+  padding-right: 28px;
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2357636b' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="dark"] .page-index #modal-task select {
+  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23e5e7eb' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E\");
+}
+
+/* knoppen in modal (primary / accent / danger / ghost) */
+:root {
+  --btn-radius: 12px;
+  --btn-pad-y: .58rem;
+  --btn-pad-x: 1.05rem;
+  --btn-font: 600;
+  --btn-shadow: 0 6px 14px rgba(0, 0, 0, .12);
+}
+
+.modal-footer button {
+  border: none;
+  border-radius: var(--btn-radius);
+  padding: var(--btn-pad-y) var(--btn-pad-x);
+  font-weight: var(--btn-font);
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: transform .06s, box-shadow .12s, background-color .12s, color .12s, border-color .12s;
+  box-shadow: var(--btn-shadow);
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.modal-footer button:hover {
+  transform: translateY(-1px);
+}
+
+.modal-footer button:active {
+  transform: translateY(0);
+}
+
+.modal-footer .primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.modal-footer .primary:hover {
+  background: #1e52c9;
+}
+
+:root[data-theme="dark"] .modal-footer .primary {
+  background: #3b82f6;
+}
+
+:root[data-theme="dark"] .modal-footer .primary:hover {
+  background: #2767f2;
+}
+
+.modal-footer .accent {
+  background: #16a34a;
+  color: #fff;
+}
+
+.modal-footer .accent:hover {
+  background: #12873e;
+}
+
+:root[data-theme="dark"] .modal-footer .accent {
+  background: #22c55e;
+}
+
+:root[data-theme="dark"] .modal-footer .accent:hover {
+  background: #1da153;
+}
+
+.modal-footer .danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.modal-footer .danger:hover {
+  background: #dc2626;
+}
+
+.modal-footer .ghost {
+  background: transparent;
+  border: 1px solid var(--border, #e5e7eb);
+  color: var(--fg, #111);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .modal-footer .ghost {
+  border-color: rgba(255, 255, 255, .22);
+  color: #e5e7eb;
+}
+
+.modal-footer .ghost:hover {
+  background: rgba(2, 132, 199, .10);
+}
+
+.modal-footer button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .24), var(--btn-shadow);
+}
