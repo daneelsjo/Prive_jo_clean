@@ -1,173 +1,183 @@
 /* Hoofdnav basis */
 .mainnav {
-    display: flex;
-    justify-content: center;
+  display: flex;
+  justify-content: center;
 }
 
-.mainnav>ul {
-    display: flex;
-    gap: 1rem;
-    list-style: none;
-    margin: 0;
-    padding: 0;
+.mainnav > ul {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .menu-link {
-    position: relative;
-    display: inline-block;
-    padding: .45rem .7rem;
-    border-radius: .6rem;
-    text-decoration: none;
-    color: var(--fg);
+  position: relative;
+  display: inline-block;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.6rem;
+  text-decoration: none;
+  color: var(--fg);
 }
 
 .mainnav li {
-    position: relative;
+  position: relative;
 }
 
 /* Submenu’s */
-.mainnav>ul>li>.submenu {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    display: none;
-    min-width: 200px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: .6rem;
-    box-shadow: var(--shadow);
-    z-index: 1500;
-    margin: 0;
-    padding: .4rem 0;
-    list-style: none;
+.mainnav > ul > li > .submenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  min-width: 200px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: var(--shadow);
+  z-index: 1500;
+  margin: 0;
+  padding: 0.4rem 0;
+  list-style: none;
 }
 
 .mainnav .submenu .has-submenu {
-    position: relative;
+  position: relative;
 }
 
 .mainnav .submenu .submenu {
-    position: absolute;
-    top: 0;
-    left: 100%;
-    display: none;
-    min-width: 200px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: .6rem;
-    box-shadow: var(--shadow);
-    z-index: 1600;
-    margin: 0 0 0 6px;
-    padding: .4rem 0;
-    list-style: none;
+  position: absolute;
+  top: 0;
+  left: 100%;
+  display: none;
+  min-width: 200px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: var(--shadow);
+  z-index: 1600;
+  margin: 0 0 0 6px;
+  padding: 0.4rem 0;
+  list-style: none;
 }
 
 .mainnav .submenu li {
-    list-style: none;
+  list-style: none;
 }
 
 .mainnav .submenu ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .mainnav .submenu a {
-    display: block;
-    padding: .45rem .7rem;
-    border-radius: .4rem;
-    color: var(--fg);
+  display: block;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.4rem;
+  color: var(--fg);
 }
 
 .mainnav .submenu a:hover {
-    background: rgba(0, 0, 0, .06);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 :root[data-theme="dark"] .mainnav .submenu a:hover {
-    background: rgba(255, 255, 255, .06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.mainnav .has-submenu:hover>.submenu,
-.mainnav .has-submenu:focus-within>.submenu {
-    display: block;
+.mainnav .has-submenu:hover > .submenu,
+.mainnav .has-submenu:focus-within > .submenu {
+  display: block;
 }
 
-.mainnav .submenu .has-submenu:hover>.submenu,
-.mainnav .submenu .has-submenu:focus-within>.submenu {
-    display: block;
+.mainnav .submenu .has-submenu:hover > .submenu,
+.mainnav .submenu .has-submenu:focus-within > .submenu {
+  display: block;
 }
 
-.mainnav .has-submenu.open>.submenu,
-.mainnav .submenu .has-submenu.open>.submenu {
-    display: block;
+.mainnav .has-submenu.open > .submenu,
+.mainnav .submenu .has-submenu.open > .submenu {
+  display: block;
 }
 
-.mainnav .submenu .has-submenu>a::after {
-    content: "▸";
-    float: right;
-    opacity: .65;
+.mainnav .submenu .has-submenu > a::after {
+  content: "▸";
+  float: right;
+  opacity: 0.65;
 }
 
 /* Neon topmenu — zonder vierkant er rond, goed leesbaar op licht & donker */
 :root {
-    --neon-light: #0ea5e9;
-    --neon-dark: #a5f3fc;
+  --neon-light: #0ea5e9;
+  --neon-dark: #a5f3fc;
 }
 
 /* basis */
 .mainnav a {
-    text-decoration: none;
-    color: var(--fg, #111);
+  text-decoration: none;
+  color: var(--fg, #111);
 }
 
 :root[data-theme="dark"] .mainnav a {
-    color: #e5e7eb;
+  color: #e5e7eb;
 }
 
 /* neon-tekst: alleen text-shadow (geen border/box) */
 .menu-link .label {
-    display: inline-block;
-    padding: .35rem .7rem;
-    border-radius: .75rem;
-    font-weight: 600;
-    letter-spacing: .2px;
-    transition: transform .2s ease, text-shadow .2s ease;
+  display: inline-block;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  transition: transform 0.2s ease, text-shadow 0.2s ease;
 }
 
 /* licht thema: donkerdere basiskleur + subtiele blauwe gloed */
 :root:not([data-theme="dark"]) .menu-link .label {
-    color: var(--neon-light);
-    text-shadow:
-        0 0 4px rgba(14, 165, 233, .45),
-        0 0 10px rgba(14, 165, 233, .35);
+  color: var(--neon-light);
+  text-shadow: 0 0 4px rgba(14, 165, 233, 0.45),
+    0 0 10px rgba(14, 165, 233, 0.35);
 }
 
 /* donker thema: lichtere basiskleur + sterkere cyan gloed */
 :root[data-theme="dark"] .menu-link .label {
-    color: var(--neon-dark);
-    text-shadow:
-        0 0 6px rgba(0, 255, 255, .9),
-        0 0 14px rgba(0, 255, 255, .55),
-        0 0 24px rgba(0, 255, 255, .35);
+  color: var(--neon-dark);
+  text-shadow: 0 0 6px rgba(0, 255, 255, 0.9), 0 0 14px rgba(0, 255, 255, 0.55),
+    0 0 24px rgba(0, 255, 255, 0.35);
 }
 
 /* zachte “pulse” i.p.v. draaiend vierkant */
 @keyframes neonPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
 
-    0%,
-    100% {
-        filter: brightness(1);
-    }
-
-    50% {
-        filter: brightness(1.15);
-    }
+  50% {
+    filter: brightness(1.15);
+  }
 }
 
 .menu-link:hover .label {
-    transform: translateY(-1px);
-    animation: neonPulse 1.8s ease-in-out infinite;
+  transform: translateY(-1px);
+  animation: neonPulse 1.8s ease-in-out infinite;
 }
 
-/* submenu’s blijven zoals ze waren */
+/* hamburger helder op dark */
+:root[data-theme="dark"] #hamburgerBtn {
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+}
+#hamburgerBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* basisknop als die class bestaat */
+.icon-btn {
+  color: inherit;
+  background: transparent;
+}
