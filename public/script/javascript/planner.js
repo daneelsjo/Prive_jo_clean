@@ -1315,36 +1315,41 @@ li.textContent =
 renderView();
 
   /* ── Auth stream ── */
-onAuthStateChanged(auth, async (user)=>{
+onAuthStateChanged(auth, async (user) => {
   if (!user) {
     currentUser = null;
     ownerUid = null;
     canWrite = false;
+
+    // UI bij uitloggen
+    document.getElementById("auth")?.style && (document.getElementById("auth").style.display = "block");
+    document.getElementById("app")?.style && (document.getElementById("app").style.display = "block"); // planner blijft zichtbaar
+
     renderView();
     return;
   }
 
   currentUser = user;
 
-  // ✔ Toon ALTIJD de planner van de eigenaar
-  ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832";   // <-- jouw UID
-  // ✔ Alleen de eigenaar mag schrijven
+  // Altijd de planner van de eigenaar tonen
+  ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832";
   canWrite = (user.uid === ownerUid);
 
-  // UI vergrendelen bij read-only
-document.getElementById('newBacklogBtn')?.addEventListener('click', ()=>{
-  if (!canWrite){ alert('Lezen is toegestaan, wijzigen niet.'); return; }
-  openBacklogModalNew();
-});
+  // UI bij inloggen
+  document.getElementById("auth")?.style && (document.getElementById("auth").style.display = "none");
+  document.getElementById("app")?.style && (document.getElementById("app").style.display = "block");
+
+  // Alleen eigenaar mag wijzigen
   document.getElementById("manageSubjectsBtn")?.toggleAttribute("disabled", !canWrite);
 
   bindStreams();
   cleanupExpiredBacklog();
   if (window._backlogCleanupTimer) clearInterval(window._backlogCleanupTimer);
-  window._backlogCleanupTimer = setInterval(cleanupExpiredBacklog, 6*60*60*1000);
+  window._backlogCleanupTimer = setInterval(cleanupExpiredBacklog, 6 * 60 * 60 * 1000);
 
   renderView();
 });
+
 
   /* ───────────────────── Renderers & Data ───────────────────── */
 // Weergave wisselen
