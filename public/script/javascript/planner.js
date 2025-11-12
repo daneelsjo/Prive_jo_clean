@@ -474,15 +474,17 @@ function startOfWeek(d){
 async function cleanupExpiredBacklog(){
   if(!currentUser) return;
   try{
-    const cutoff = startOfDay(new Date()); // 00:00 vandaag → alles met dueDate < vandaag is “dag na deadline”
+    const cutoff = startOfDay(new Date());
     const qExp = query(
       collection(db,'backlog'),
       where('uid','==', ownerUid),
-      where('dueDate','<', cutoff)       // items zonder dueDate worden niet gematcht
+      where('dueDate','<', cutoff)
     );
     const snap = await getDocs(qExp);
     if (!snap.empty){
-      await Promise.all(snap.docs.map(d => deleteDoc(doc(db,'backlog', d.id))));
+      await Promise.all(snap.docs.map(d =>
+        updateDoc(doc(db,'backlog', d.id), { done: true, doneAt: new Date() })
+      ));
     }
   }catch(err){
     console.error('cleanupExpiredBacklog error', err);
@@ -1073,10 +1075,10 @@ document.addEventListener("click", async (ev) => {
 });
 
 
-// Backlog item opslaan (nieuw/bewerken)
-document.addEventListener("click", async (ev) => {
-  const saveBtn = ev.target.closest("#bl-save");
-  if (!saveBtn) return;
+// Backlog item opslaan via form submit
+document.getElementById("bl-form")?.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  ev.stopPropagation();
 
   if (!currentUser) { showToast('Log eerst in.', false); return; }
   if (!validateBacklog()) return;
@@ -1151,7 +1153,6 @@ document.addEventListener("click", async (ev) => {
     showToast('Kon item niet bewaren: ' + (err?.message||err), false);
   }
 });
-
 
 
 document.addEventListener("click", (ev) => {
