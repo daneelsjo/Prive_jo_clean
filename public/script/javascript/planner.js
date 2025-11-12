@@ -20,6 +20,76 @@ const div  = (cls)=>{ const el=document.createElement("div"); if(cls) el.classNa
 const esc  = (s="")=> s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
 
+// ── Toast mini framework ─────────────────────────────────
+(function initToasts(){
+  if (document.getElementById('toasts')) return;
+  const css = document.createElement('style');
+  css.textContent = `
+  #toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:9999;font:14px system-ui,Segoe UI,Roboto}
+  .toast{min-width:220px;max-width:360px;padding:10px 12px;border-radius:8px;box-shadow:0 6px 18px #0002;color:#111;background:#fff;display:flex;align-items:flex-start;gap:8px;border:1px solid #0001;opacity:0;transform:translateY(6px);transition:opacity .15s ease, transform .15s ease}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .toast.ok{border-color:#16a34a20;background:#16a34a15}
+  .toast.err{border-color:#dc262620;background:#dc262615}
+  .toast .dot{width:10px;height:10px;border-radius:50%;margin-top:4px}
+  .toast.ok .dot{background:#16a34a}
+  .toast.err .dot{background:#dc2626}
+  `;
+  document.head.appendChild(css);
+  const box = document.createElement('div');
+  box.id = 'toasts';
+  document.body.appendChild(box);
+})();
+function showToast(msg, ok=true, ttl=2500){
+  const box = document.getElementById('toasts');
+  if(!box) return;
+  const el = document.createElement('div');
+  el.className = `toast ${ok?'ok':'err'}`;
+  el.innerHTML = `<div class="dot"></div><div>${msg}</div>`;
+  box.appendChild(el);
+  requestAnimationFrame(()=> el.classList.add('show'));
+  setTimeout(()=>{
+    el.classList.remove('show');
+    setTimeout(()=> el.remove(), 200);
+  }, ttl);
+}
+
+// ── Firestore helpers: log + toast + foutmelding ─────────
+async function dbAdd(coll, data, okMsg='Bewaard'){
+  try{
+    const ref = await addDoc(collection(db, coll), data);
+    console.log(`[DB] add ${coll}/${ref.id}`, data);
+    showToast(okMsg, true);
+    return ref;
+  }catch(err){
+    console.error(`[DB] add error ${coll}`, err);
+    showToast(err?.message || 'Fout bij bewaren', false);
+    throw err;
+  }
+}
+async function dbUpdate(coll, id, data, okMsg='Bijgewerkt'){
+  try{
+    await updateDoc(doc(db, coll, id), data);
+    console.log(`[DB] update ${coll}/${id}`, data);
+    showToast(okMsg, true);
+  }catch(err){
+    console.error(`[DB] update error ${coll}/${id}`, err);
+    showToast(err?.message || 'Fout bij bijwerken', false);
+    throw err;
+  }
+}
+async function dbDelete(coll, id, okMsg='Verwijderd'){
+  try{
+    await deleteDoc(doc(db, coll, id));
+    console.log(`[DB] delete ${coll}/${id}`);
+    showToast(okMsg, true);
+  }catch(err){
+    console.error(`[DB] delete error ${coll}/${id}`, err);
+    showToast(err?.message || 'Fout bij verwijderen', false);
+    throw err;
+  }
+}
+
+
 
 // ==== VIEW STATE & HELPERS (bovenaan zetten) ====
 let viewMode = 'week';          // 'week' | 'day'
@@ -238,20 +308,26 @@ delBtn.addEventListener('click', async (e)=>{
 function renderCalendar(){
   if(!calRootEl) return;
 
-  // periode bijhouden → nodig voor auto-filter backlog
+  // notifier: showToast als die bestaat, anders console
+  const notify = (ok, msg) => {
+    if (typeof showToast === 'function') showToast(msg, ok);
+    else (ok ? console.log(msg) : console.error(msg));
+  };
+
+  // periode instellen
   const { start: periodStart, end: periodEnd, days: dayCount } = getPeriodRange();
   lastPeriodStart = periodStart;
   lastPeriodEnd   = periodEnd;
 
   calRootEl.innerHTML = '';
 
-  // hoekje linksboven + dagkoppen
+  // hoek linksboven + dagkoppen
   const headTime = div('col-head'); headTime.textContent = '';
   calRootEl.appendChild(headTime);
   for(let d=0; d<dayCount; d++){
     const day = addDays(periodStart, d);
     const h = div('col-head');
-    h.textContent = day.toLocaleDateString('nl-BE',{weekday:'long', day:'2-digit', month:'2-digit'});
+    h.textContent = day.toLocaleDateString('nl-BE', { weekday:'long', day:'2-digit', month:'2-digit' });
     calRootEl.appendChild(h);
   }
 
@@ -259,75 +335,128 @@ function renderCalendar(){
 
   // tijdkolom
   const tc = div('time-col');
+  const pad = n => String(n).padStart(2, '0');
   for(let h=hStart; h<hEnd; h++){
-    const slot = div('time-slot'); slot.textContent = `${pad(h)}:00`;
+    const slot = div('time-slot');
+    slot.textContent = `${pad(h)}:00`;
     tc.appendChild(slot);
   }
   calRootEl.appendChild(tc);
 
-  // dagkolommen + dropzones (30 min)
+  // dagkolommen + dropzones per 30 min
   for(let d=0; d<dayCount; d++){
     const col = div('day-col');
     col.dataset.day = String(d);
 
-    // fallback drop (bovenaan kolom)
-    col.ondragover = (e)=>{ e.preventDefault(); };
-    col.ondrop = async (e)=>{
+    // fallback drop helemaal bovenaan de kolom
+    col.ondragover = e => { e.preventDefault(); };
+    col.ondrop = async e => {
       e.preventDefault();
-      if(!currentUser){ alert('Log in om te plannen.'); return; }
-      const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
-      if(!data) return;
+      if (!currentUser){ notify(false, 'Log eerst in.'); return; }
 
-      if(data.kind==='backlog'){
-        const item = backlog.find(x=>x.id===data.id); if(!item) return;
-        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
+      const data = safeParse(e.dataTransfer.getData('application/json'))
+                || safeParse(e.dataTransfer.getData('text/plain'));
+      if (!data) return;
+
+      if (data.kind === 'backlog'){
+        const item = backlog.find(x => x.id === data.id);
+        if (!item) return;
+
+        const start = addDays(periodStart, d);
+        start.setHours(hStart, 0, 0, 0);
+
         try{
-          await addDoc(collection(db,'plans'),{
-            itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
-            color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-            uid:ownerUid,createdAt:new Date()
+          const ref = await addDoc(collection(db, 'plans'), {
+            itemId: item.id,
+            title: item.title,
+            type: item.type,
+            subjectId: item.subjectId,
+            subjectName: item.subjectName,
+            color: item.color,
+            symbol: item.symbol,
+            start,
+            durationHours: item.durationHours || 1,
+            dueDate: item.dueDate || null,
+            note: null,
+            uid: ownerUid,
+            createdAt: new Date()
           });
-        }catch(err){ console.error(err); alert('Kon niet plannen: '+(err?.message||err)); }
-      }else if(data.kind==='planmove'){
-        const start = addDays(periodStart, d); start.setHours(hStart,0,0,0);
-        try{ await updateDoc(doc(db,'plans', data.id), { start }); }
-        catch(err){ console.error(err); alert('Kon niet verplaatsen: '+(err?.message||err)); }
+          console.log('[DB] add plans/' + ref.id);
+          notify(true, 'Gepland');
+        }catch(err){
+          console.error(err);
+          notify(false, 'Fout bij plannen: ' + (err?.message || err));
+        }
+
+      } else if (data.kind === 'planmove'){
+        const start = addDays(periodStart, d);
+        start.setHours(hStart, 0, 0, 0);
+        try{
+          await updateDoc(doc(db, 'plans', data.id), { start });
+          notify(true, 'Verplaatst');
+        }catch(err){
+          console.error(err);
+          notify(false, 'Fout bij verplaatsen: ' + (err?.message || err));
+        }
       }
     };
 
-    for(let h=hStart; h<hEnd; h++){
-      for(let m of [0,30]){
+    // dropzones van 30 minuten
+    for (let h = hStart; h < hEnd; h++){
+      for (let m of [0, 30]){
         const z = div('dropzone');
         z.dataset.hour = String(h);
         z.dataset.min  = String(m);
-        z.ondragover = (e)=>{ e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
-        z.ondragleave = ()=> z.removeAttribute('aria-dropeffect');
-        z.ondrop = async (e)=>{
-          e.preventDefault(); e.stopPropagation();
+
+        z.ondragover = e => { e.preventDefault(); z.setAttribute('aria-dropeffect','move'); };
+        z.ondragleave = () => z.removeAttribute('aria-dropeffect');
+
+        z.ondrop = async e => {
+          e.preventDefault();
+          e.stopPropagation();
           z.removeAttribute('aria-dropeffect');
-          if(!currentUser){ alert('Log in om te plannen.'); return; }
-          const data = safeParse(e.dataTransfer.getData('application/json')) || safeParse(e.dataTransfer.getData('text/plain'));
-          if(!data) return;
+          if (!currentUser){ notify(false, 'Log eerst in.'); return; }
+
+          const data = safeParse(e.dataTransfer.getData('application/json'))
+                    || safeParse(e.dataTransfer.getData('text/plain'));
+          if (!data) return;
 
           const start = addDays(periodStart, d);
-          start.setHours(parseInt(z.dataset.hour,10), parseInt(z.dataset.min,10), 0, 0);
+          start.setHours(parseInt(z.dataset.hour, 10), parseInt(z.dataset.min, 10), 0, 0);
 
           try{
-            if(data.kind==='backlog'){
-              const item = backlog.find(x=>x.id===data.id); if(!item) return;
-              await addDoc(collection(db,'plans'),{
-                itemId:item.id,title:item.title,type:item.type,subjectId:item.subjectId,subjectName:item.subjectName,
-                color:item.color,symbol:item.symbol,start,durationHours:item.durationHours||1,dueDate:item.dueDate||null,note:null,
-                uid:ownerUid,createdAt:new Date()
+            if (data.kind === 'backlog'){
+              const item = backlog.find(x => x.id === data.id);
+              if (!item) return;
+
+              const ref = await addDoc(collection(db, 'plans'), {
+                itemId: item.id,
+                title: item.title,
+                type: item.type,
+                subjectId: item.subjectId,
+                subjectName: item.subjectName,
+                color: item.color,
+                symbol: item.symbol,
+                start,
+                durationHours: item.durationHours || 1,
+                dueDate: item.dueDate || null,
+                note: null,
+                uid: ownerUid,
+                createdAt: new Date()
               });
-            }else if(data.kind==='planmove'){
-              await updateDoc(doc(db,'plans', data.id), { start });
+              console.log('[DB] add plans/' + ref.id);
+              notify(true, 'Gepland');
+
+            } else if (data.kind === 'planmove'){
+              await updateDoc(doc(db, 'plans', data.id), { start });
+              notify(true, 'Verplaatst');
             }
           }catch(err){
             console.error('drop error:', err);
-            alert('Kon niet plannen/verplaatsen: ' + (err?.message||err));
+            notify(false, 'Fout bij plannen of verplaatsen: ' + (err?.message || err));
           }
         };
+
         col.appendChild(z);
       }
     }
@@ -337,11 +466,12 @@ function renderCalendar(){
 
   // geplande events tekenen
   if (Array.isArray(plans) && plans.length){
-    plans.forEach(p=> placeEvent(p));
+    plans.forEach(p => placeEvent(p));
   }
+
+  // automatische backlog filter op huidige periode
+  applyAutoBacklogFilterForPeriod();
 }
-
-
 
 
 function renderView(){
