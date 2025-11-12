@@ -1,20 +1,24 @@
-// Script/Javascript/menu.js — stabiele versie (geen dubbele bindingen)
+// Script/Javascript/menu.js — nette routes met absolute paden
 (() => {
     let wired = false;
 
+    // p dat met "/" start laten we ongemoeid, anders relativeren tussen root en /HTML/
     const isNested = () => /\/HTML\//i.test(location.pathname);
-    const prefixPath = (p = "") => (isNested() ? "../" : "") + p.replace(/^\.\//, "");
+    const prefixPath = (p = "") => {
+        if (p.startsWith("/")) return p;                  // absolute pad, niets prefixen
+        return (isNested() ? "../" : "") + p.replace(/^\.\//, "");
+    };
 
+    // herkent zowel /plan, /plan.html als /HTML/plan.html
     function currentPage() {
-        const p = location.pathname.toLowerCase();
-        if (p.endsWith("/index.html") || /\/$/.test(p)) return "index";
-        if (p.endsWith("/settings.html")) return "settings";
-        if (p.endsWith("/notes.html") || p.endsWith("/notities.html")) return "notes";
-        if (p.endsWith("/tijd.html")) return "tijd";
-        if (p.endsWith("/plan.html")) return "Plan";
+        const p = location.pathname.toLowerCase().replace(/\/+$/, "");
+        if (p === "" || p === "/" || p.endsWith("/index.html")) return "index";
+        if (p.endsWith("/settings") || p.endsWith("/settings.html") || p.endsWith("/html/settings.html")) return "settings";
+        if (p.endsWith("/notes")    || p.endsWith("/notes.html")    || p.endsWith("/notities.html") || p.endsWith("/html/notes.html")) return "notes";
+        if (p.endsWith("/tijd")     || p.endsWith("/tijd.html")     || p.endsWith("/html/tijd.html")) return "tijd";
+        if (p.endsWith("/plan")     || p.endsWith("/plan.html")     || p.endsWith("/html/plan.html")) return "plan";
         return "index";
     }
-
 
     function setHeaderQuickLinks() {
         const el = document.getElementById("quickLinks");
@@ -23,40 +27,40 @@
 
         const links = ({
             index: [
-                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
-                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
-                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
-                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
+                { emoji: "📝", title: "Notities",        path: "/notes" },
+                { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" },
+                { emoji: "⚙️", title: "Instellingen",     path: "/settings" },
+                { emoji: "🗓️", title: "Plan",            path: "/plan" }
             ],
             settings: [
-                { emoji: "📌", title: "Post-its", path: "index.html" },
-                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
-                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
-                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
+                { emoji: "📌", title: "Post-its",         path: "/" },
+                { emoji: "📝", title: "Notities",         path: "/notes" },
+                { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" },
+                { emoji: "🗓️", title: "Plan",            path: "/plan" }
             ],
             notes: [
-                { emoji: "📌", title: "Post-its", path: "index.html" },
-                { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
-                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
-                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
+                { emoji: "📌", title: "Post-its",         path: "/" },
+                { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" },
+                { emoji: "⚙️", title: "Instellingen",     path: "/settings" },
+                { emoji: "🗓️", title: "Plan",            path: "/plan" }
             ],
             tijd: [
-                { emoji: "📌", title: "Post-its", path: "index.html" },
-                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
-                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
-                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
+                { emoji: "📌", title: "Post-its",         path: "/" },
+                { emoji: "📝", title: "Notities",         path: "/notes" },
+                { emoji: "⚙️", title: "Instellingen",     path: "/settings" },
+                { emoji: "🗓️", title: "Plan",            path: "/plan" }
             ],
-            Plan: [
-                { emoji: "📌", title: "Post-its", path: "index.html" },
-                { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
-                { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
+            plan: [
+                { emoji: "📌", title: "Post-its",         path: "/" },
+                { emoji: "📝", title: "Notities",         path: "/notes" },
+                { emoji: "⚙️", title: "Instellingen",     path: "/settings" }
             ]
         })[page] || [];
 
         el.innerHTML = "";
         links.forEach(l => {
             const a = document.createElement("a");
-            a.href = prefixPath(l.path);
+            a.href = prefixPath(l.path); // absolute pad blijft absoluut
             a.className = "icon-btn header-link";
             a.title = l.title;
             a.setAttribute("aria-label", l.title);
@@ -65,10 +69,7 @@
         });
     }
 
-
-    // ── Drawer control ───────────────────────────────────────────────────────────
     function ensureDrawerBase(drawer, bd) {
-        // harde inline styles zodat CSS-conflicten geen kans hebben
         const S = drawer.style;
         S.setProperty("position", "fixed", "important");
         S.setProperty("top", "0", "important");
@@ -82,11 +83,7 @@
         S.setProperty("z-index", "2000", "important");
         S.setProperty("will-change", "transform", "important");
         S.setProperty("transition", "transform .25s ease", "important");
-        S.setProperty(
-            "transform",
-            (drawer.getAttribute("data-state") === "open") ? "translateX(0)" : "translateX(-105%)",
-            "important"
-        );
+        S.setProperty("transform", (drawer.getAttribute("data-state") === "open") ? "translateX(0)" : "translateX(-105%)", "important");
         if (bd) {
             const BS = bd.style;
             BS.setProperty("position", "fixed", "important");
@@ -122,10 +119,8 @@
         if (!btn || !drawer || !bd) return;
 
         ensureDrawerBase(drawer, bd);
+        setupSideAccordion(drawer);
 
-        setupSideAccordion(drawer); // bind accordion gedrag
-
-        // idempotent: nooit stapelen
         btn.onclick = (e) => {
             e.preventDefault();
             const isOpen = drawer.getAttribute("data-state") === "open";
@@ -135,13 +130,11 @@
         bd.onclick = () => closeDrawer(drawer, bd, btn);
         document.onkeydown = (e) => { if (e.key === "Escape") closeDrawer(drawer, bd, btn); };
 
-        // secties in de drawer togglen
         drawer.querySelectorAll(".sidemenu-section h4").forEach(h => {
             h.onclick = () => h.parentElement.classList.toggle("open");
         });
     }
 
-    // ── Neon bovenmenu (ongewijzigd) ────────────────────────────────────────────
     function bindNeonMainnav() {
         const nav = document.querySelector(".mainnav");
         if (!nav) return;
@@ -167,7 +160,7 @@
     }
 
     function initMenu() {
-        if (wired) return;           // ← voorkomt dubbele bindingen
+        if (wired) return;
         wired = true;
         setHeaderQuickLinks();
         bindHamburger();
@@ -175,10 +168,8 @@
         if (window.DEBUG) console.log("[menu] wired");
     }
 
-    // Belangrijk: ALLEEN binden na partials (header) is geladen
     document.addEventListener("partials:loaded", initMenu);
 
-    // Debug helper
     window.MenuDebug = () => {
         const d = document.getElementById("sidemenu");
         if (!d) return {};
@@ -191,11 +182,10 @@
     };
 })();
 
-
 function setupSideAccordion(drawer) {
     const sections = drawer.querySelectorAll(".sidemenu-section");
     sections.forEach(sec => {
-        sec.classList.remove("open"); // standaard dicht
+        sec.classList.remove("open");
         const h = sec.querySelector("h4");
         if (!h) return;
         h.setAttribute("role", "button");
@@ -204,7 +194,6 @@ function setupSideAccordion(drawer) {
 
         const toggle = () => {
             const willOpen = !sec.classList.contains("open");
-            // sluit alle andere
             sections.forEach(s => {
                 if (s !== sec) {
                     s.classList.remove("open");
@@ -212,7 +201,6 @@ function setupSideAccordion(drawer) {
                     hh && hh.setAttribute("aria-expanded", "false");
                 }
             });
-            // toggle huidige
             sec.classList.toggle("open", willOpen);
             h.setAttribute("aria-expanded", String(willOpen));
         };
