@@ -148,9 +148,8 @@ function getPeriodRange(){
   return { start: s, end: e, days: 7 };
 }
 
-
 function placeEvent(p){
-    const start = toDate(p.start);
+  const start = toDate(p.start);
   const { start: periodStart, days: dayCount } = getPeriodRange();
   const d = clamp(Math.floor((start - periodStart)/86400000), 0, dayCount-1);
 
@@ -173,39 +172,29 @@ function placeEvent(p){
   block.style.color = getContrast(bg);
   block.style.top   = `${rowsFromTop * slotH}px`;
   block.style.height= `${heightRows * slotH - 4}px`;
-block.innerHTML = `
-  <div class="evt-actions"><button class="evt-del" title="Verwijderen">🗑</button></div>
-  <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
-  <div class="meta">${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${p.durationHours}u</div>
-  <div class="resize-h" title="Sleep om duur aan te passen"></div>
-`;
+  block.innerHTML = `
+    <div class="evt-actions"><button class="evt-del" title="Verwijderen">🗑</button></div>
+    <div class="title">${p.symbol||sym(p.type)} ${esc(p.title||'')}</div>
+    <div class="meta">${(p.subjectName||'')} • ${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')} • ${p.durationHours}u</div>
+    <div class="resize-h" title="Sleep om duur aan te passen"></div>
+  `;
 
-
-  // --- Tooltip ---
- block.addEventListener('mouseenter', (ev)=>{
-  const tip = document.getElementById('evt-tip'); if(!tip) return;
-  const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
-  const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
-  const end    = addMinutes(start, Math.round((p.durationHours||1)*60));
-  let tipHtml = `<div class="t">${esc(p.title||'')}</div>
-    <div class="m">${esc(p.subjectName||'')} • ${p.type}</div>
-    <div class="m">${fmtTime(start)}–${fmtTime(end)}</div>
-    <div class="m">Tegen: ${due}</div>`;
-  if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
-  tip.innerHTML = tipHtml;
-  tip.style.display = 'block';
-  tip.style.left = (ev.clientX+12)+'px';
-  tip.style.top  = (ev.clientY+12)+'px';
-});
-block.addEventListener('mousemove', (ev)=>{
-  const tip = document.getElementById('evt-tip'); if(!tip || tip.style.display!=='block') return;
-  tip.style.left = (ev.clientX+12)+'px';
-  tip.style.top  = (ev.clientY+12)+'px';
-});
-block.addEventListener('mouseleave', ()=>{
-  const tip = document.getElementById('evt-tip'); if(tip) tip.style.display = 'none';
-});
-
+  // Tooltip
+  block.addEventListener('mouseenter', (ev)=>{
+    const tip = document.getElementById('evt-tip'); if(!tip) return;
+    const dueSrc = p.dueDate || backlog.find(b=> b.id===p.itemId)?.dueDate || null;
+    const due    = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
+    const end    = addMinutes(start, Math.round((p.durationHours||1)*60));
+    let tipHtml = `<div class="t">${esc(p.title||'')}</div>
+      <div class="m">${esc(p.subjectName||'')} • ${p.type}</div>
+      <div class="m">${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')}–${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}</div>
+      <div class="m">Tegen: ${due}</div>`;
+    if (p.note && String(p.note).trim()) tipHtml += `<div class="m">Opmerking: ${esc(p.note)}</div>`;
+    tip.innerHTML = tipHtml;
+    tip.style.display = 'block';
+    tip.style.left = (ev.clientX+12)+'px';
+    tip.style.top  = (ev.clientY+12)+'px';
+  });
   block.addEventListener('mousemove', (ev)=>{
     const tip = document.getElementById('evt-tip'); if(!tip || tip.style.display!=='block') return;
     tip.style.left = (ev.clientX+12)+'px';
@@ -215,32 +204,27 @@ block.addEventListener('mouseleave', ()=>{
     const tip = document.getElementById('evt-tip'); if(tip) tip.style.display = 'none';
   });
 
-  // --- Klik = verwijderen ---
- // --- Klik = selecteren; Alt+Klik = verwijderen ---
-block.addEventListener('click', async (e)=>{
-  // selecteer visueel
-  selectedPlanId = p.id;
-  document.querySelectorAll('.event.is-selected').forEach(el=> el.classList.remove('is-selected'));
-  block.classList.add('is-selected');
+  // Selectie, Alt+klik = verwijderen met toast
+  block.addEventListener('click', async (e)=>{
+    selectedPlanId = p.id;
+    document.querySelectorAll('.event.is-selected').forEach(el=> el.classList.remove('is-selected'));
+    block.classList.add('is-selected');
+    if (!e.altKey) return;
+    if(!currentUser){ showToast('Log eerst in.', false); return; }
+    if(!confirm('Deze planning verwijderen?')) return;
+    await dbDelete('plans', p.id, 'Verwijderd');
+  });
 
-  // alleen verwijderen als Alt (Option) is ingedrukt
-  if (!e.altKey) return;
-  if(!currentUser){ alert('Log eerst in.'); return; }
-  if(!confirm('Deze planning verwijderen?')) return;
-  await deleteDoc(doc(db,'plans', p.id));
-});
+  // Verwijderknop met toast
+  const delBtn = block.querySelector('.evt-del');
+  delBtn.addEventListener('click', async (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    if(!currentUser){ showToast('Log eerst in.', false); return; }
+    if(!confirm('Deze planning verwijderen?')) return;
+    await dbDelete('plans', p.id, 'Verwijderd');
+  });
 
-const delBtn = block.querySelector('.evt-del');
-delBtn.addEventListener('click', async (e)=>{
-  e.preventDefault(); e.stopPropagation();
-  if(!currentUser){ alert('Log eerst in.'); return; }
-  if(!confirm('Deze planning verwijderen?')) return;
-  await deleteDoc(doc(db,'plans', p.id));
-});
-
-
-
-  // --- Drag to move ---
+  // Drag to move
   block.setAttribute('draggable', 'true');
   block.addEventListener('dragstart', (e)=>{
     e.dataTransfer.effectAllowed = 'move';
@@ -252,7 +236,7 @@ delBtn.addEventListener('click', async (e)=>{
     document.body.classList.remove('dragging-event');
   });
 
-  // --- Resize (onderrand) ---
+  // Resize, opslaan met toast
   const handle = block.querySelector('.resize-h');
   handle.addEventListener('dragstart', e=> e.preventDefault());
   handle.addEventListener('mousedown', (e)=>{
@@ -271,36 +255,34 @@ delBtn.addEventListener('click', async (e)=>{
       block.style.height = `${rows * slotH - 4}px`;
       const newDur = Math.max(0.5, rows / 2);
       const meta = block.querySelector('.meta');
-      if (meta) meta.textContent = `${(p.subjectName||'')} • ${pad(start.getHours())}:${pad(start.getMinutes())} • ${newDur}u`;
+      if (meta) meta.textContent = `${(p.subjectName||'')} • ${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')} • ${newDur}u`;
     }
-    function onUp(){
+    async function onUp(){
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       document.body.classList.remove('resizing-event');
       block.classList.remove('resizing');
       const finalRows = Math.round((block.offsetHeight + 4) / slotH);
       const newDur = Math.max(0.5, finalRows / 2);
-      updateDoc(doc(db,'plans', p.id), { durationHours: newDur }).catch(err=>{
-        console.error('resize save error:', err);
-        alert('Kon nieuwe duur niet bewaren: ' + (err?.message||err));
-      });
+      try{
+        await dbUpdate('plans', p.id, { durationHours: newDur }, 'Duur opgeslagen');
+      }catch{}
     }
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   });
 
-  // --- Opmerking (dblclick) + indicator ---
+  // Dubbeklik opmerking
   if (p.note && String(p.note).trim()) block.classList.add('has-note');
   block.addEventListener('dblclick', ()=>{
-  if(!currentUser){ alert('Log eerst in.'); return; }
-  const idEl = document.getElementById('plan-note-id');
-  const ta   = document.getElementById('plan-note-text');
-  if (idEl) idEl.value = p.id;
-  if (ta)   ta.value = p.note ? String(p.note) : '';
-  if (window.Modal?.open) Modal.open('modal-plan-note');
-  else document.getElementById('modal-plan-note')?.removeAttribute('hidden');
-});
-
+    if(!currentUser){ showToast('Log eerst in.', false); return; }
+    const idEl = document.getElementById('plan-note-id');
+    const ta   = document.getElementById('plan-note-text');
+    if (idEl) idEl.value = p.id;
+    if (ta)   ta.value = p.note ? String(p.note) : '';
+    if (window.Modal?.open) Modal.open('modal-plan-note');
+    else document.getElementById('modal-plan-note')?.removeAttribute('hidden');
+  });
 
   col.appendChild(block);
 }
@@ -308,20 +290,17 @@ delBtn.addEventListener('click', async (e)=>{
 function renderCalendar(){
   if(!calRootEl) return;
 
-  // notifier: showToast als die bestaat, anders console
   const notify = (ok, msg) => {
     if (typeof showToast === 'function') showToast(msg, ok);
     else (ok ? console.log(msg) : console.error(msg));
   };
 
-  // periode instellen
   const { start: periodStart, end: periodEnd, days: dayCount } = getPeriodRange();
   lastPeriodStart = periodStart;
   lastPeriodEnd   = periodEnd;
 
   calRootEl.innerHTML = '';
 
-  // hoek linksboven + dagkoppen
   const headTime = div('col-head'); headTime.textContent = '';
   calRootEl.appendChild(headTime);
   for(let d=0; d<dayCount; d++){
@@ -333,22 +312,19 @@ function renderCalendar(){
 
   const hStart = 7, hEnd = 22;
 
-  // tijdkolom
   const tc = div('time-col');
-  const pad = n => String(n).padStart(2, '0');
+  const pad2 = n => String(n).padStart(2, '0');
   for(let h=hStart; h<hEnd; h++){
     const slot = div('time-slot');
-    slot.textContent = `${pad(h)}:00`;
+    slot.textContent = `${pad2(h)}:00`;
     tc.appendChild(slot);
   }
   calRootEl.appendChild(tc);
 
-  // dagkolommen + dropzones per 30 min
   for(let d=0; d<dayCount; d++){
     const col = div('day-col');
     col.dataset.day = String(d);
 
-    // fallback drop helemaal bovenaan de kolom
     col.ondragover = e => { e.preventDefault(); };
     col.ondrop = async e => {
       e.preventDefault();
@@ -366,7 +342,7 @@ function renderCalendar(){
         start.setHours(hStart, 0, 0, 0);
 
         try{
-          const ref = await addDoc(collection(db, 'plans'), {
+          await dbAdd('plans', {
             itemId: item.id,
             title: item.title,
             type: item.type,
@@ -380,11 +356,8 @@ function renderCalendar(){
             note: null,
             uid: ownerUid,
             createdAt: new Date()
-          });
-          console.log('[DB] add plans/' + ref.id);
-          notify(true, 'Gepland');
+          }, 'Gepland');
         }catch(err){
-          console.error(err);
           notify(false, 'Fout bij plannen: ' + (err?.message || err));
         }
 
@@ -392,16 +365,13 @@ function renderCalendar(){
         const start = addDays(periodStart, d);
         start.setHours(hStart, 0, 0, 0);
         try{
-          await updateDoc(doc(db, 'plans', data.id), { start });
-          notify(true, 'Verplaatst');
+          await dbUpdate('plans', data.id, { start }, 'Verplaatst');
         }catch(err){
-          console.error(err);
           notify(false, 'Fout bij verplaatsen: ' + (err?.message || err));
         }
       }
     };
 
-    // dropzones van 30 minuten
     for (let h = hStart; h < hEnd; h++){
       for (let m of [0, 30]){
         const z = div('dropzone');
@@ -429,7 +399,7 @@ function renderCalendar(){
               const item = backlog.find(x => x.id === data.id);
               if (!item) return;
 
-              const ref = await addDoc(collection(db, 'plans'), {
+              await dbAdd('plans', {
                 itemId: item.id,
                 title: item.title,
                 type: item.type,
@@ -443,16 +413,12 @@ function renderCalendar(){
                 note: null,
                 uid: ownerUid,
                 createdAt: new Date()
-              });
-              console.log('[DB] add plans/' + ref.id);
-              notify(true, 'Gepland');
+              }, 'Gepland');
 
             } else if (data.kind === 'planmove'){
-              await updateDoc(doc(db, 'plans', data.id), { start });
-              notify(true, 'Verplaatst');
+              await dbUpdate('plans', data.id, { start }, 'Verplaatst');
             }
           }catch(err){
-            console.error('drop error:', err);
             notify(false, 'Fout bij plannen of verplaatsen: ' + (err?.message || err));
           }
         };
@@ -464,12 +430,10 @@ function renderCalendar(){
     calRootEl.appendChild(col);
   }
 
-  // geplande events tekenen
   if (Array.isArray(plans) && plans.length){
     plans.forEach(p => placeEvent(p));
   }
 
-  // automatische backlog filter op huidige periode
   applyAutoBacklogFilterForPeriod();
 }
 
@@ -734,18 +698,16 @@ document.addEventListener("focusin", (ev)=>{
 // Opmerking bewaren
 document.addEventListener('click', async (e)=>{
   if(!e.target.closest('#plan-note-save')) return;
-  if(!currentUser){ alert('Log eerst in.'); return; }
+  if(!currentUser){ showToast('Log eerst in.', false); return; }
   const id  = document.getElementById('plan-note-id')?.value || '';
   const txt = document.getElementById('plan-note-text')?.value || '';
   if(!id) return;
   try{
-    await updateDoc(doc(db,'plans', id), { note: txt.trim() || null });
-  }catch(err){
-    console.error('note save error', err);
-    alert('Kon opmerking niet bewaren: ' + (err?.message||err));
-  }
+    await dbUpdate('plans', id, { note: txt.trim() || null }, 'Opmerking opgeslagen');
+  }catch{}
   window.Modal?.close ? Modal.close('modal-plan-note') : document.getElementById('modal-plan-note')?.setAttribute('hidden','');
 });
+
 
 
 // Typen = filteren; lege input = volledige lijst
@@ -949,15 +911,16 @@ document.addEventListener('click', (e)=>{
 });
 
 
-  document.addEventListener('keydown', async (e)=>{
+document.addEventListener('keydown', async (e)=>{
   if(e.key !== 'Delete' || !selectedPlanId) return;
-  if(!currentUser){ alert('Log eerst in.'); return; }
+  if(!currentUser){ showToast('Log eerst in.', false); return; }
   const el = document.querySelector('.event.is-selected');
   if(!confirm('Geselecteerde planning verwijderen?')) return;
-  await deleteDoc(doc(db,'plans', selectedPlanId));
+  await dbDelete('plans', selectedPlanId, 'Verwijderd');
   selectedPlanId = null;
   if (el) el.classList.remove('is-selected');
 });
+
 
   // open snel-plannen
 document.addEventListener("click",(e)=>{
@@ -985,7 +948,7 @@ document.addEventListener("click",(e)=>{
 // save snel-plannen
 document.addEventListener("click", async (e)=>{
   if(!e.target.closest("#qp-save")) return;
-  if(!currentUser){ alert('Log eerst in.'); return; }
+  if(!currentUser){ showToast('Log eerst in.', false); return; }
 
   const title = (document.getElementById("qp-title").value||"").trim();
   const type  = document.getElementById("qp-type").value || "andere";
@@ -995,9 +958,9 @@ document.addEventListener("click", async (e)=>{
   const dur   = parseFloat(document.getElementById("qp-dur").value)||1;
   const dows  = [...document.querySelectorAll(".qp-dow:checked")].map(x=> parseInt(x.value,10));
 
-  if(!title){ alert("Titel is verplicht."); return; }
-  if(!ds || !de){ alert("Van en tot datum verplicht."); return; }
-  if(dows.length===0){ alert("Kies minstens één weekdag."); return; }
+  if(!title){ showToast('Titel is verplicht.', false); return; }
+  if(!ds || !de){ showToast('Van en tot datum verplicht.', false); return; }
+  if(dows.length===0){ showToast('Kies minstens één weekdag.', false); return; }
 
   const [hh,mm] = time.split(":").map(n=> parseInt(n,10));
   const startDate = new Date(ds); startDate.setHours(0,0,0,0);
@@ -1011,28 +974,32 @@ document.addEventListener("click", async (e)=>{
     }
   }
 
-  // plannen aanmaken (los van vak/subject)
+  let okCount = 0, failCount = 0;
   for(const s of batchDays){
-    await addDoc(collection(db,'plans'),{
-      itemId: null,
-      title,
-      type,
-      subjectId: null,
-      subjectName: '',         // vrij event
-      color: '#607D8B',        // neutrale kleur (pas aan naar smaak)
-      symbol: sym(type),
-      start: s,
-      durationHours: dur,
-      dueDate: null,
+    try{
+      await dbAdd('plans',{
+        itemId: null,
+        title,
+        type,
+        subjectId: null,
+        subjectName: '',
+        color: '#607D8B',
+        symbol: sym(type),
+        start: s,
+        durationHours: dur,
+        dueDate: null,
         note: null,
-
-      uid: ownerUid,
-      createdAt: new Date()
-    });
+        uid: ownerUid,
+        createdAt: new Date()
+      }, null);
+      okCount++;
+    }catch{ failCount++; }
   }
+  showToast(`Aangemaakt: ${okCount} • Fouten: ${failCount}`, failCount===0);
 
   window.Modal?.close ? Modal.close("modal-quick") : (document.getElementById("modal-quick").hidden=true);
 });
+
 
 
 // Open "Vakken beheren" en render tabel
@@ -1050,65 +1017,68 @@ document.addEventListener("click", (ev) => {
 document.addEventListener("click", async (ev) => {
   const save = ev.target.closest("#sub-save");
   if (!save) return;
-  if (!currentUser){ alert("Log eerst in."); return; }
+  if (!currentUser){ showToast('Log eerst in.', false); return; }
 
   const nameEl = document.getElementById("sub-name");
   const colorText = document.getElementById("sub-color-text");
   const name  = (nameEl?.value || "").trim();
   const color = colorText?.textContent || "#2196F3";
-  if (!name){ alert("Geef een vaknaam."); return; }
+  if (!name){ showToast('Geef een vaknaam.', false); return; }
 
   let subj = subjects.find(s => (s.name||"").toLowerCase() === name.toLowerCase());
   if (!subj){
-    await addDoc(collection(db, "subjects"), { name, color, uid: ownerUid });
+    await dbAdd('subjects', { name, color, uid: ownerUid }, 'Vak toegevoegd');
   } else {
-    // update naam/kleur indien gewijzigd
     const updates = {};
     if (subj.name !== name)  updates.name  = name;
     if (subj.color !== color) updates.color = color;
-    if (Object.keys(updates).length) await updateDoc(doc(db, "subjects", subj.id), updates);
+    if (Object.keys(updates).length){
+      await dbUpdate('subjects', subj.id, updates, 'Vak bijgewerkt');
+    } else {
+      showToast('Geen wijzigingen', true);
+    }
   }
-  // reset naamveld, preview laat ik staan op laatst gekozen kleur
   if (nameEl) nameEl.value = "";
-
-  // Direct hertekenen (naast de live stream)
   renderSubjectsManager();
 });
+
 
 
 // Rij opslaan (update)
 document.addEventListener("click", async (ev) => {
   const btn = ev.target.closest(".subj-update");
   if (!btn) return;
-  if (!currentUser){ alert("Log eerst in."); return; }
+  if (!currentUser){ showToast('Log eerst in.', false); return; }
   const tr = btn.closest("tr[data-id]");
   if (!tr) return;
   const id = tr.dataset.id;
   const name  = tr.querySelector(".s-name")?.value?.trim() || "";
-  if (!name){ alert("Naam mag niet leeg zijn."); return; }
-  await updateDoc(doc(db, "subjects", id), { name }); // kleur wijzig je via het palet bovenaan
+  if (!name){ showToast('Naam mag niet leeg zijn.', false); return; }
+  await dbUpdate('subjects', id, { name }, 'Vak bijgewerkt');
   renderSubjectsManager();
 });
+
 
 // Verwijderen
 document.addEventListener("click", async (ev) => {
   const btn = ev.target.closest(".subj-del");
   if (!btn) return;
-  if (!currentUser){ alert("Log eerst in."); return; }
+  if (!currentUser){ showToast('Log eerst in.', false); return; }
   const tr = btn.closest("tr[data-id]");
   if (!tr) return;
   const id = tr.dataset.id;
-  if (!confirm("Dit vak verwijderen? (Backlog-items behouden hun oude vaknaam/kleur)")) return;
-  await deleteDoc(doc(db, "subjects", id));
+  if (!confirm("Dit vak verwijderen?")) return;
+  await dbDelete('subjects', id, 'Vak verwijderd');
   renderSubjectsManager();
 });
+
 
 // Backlog item opslaan (nieuw/bewerken)
 document.addEventListener("click", async (ev) => {
   const saveBtn = ev.target.closest("#bl-save");
   if (!saveBtn) return;
 
-  if (!currentUser) { alert("Log eerst in."); return; }
+  if (!currentUser) { showToast('Log eerst in.', false); return; }
   if (!validateBacklog()) return;
 
   const idEl       = document.getElementById("bl-id");
@@ -1119,12 +1089,11 @@ document.addEventListener("click", async (ev) => {
   const blDue      = document.getElementById("bl-due");
   const propagate  = !!document.getElementById("bl-propagate")?.checked;
 
-  // 🟢 NU: werken met subjectId
   const subjectId = blSubject?.value || "";
   const subj = subjects.find(s => s.id === subjectId);
-  if (!subj){ alert("Kies een geldig vak."); return; }
+  if (!subj){ showToast('Kies een geldig vak.', false); return; }
 
-  const editingId = idEl?.value || "";          // leeg = nieuw
+  const editingId = idEl?.value || "";
   const typeVal   = blType?.value || "taak";
   const titleVal  = (blTitle?.value || "").trim();
   const durVal    = parseFloat(blDuration?.value) || 1;
@@ -1147,11 +1116,10 @@ document.addEventListener("click", async (ev) => {
   try{
     if (!editingId) {
       payload.createdAt = new Date();
-      await addDoc(collection(db,"backlog"), payload);
+      await dbAdd('backlog', payload, 'Item bewaard');
     } else {
-      await updateDoc(doc(db,"backlog", editingId), payload);
+      await dbUpdate('backlog', editingId, payload, 'Item bijgewerkt');
 
-      // Optioneel: geplande blokken die naar dit item verwijzen ook bijwerken
       if (propagate){
         const q = query(
           collection(db,'plans'),
@@ -1160,7 +1128,7 @@ document.addEventListener("click", async (ev) => {
         );
         const snap = await getDocs(q);
         await Promise.all(snap.docs.map(d =>
-          updateDoc(doc(db,'plans', d.id), {
+          dbUpdate('plans', d.id, {
             title: titleVal,
             type: typeVal,
             subjectId: subj.id,
@@ -1168,21 +1136,22 @@ document.addEventListener("click", async (ev) => {
             color: subj.color,
             symbol: sym(typeVal),
             dueDate: dueVal || null
-          })
+          }, null)
         ));
+        showToast(`Geplande blokken bijgewerkt: ${snap.size}`, true);
       }
     }
 
-    // Sluit modal
     window.Modal?.close ? Modal.close("modal-backlog")
                         : document.getElementById("modal-backlog")?.setAttribute("hidden","");
     if (idEl) idEl.value = "";
 
   }catch(err){
     console.error('save backlog error', err);
-    alert('Kon item niet bewaren: ' + (err?.message||err));
+    showToast('Kon item niet bewaren: ' + (err?.message||err), false);
   }
 });
+
 
 
 document.addEventListener("click", (ev) => {
