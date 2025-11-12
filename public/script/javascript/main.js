@@ -200,10 +200,10 @@ onAuthStateChanged(auth, async (user) => {
   const ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832"; // <-- jouw UID
 
   // ✔ Iedereen die niet de eigenaar is, blijft op plan.html
-  //if (user.uid !== ownerUid && !location.pathname.endsWith("/plan.html")) {
-  //  location.replace("../HTML/plan.html");
-  //  return;
-  //}
+  if (user.uid !== ownerUid && !location.pathname.endsWith("/plan.html")) {
+    location.replace("../HTML/plan.html");
+    return;
+  }
 
 
   currentUser = user;

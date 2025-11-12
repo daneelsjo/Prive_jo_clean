@@ -11,7 +11,7 @@
         if (p.endsWith("/settings.html")) return "settings";
         if (p.endsWith("/notes.html") || p.endsWith("/notities.html")) return "notes";
         if (p.endsWith("/tijd.html")) return "tijd";
-        if (p.endsWith("/payments.html")) return "Betalingen";
+        if (p.endsWith("/plan.html")) return "Plan";
         return "index";
     }
 
@@ -26,27 +26,27 @@
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
                 { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
                 { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
-                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
+                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
             ],
             settings: [
                 { emoji: "📌", title: "Post-its", path: "index.html" },
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
                 { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
-                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
+                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
             ],
             notes: [
                 { emoji: "📌", title: "Post-its", path: "index.html" },
                 { emoji: "⏱️", title: "Tijdsregistratie", path: "HTML/tijd.html" },
                 { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
-                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
+                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
             ],
             tijd: [
                 { emoji: "📌", title: "Post-its", path: "index.html" },
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
                 { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" },
-                { emoji: "💸", title: "Betalingen", path: "HTML/payments.html" }
+                { emoji: "💸", title: "Plan", path: "HTML/plan.html" }
             ],
-            Betalingen: [
+            Plan: [
                 { emoji: "📌", title: "Post-its", path: "index.html" },
                 { emoji: "📝", title: "Notities", path: "HTML/notes.html" },
                 { emoji: "⚙️", title: "Instellingen", path: "HTML/settings.html" }
