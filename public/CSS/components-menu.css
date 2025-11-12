@@ -181,3 +181,42 @@
   color: inherit;
   background: transparent;
 }
+/* Hover-brug tussen hoofdlijn en 1e submenu, zodat er geen "gat" is */
+.mainnav > ul > li.has-submenu {
+  position: relative;
+}
+.mainnav > ul > li.has-submenu::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 10px; /* vangt de 8px visuele ruimte op */
+  background: transparent;
+  pointer-events: auto; /* houdt :hover op de LI actief */
+  z-index: 1550;
+}
+
+/* Hover-brug tussen 1e en 2e niveau submenu (horizontale kloof van 6px) */
+.mainnav .submenu .has-submenu {
+  position: relative;
+}
+.mainnav .submenu .has-submenu::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 8px; /* vangt margin/afstand op */
+  height: 100%;
+  background: transparent;
+  pointer-events: auto;
+  z-index: 1650;
+}
+
+/* Optioneel: iets minder gap zonder gedrag te breken */
+.mainnav > ul > li > .submenu {
+  top: calc(100% + 6px);
+}
+.mainnav .submenu .submenu {
+  margin-left: 4px;
+}

@@ -135,29 +135,45 @@
         });
     }
 
-    function bindNeonMainnav() {
-        const nav = document.querySelector(".mainnav");
-        if (!nav) return;
-        nav.querySelectorAll("li.has-submenu > a").forEach(a => {
-            a.onclick = (e) => {
-                if (a.getAttribute("href") !== "#") return;
-                e.preventDefault();
-                const li = a.parentElement;
-                const open = li.classList.contains("open");
-                nav.querySelectorAll("li.has-submenu.open").forEach(s => s !== li && s.classList.remove("open"));
-                li.classList.toggle("open", !open);
-                a.setAttribute("aria-expanded", String(!open));
-            };
-        });
-        document.addEventListener("click", (e) => {
-            if (!nav.contains(e.target)) {
-                nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
-            }
-        });
-        nav.querySelectorAll('a[data-newtab]').forEach(a => {
-            a.target = "_blank"; a.rel = "noopener noreferrer";
-        });
+function bindNeonMainnav() {
+  const nav = document.querySelector(".mainnav");
+  if (!nav) return;
+
+  // Toggle open/close op top-level items
+  nav.querySelectorAll("li.has-submenu > a").forEach(a => {
+    a.onclick = e => {
+      if (a.getAttribute("href") !== "#") return;
+      e.preventDefault();
+      const li = a.parentElement;
+      const wasOpen = li.classList.contains("open");
+      nav.querySelectorAll("li.has-submenu.open").forEach(s => s !== li && s.classList.remove("open"));
+      li.classList.toggle("open", !wasOpen);
+      a.setAttribute("aria-expanded", String(!wasOpen));
+    };
+  });
+
+  // Klik buiten het menu sluit alles
+  document.addEventListener("click", e => {
+    if (!nav.contains(e.target)) {
+      nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
     }
+  });
+
+  // Klik op een link in een submenu sluit de open states
+  nav.querySelectorAll(".submenu a").forEach(a => {
+    a.addEventListener("click", () => {
+      setTimeout(() => {
+        nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
+      }, 0);
+    });
+  });
+
+  // new tab ondersteuning via data-newtab
+  nav.querySelectorAll('a[data-newtab]').forEach(a => {
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+  });
+}
 
     function initMenu() {
         if (wired) return;
