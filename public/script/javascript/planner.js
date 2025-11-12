@@ -21,37 +21,116 @@ const esc  = (s="")=> s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt
 const safeParse = (s)=> { try{ return JSON.parse(s); } catch{ return null; } };
 
 // ── Toast mini framework ─────────────────────────────────
-(function initToasts(){
+// ── Toast v2: zichtbaarder, met icoon en progress ─────────────────────────────
+(function initToastsV2(){
   if (document.getElementById('toasts')) return;
+
   const css = document.createElement('style');
   css.textContent = `
-  #toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:9999;font:14px system-ui,Segoe UI,Roboto}
-  .toast{min-width:220px;max-width:360px;padding:10px 12px;border-radius:8px;box-shadow:0 6px 18px #0002;color:#111;background:#fff;display:flex;align-items:flex-start;gap:8px;border:1px solid #0001;opacity:0;transform:translateY(6px);transition:opacity .15s ease, transform .15s ease}
-  .toast.show{opacity:1;transform:translateY(0)}
-  .toast.ok{border-color:#16a34a20;background:#16a34a15}
-  .toast.err{border-color:#dc262620;background:#dc262615}
-  .toast .dot{width:10px;height:10px;border-radius:50%;margin-top:4px}
-  .toast.ok .dot{background:#16a34a}
-  .toast.err .dot{background:#dc2626}
+  #toasts{position:fixed;inset:auto 20px 20px auto;display:flex;flex-direction:column;gap:10px;z-index:999999;pointer-events:none}
+  #toasts.tr{inset:20px 20px auto auto}
+  #toasts.bl{inset:auto auto 20px 20px}
+  #toasts.tl{inset:20px auto auto 20px}
+
+  .toast{position:relative;pointer-events:auto;min-width:260px;max-width:420px;
+    padding:14px 16px 16px;border-radius:12px;border:1px solid #143042;
+    background:#0b1b27;color:#f8fafc;
+    box-shadow:0 10px 30px rgba(0,0,0,.35), 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent);
+    display:flex;align-items:flex-start;gap:10px;
+    font:500 15px/1.35 system-ui,Segoe UI,Roboto;
+    opacity:0;transform:translateY(6px) scale(.98);
+    transition:opacity .16s ease, transform .16s ease}
+  .toast.show{opacity:1;transform:translateY(0) scale(1)}
+  .toast.ok{--accent:#22c55e}
+  .toast.err{--accent:#ef4444}
+
+  .toast .ico{flex:0 0 auto;margin-top:1px}
+  .toast .ico svg{display:block;width:18px;height:18px;color:var(--accent)}
+  .toast .msg{flex:1;word-break:break-word}
+  .toast .x{flex:0 0 auto;margin-left:6px;background:transparent;border:0;color:#f8fafc;opacity:.7;cursor:pointer;
+    font-size:18px;line-height:1;padding:0}
+  .toast .x:hover{opacity:1}
+
+  .toast .bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);
+    transform-origin:left;animation:bar var(--ttl,4000ms) linear forwards}
+  @keyframes bar{to{transform:scaleX(0)}}
+
+  @media (prefers-color-scheme: light){
+    .toast{background:#ffffff;color:#0b1b27;border-color:#dce6ef}
+  }
   `;
   document.head.appendChild(css);
+
   const box = document.createElement('div');
   box.id = 'toasts';
+  box.setAttribute('aria-live','polite');
+  box.setAttribute('aria-atomic','true');
   document.body.appendChild(box);
+
+  // optionele globale helper om positie te wisselen: 'br'|'tr'|'bl'|'tl'
+  window.setToastPosition = pos => {
+    box.className = ({tr:'tr',bl:'bl',tl:'tl'})[pos] || '';
+  };
 })();
-function showToast(msg, ok=true, ttl=2500){
+
+function showToast(msg, ok = true, ttl = 4000, opts = {}){
   const box = document.getElementById('toasts');
-  if(!box) return;
+  if(!box){ console[ok?'log':'error'](msg); return; }
+
+  if (opts.position) setToastPosition(opts.position);
+
   const el = document.createElement('div');
-  el.className = `toast ${ok?'ok':'err'}`;
-  el.innerHTML = `<div class="dot"></div><div>${msg}</div>`;
+  el.className = `toast ${ok ? 'ok' : 'err'}`;
+  el.style.setProperty('--ttl', `${ttl}ms`);
+
+  const successSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+  const errorSvg   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+
+  el.innerHTML = `
+    <div class="ico">${ok ? successSvg : errorSvg}</div>
+    <div class="msg">${msg}</div>
+    <button class="x" aria-label="Sluiten">×</button>
+    <div class="bar"></div>
+  `;
+
+  // toevoegen en animeren
   box.appendChild(el);
   requestAnimationFrame(()=> el.classList.add('show'));
-  setTimeout(()=>{
+
+  // sluit-knop
+  const closeNow = () => {
     el.classList.remove('show');
-    setTimeout(()=> el.remove(), 200);
-  }, ttl);
+    setTimeout(()=> el.remove(), 180);
+  };
+  el.querySelector('.x').addEventListener('click', closeNow);
+
+  // auto-dismiss met pauze bij hover
+  let remaining = ttl;
+  let start = Date.now();
+  let timer = setTimeout(closeNow, remaining);
+
+  const bar = el.querySelector('.bar');
+
+  el.addEventListener('mouseenter', ()=>{
+    clearTimeout(timer);
+    remaining -= Date.now() - start;
+    if (bar) bar.style.animationPlayState = 'paused';
+  });
+  el.addEventListener('mouseleave', ()=>{
+    start = Date.now();
+    timer = setTimeout(closeNow, remaining);
+    if (bar) bar.style.animationPlayState = 'running';
+  });
+
+  // sticky
+  if (opts.sticky) {
+    clearTimeout(timer);
+    if (bar) bar.style.display = 'none';
+  }
+
+  return el;
 }
+
 
 // ── Firestore helpers: log + toast + foutmelding ─────────
 async function dbAdd(coll, data, okMsg='Bewaard'){
