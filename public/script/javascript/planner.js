@@ -1235,29 +1235,13 @@ document.getElementById("bl-form")?.addEventListener("submit", async (ev) => {
 
 
 document.addEventListener("click", (ev) => {
-  const btn = ev.target.closest("#newBacklogBtn,[data-modal-open='modal-backlog']");
-  if (!btn) return;
+const btn = ev.target.closest("#newBacklogBtn,[data-modal-open='modal-backlog']");
+if (!btn) return;
 
-  if (!currentUser) { alert("Log eerst in om items te bewaren."); return; }
+if (!currentUser) { alert("Log eerst in om items te bewaren."); return; }
 
-  // reset velden per klik (modal kan later geladen zijn)
-  const blSubject  = document.getElementById("bl-subject");
-  const blTitle    = document.getElementById("bl-title");
-  const blType     = document.getElementById("bl-type");
-  const blDuration = document.getElementById("bl-duration");
-  const blDue      = document.getElementById("bl-due");
-  const blColor    = document.getElementById("bl-color");
-
-  if (blSubject)  blSubject.value  = "";
-  if (blTitle)    blTitle.value    = "";
-  if (blType)     blType.value     = "taak";
-  if (blDuration) blDuration.value = "1";
-  if (blDue)      blDue.value      = "";
-  if (blColor)    blColor.value    = "#2196F3";
-
-  // open modal – gebruik Modal util als die geladen is, anders fallback
-  if (window.Modal?.open) Modal.open("modal-backlog");
-  else document.getElementById("modal-backlog")?.removeAttribute("hidden");
+// Gebruik de bestaande helper zodat de vakken-select altijd gevuld wordt
+openBacklogModalNew();
 });
 
 
