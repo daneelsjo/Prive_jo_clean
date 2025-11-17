@@ -2,71 +2,63 @@ name: "Feature request"
 description: "Vraag een nieuwe functie of verbetering aan"
 title: "[FEATURE] "
 labels:
-
-enhancement
+  - enhancement
 body:
-
-type: markdown
-attributes:
-value: |
-Gebruik dit formulier voor nieuwe functies of uitbreidingen.
-
-type: input
-id: summary
-attributes:
-label: Korte samenvatting
-description: Beschrijf de functie in één zin.
-placeholder: Voorbeeld: Vakken selecteerbaar maken via dropdown
-validations:
-required: true
-
-type: textarea
-id: problem
-attributes:
-label: Probleem of behoefte
-description: Welk probleem los je hiermee op, of welke behoefte speelt hier.
-placeholder: |
-Bijvoorbeeld:
-De gebruiker vindt de juiste vakken niet terug
-De lijst is onoverzichtelijk
-validations:
-required: true
-
-type: textarea
-id: solution
-attributes:
-label: Gewenste oplossing
-description: Beschrijf hoe de oplossing er volgens jou uit ziet.
-placeholder: |
-Bijvoorbeeld:
-- Bovenaan een zoekveld bij de vakken
-- Suggesties tonen terwijl je typt
-validations:
-required: true
-
-type: textarea
-id: alternatives
-attributes:
-label: Alternatieven
-description: Andere oplossingen die je al geprobeerd hebt of overwogen hebt.
-placeholder: Andere ideeën, workarounds, vorige aanpakken.
-
-type: dropdown
-id: priority
-attributes:
-label: Prioriteit
-options:
-- Laag
-- Normaal
-- Hoog
-- Kritiek
-description: Eigen inschatting van belang.
-validations:
-required: true
-
-type: textarea
-id: extra
-attributes:
-label: Extra info
-description: Schetsen, links, voorbeelden, referenties.
-placeholder: Links naar mockups, schermfoto's, documentatie.
+  - type: markdown
+    attributes:
+      value: |
+        Gebruik dit formulier voor nieuwe functies of uitbreidingen.
+  - type: input
+    id: summary
+    attributes:
+      label: Korte samenvatting
+      description: Beschrijf de functie in één zin.
+      placeholder: "Vakken selecteerbaar maken via dropdown"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Probleem of behoefte
+      description: "Welk probleem los je hiermee op, of welke behoefte speelt hier."
+      placeholder: |
+        Bijvoorbeeld:
+        De gebruiker vindt de juiste vakken niet terug.
+        De lijst is onoverzichtelijk.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Gewenste oplossing
+      description: Beschrijf hoe de oplossing er volgens jou uit ziet.
+      placeholder: |
+        Bijvoorbeeld:
+        - Bovenaan een zoekveld bij de vakken.
+        - Suggesties tonen terwijl je typt.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatieven
+      description: Andere oplossingen die je al geprobeerd of overwogen hebt.
+      placeholder: "Andere ideeën, workarounds of vorige aanpakken."
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioriteit
+      description: Eigen inschatting van belang.
+      options:
+        - Laag
+        - Normaal
+        - Hoog
+        - Kritiek
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra info
+      description: Schetsen, links, voorbeelden of referenties.
+      placeholder: "Links naar mockups, schermfoto's of documentatie."

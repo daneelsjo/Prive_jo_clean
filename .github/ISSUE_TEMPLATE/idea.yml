@@ -2,57 +2,48 @@ name: "Idee"
 description: "Log een idee of mogelijke verbetering"
 title: "[IDEE] "
 labels:
-
-idea
+  - idea
 body:
-
-type: markdown
-attributes:
-value: |
-Gebruik dit formulier om ideeën vast te leggen.
-Niet alles hoeft direct volledig uitgewerkt te zijn.
-
-type: input
-id: title
-attributes:
-label: Titel van het idee
-description: Korte naam die je later gemakkelijk terugvindt.
-placeholder: Idee: overzichtspagina voor alle logboeken
-validations:
-required: true
-
-type: textarea
-id: context
-attributes:
-label: Context
-description: Waar komt dit idee vandaan, in welke situatie kwam je hierop.
-placeholder: |
-Bijvoorbeeld:
-Tijdens het loggen van sprints merk ik dat ...
-validations:
-required: true
-
-type: textarea
-id: rough-description
-attributes:
-label: Globale beschrijving
-description: Wat zou je in grote lijnen willen toevoegen of aanpassen.
-placeholder: Schrijf hier vrijuit, zonder al in details te gaan.
-validations:
-required: true
-
-type: textarea
-id: impact
-attributes:
-label: Impact
-description: Wat levert dit op voor jou of voor gebruikers.
-placeholder: Tijdswinst, minder fouten, meer overzicht, ...
-validations:
-required: false
-
-type: textarea
-id: notes
-attributes:
-label: Losse notities
-description: Stichwoorden, ideeën voor technische uitwerking, referenties.
-placeholder: Technische notities, links naar voorbeelden, enzovoort.
+  - type: markdown
+    attributes:
+      value: |
+        Gebruik dit formulier om ideeën vast te leggen.
+        Niet alles hoeft direct volledig uitgewerkt te zijn.
+  - type: input
+    id: title
+    attributes:
+      label: Titel van het idee
+      description: Korte naam die je later gemakkelijk terugvindt.
+      placeholder: "Idee: overzichtspagina voor alle logboeken"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: "Waar komt dit idee vandaan, in welke situatie kwam je hierop."
+      placeholder: |
+        Bijvoorbeeld:
+        Tijdens het loggen van sprints merkte ik dat ...
+    validations:
+      required: true
+  - type: textarea
+    id: rough-description
+    attributes:
+      label: Globale beschrijving
+      description: Wat wil je in grote lijnen toevoegen of aanpassen.
+      placeholder: "Schrijf hier vrijuit, zonder al in details te gaan."
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Wat levert dit op voor jou of voor gebruikers.
+      placeholder: "Tijdswinst, minder fouten, meer overzicht, ..."
+  - type: textarea
+    id: notes
+    attributes:
+      label: Losse notities
+      description: Stichwoorden, ideeën voor technische uitwerking of referenties.
+      placeholder: "Technische notities, links naar voorbeelden, enzovoort."

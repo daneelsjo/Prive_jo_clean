@@ -2,78 +2,69 @@ name: "Bugrapport"
 description: "Meld een fout in de applicatie"
 title: "[BUG] "
 labels:
-
-bug
+  - bug
 body:
-
-type: markdown
-attributes:
-value: |
-Bedankt voor je melding.
-Vul dit formulier zo volledig mogelijk in.
-
-type: input
-id: summary
-attributes:
-label: Korte samenvatting
-description: Beschrijf het probleem in één zin.
-placeholder: Voorbeeld: Planner toont geen vakken bij nieuw item
-validations:
-required: true
-
-type: textarea
-id: steps
-attributes:
-label: Stappen om te reproduceren
-description: Schrijf stap voor stap wat je doet tot het fout loopt.
-placeholder: |
-1. Ga naar ...
-2. Klik op ...
-3. Vul in ...
-4. Klik op bewaren
-validations:
-required: true
-
-type: textarea
-id: expected
-attributes:
-label: Verwacht gedrag
-description: Wat verwacht je dat er gebeurt.
-placeholder: De planner toont alle vakken in de dropdown.
-validations:
-required: true
-
-type: textarea
-id: actual
-attributes:
-label: Huidig gedrag
-description: Wat gebeurt er nu.
-placeholder: De dropdown blijft leeg en er verschijnt geen foutmelding.
-validations:
-required: true
-
-type: dropdown
-id: environment
-attributes:
-label: Omgeving
-description: Waar trad het probleem op.
-options:
-- Development
-- Test
-- Productie
-validations:
-required: true
-
-type: input
-id: browser
-attributes:
-label: Browser en versie
-description: Bijvoorbeeld Chrome 130 op Windows 10.
-placeholder: Chrome 130, Windows 10
-
-type: textarea
-id: extra
-attributes:
-label: Extra info
-description: Screenshots, console errors, Firebase logs, opmerkingen.
-placeholder: Plak hier eventueel foutmeldingen of extra uitleg.
+  - type: markdown
+    attributes:
+      value: |
+        Bedankt voor je melding.
+        Vul dit formulier zo volledig mogelijk in.
+  - type: input
+    id: summary
+    attributes:
+      label: Korte samenvatting
+      description: Beschrijf het probleem in één zin.
+      placeholder: "Planner toont geen vakken bij nieuw item"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Stappen om te reproduceren
+      description: Schrijf stap voor stap wat je doet tot het fout loopt.
+      placeholder: |
+        1. Ga naar ...
+        2. Klik op ...
+        3. Vul in ...
+        4. Klik op bewaren
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Verwacht gedrag
+      description: Wat verwacht je dat er gebeurt.
+      placeholder: "De planner toont alle vakken in de dropdown."
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Huidig gedrag
+      description: Wat gebeurt er nu.
+      placeholder: "De dropdown blijft leeg en er verschijnt geen foutmelding."
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Omgeving
+      description: Waar trad het probleem op.
+      options:
+        - Development
+        - Test
+        - Productie
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser en versie
+      description: Bijvoorbeeld Chrome 130 op Windows 10.
+      placeholder: "Chrome 130, Windows 10"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra info
+      description: Screenshots, console errors, Firebase logs of opmerkingen.
+      placeholder: "Plak hier foutmeldingen of extra uitleg."
