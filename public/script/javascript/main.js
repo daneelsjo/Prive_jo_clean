@@ -1,12 +1,10 @@
 // Script/Javascript/main.js
 import {
-  getFirebaseApp,
-  // Auth
-  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
-  // Firestore
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc, deleteDoc,
-  query, where
-} from "./firebase-config.js";
+getFirebaseApp,
+getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
+getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc, deleteDoc,
+query, where, getDoc, getDocs
+} from "./firebase-config.js"
 
 /* ────────────────────────────────────────────────────────────────────────────
    Firebase init
@@ -21,6 +19,41 @@ if (window.APP_ENV === "DEV") {
   document.body.classList.add("env-dev");
 } else {
   document.body.classList.add("env-main");
+}
+
+if (window.APP_ENV === "DEV") {
+window.devMigrateUid = async function (oldUid, newUid) {
+console.log("Start UID migratie", { oldUid, newUid })
+
+// 1. settings doc kopiëren
+const settingsOldRef = doc(db, "settings", oldUid)
+const settingsNewRef = doc(db, "settings", newUid)
+
+const settingsSnap = await getDoc(settingsOldRef)
+
+if (settingsSnap.exists()) {
+  await setDoc(settingsNewRef, settingsSnap.data(), { merge: false })
+  console.log("Settings gekopieerd")
+} else {
+  console.warn("Geen settings doc gevonden voor", oldUid)
+}
+
+// 2. todos updaten naar nieuwe uid
+const qOldTodos = query(
+  collection(db, "todos"),
+  where("uid", "==", oldUid)
+)
+
+const todosSnap = await getDocs(qOldTodos)
+
+console.log("Aantal todos om te migreren", todosSnap.size)
+
+for (const docSnap of todosSnap.docs) {
+  await updateDoc(docSnap.ref, { uid: newUid })
+}
+
+console.log("UID migratie klaar")
+};
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -205,14 +238,19 @@ alert("Login fout: " + (e.code || e.message));
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
 
-  const ownerUid = "KNjbJuZV1MZMEUQKsViehVhW3832"; // <-- jouw UID
+  // UIDs die volledige toegang hebben
+  const ownerUids = [
+    "KNjbJuZV1MZMEUQKsViehVhW3832", // PROD UID
+    "RraloFcyZoSGHNRwY9pmBBoszCR2"          // DEV UID
+  ];
 
-  // ✔ Iedereen die niet de eigenaar is, blijft op plan.html
-  if (user.uid !== ownerUid && !location.pathname.endsWith("/plan.html")) {
+  const isOwner = ownerUids.includes(user.uid);
+
+  // Iedereen die geen owner is, blijft op plan.html
+  if (!isOwner && !location.pathname.endsWith("/plan.html")) {
     location.replace("../HTML/plan.html");
     return;
   }
-
 
   currentUser = user;
   if (authDiv) authDiv.style.display = "none";
@@ -225,7 +263,7 @@ onAuthStateChanged(auth, async (user) => {
     // thema toepassen + cachen
     const themePref = settings.theme || "system";
     applyTheme(themePref);
-    try { localStorage.setItem("theme_pref", themePref); } catch { }
+    try { localStorage.setItem("theme_pref", themePref); } catch {}
 
     if (!settings.modeSlots) {
       settings.modeSlots = { werk: Array(6).fill({}), prive: Array(6).fill({}) };
@@ -234,7 +272,6 @@ onAuthStateChanged(auth, async (user) => {
     if (modeSwitch) modeSwitch.checked = (currentMode === "prive");
     renderAll();
   });
-
 
   // categories
   onSnapshot(collection(db, "categories"), (snap) => {
