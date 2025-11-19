@@ -8,6 +8,7 @@ import {
   query, where
 } from "./firebase-config.js";
 
+//kleine testwijziging voor DEVELOP branch
 /* ────────────────────────────────────────────────────────────────────────────
    Firebase init
    ──────────────────────────────────────────────────────────────────────────── */
