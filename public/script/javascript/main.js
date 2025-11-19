@@ -241,13 +241,21 @@ onAuthStateChanged(auth, async (user) => {
   // UIDs die volledige toegang hebben
   const ownerUids = [
     "KNjbJuZV1MZMEUQKsViehVhW3832", // PROD UID
-    "RraloFcyZoSGHNRwY9pmBBoszCR2"          // DEV UID
+    "RraloFcyZoSGHNRwY9pmBBoszCR2" // DEV UID
   ];
 
   const isOwner = ownerUids.includes(user.uid);
+  const isDevEnv = window.APP_ENV === "DEV";
 
-  // Iedereen die geen owner is, blijft op plan.html
-  if (!isOwner && !location.pathname.endsWith("/plan.html")) {
+  console.log("Auth state changed", {
+    uid: user.uid,
+    env: window.APP_ENV,
+    isOwner,
+    path: location.pathname
+  });
+
+  // Redirect alleen op MAIN, niet op DEV
+  if (!isDevEnv && !isOwner && !location.pathname.endsWith("/plan.html")) {
     location.replace("../HTML/plan.html");
     return;
   }
@@ -260,7 +268,6 @@ onAuthStateChanged(auth, async (user) => {
   onSnapshot(doc(db, "settings", currentUser.uid), (snap) => {
     settings = snap.exists() ? (snap.data() || {}) : {};
 
-    // thema toepassen + cachen
     const themePref = settings.theme || "system";
     applyTheme(themePref);
     try { localStorage.setItem("theme_pref", themePref); } catch {}
@@ -286,7 +293,6 @@ onAuthStateChanged(auth, async (user) => {
   const qTodos = query(collection(db, "todos"), where("uid", "==", currentUser.uid));
   onSnapshot(qTodos, (snap) => {
     todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // sorteer op createdAt
     todos.sort((a, b) => {
       const ta = a.createdAt ? dateVal(a.createdAt) : 0;
       const tb = b.createdAt ? dateVal(b.createdAt) : 0;
@@ -295,6 +301,7 @@ onAuthStateChanged(auth, async (user) => {
     renderAll();
   });
 });
+
 
 /* ────────────────────────────────────────────────────────────────────────────
    UI handlers
