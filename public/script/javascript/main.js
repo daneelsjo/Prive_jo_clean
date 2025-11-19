@@ -16,12 +16,20 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// Omgevingsklasse op body zetten: env-dev of env-main
+if (window.APP_ENV === "DEV") {
+  document.body.classList.add("env-dev");
+} else {
+  document.body.classList.add("env-main");
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    DOM refs
    ──────────────────────────────────────────────────────────────────────────── */
 const loginBtn = document.getElementById("login-btn");
 const authDiv = document.getElementById("auth");
 const appDiv = document.getElementById("app");
+
 const postitsEl = document.getElementById("postits");
 const modeSwitch = document.getElementById("modeSwitch");
 
