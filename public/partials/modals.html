@@ -143,3 +143,49 @@
     </div>
 
 </div>
+
+<!-- 6) Probleem melden -->
+<div id="modal-report-issue" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-report-title" hidden>
+  <div class="modal-header">
+    <h3 id="modal-report-title">Probleem melden</h3>
+    <button class="modal-close" data-modal-close="modal-report-issue" aria-label="Sluiten">✕</button>
+  </div>
+
+  <div class="modal-body">
+    <div class="form-grid">
+      <label class="fld fld-type">
+        Type
+        <select id="report-type">
+          <option value="bug">Bug</option>
+          <option value="enhancement">Verbetering</option>
+          <option value="idea">Idee</option>
+        </select>
+      </label>
+
+      <label class="fld fld-title">
+        Titel
+        <input id="report-title" type="text" placeholder="Korte titel van het probleem">
+      </label>
+
+      <label class="fld fld-desc">
+        Beschrijving
+        <textarea id="report-description" rows="4" placeholder="Wat probeerde je te doen, wat ging mis, wat verwachtte je?"></textarea>
+      </label>
+
+      <label class="fld fld-page">
+        Huidige pagina
+        <div id="report-page-info" class="small"></div>
+      </label>
+
+      <label class="fld fld-tech">
+        <input id="report-include-tech" type="checkbox" checked>
+        Technische details meesturen (omgeving, url, browser info)
+      </label>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" id="report-submit" class="primary">Verzenden</button>
+    <button type="button" id="report-cancel" class="ghost" data-modal-close="modal-report-issue">Annuleren</button>
+  </div>
+</div>

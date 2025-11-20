@@ -175,14 +175,150 @@ function bindNeonMainnav() {
   });
 }
 
+    const REPORT_ISSUE_URL = "https://REGIO-PROJECT.cloudfunctions.net/reportIssue"; // TODO: straks invullen
+
+    function gatherIssueContext(extra) {
+        const env = window.APP_ENV || "UNKNOWN";
+        const pageId = typeof currentPage === "function" ? currentPage() : "unknown";
+        const url = location.href;
+        const title = document.title || "";
+        const userAgent = navigator.userAgent || "";
+
+        const base = {
+            env,
+            pageId,
+            url,
+            title,
+            userAgent
+        };
+
+        if (extra && typeof extra === "object") {
+            for (const k in extra) base[k] = extra[k];
+        }
+        return base;
+    }
+
+    async function sendIssueToBackend(payload) {
+        // Placeholder als backend nog niet klaar is
+        if (!REPORT_ISSUE_URL || REPORT_ISSUE_URL.indexOf("REGIO-PROJECT") !== -1) {
+            console.log("[report-issue] payload (backend nog niet geconfigureerd):", payload);
+            return;
+        }
+
+        const res = await fetch(REPORT_ISSUE_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("[report-issue] backend error", res.status, text);
+            throw new Error("Backend error " + res.status);
+        }
+
+        const json = await res.json();
+        console.log("[report-issue] issue aangemaakt:", json);
+        return json;
+    }
+
+    function initIssueReportModal() {
+        const modal = document.getElementById("modal-report-issue");
+        if (!modal) return;
+
+        const typeEl = document.getElementById("report-type");
+        const titleEl = document.getElementById("report-title");
+        const descEl = document.getElementById("report-description");
+        const techEl = document.getElementById("report-include-tech");
+        const pageInfoEl = document.getElementById("report-page-info");
+        const submitBtn = document.getElementById("report-submit");
+        const cancelBtn = document.getElementById("report-cancel");
+
+        if (!typeEl || !titleEl || !descEl || !techEl || !submitBtn) return;
+
+        const updatePageInfo = () => {
+            if (!pageInfoEl) return;
+            const pageId = typeof currentPage === "function" ? currentPage() : "unknown";
+            pageInfoEl.textContent = pageId + " — " + location.href;
+        };
+
+        // Wanneer de modal opengaat, info updaten
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest("#report-issue-btn");
+            if (!btn) return;
+            updatePageInfo();
+            if (window.Modal) {
+                window.Modal.open("modal-report-issue");
+            }
+        });
+
+        cancelBtn && (cancelBtn.onclick = () => {
+            if (window.Modal) window.Modal.close();
+        });
+
+        submitBtn.onclick = async () => {
+            const type = typeEl.value;
+            const title = titleEl.value.trim();
+            const description = descEl.value.trim();
+            const includeTech = techEl.checked;
+
+            if (!title || !description) {
+                alert("Vul een titel en beschrijving in.");
+                return;
+            }
+
+            const context = includeTech ? gatherIssueContext() : null;
+
+            const payload = {
+                type,
+                title,
+                description,
+                context
+            };
+
+            try {
+                await sendIssueToBackend(payload);
+                alert("Probleemmelding verzonden. Bedankt.");
+                if (window.Modal) window.Modal.close();
+                titleEl.value = "";
+                descEl.value = "";
+            } catch (err) {
+                console.error("[report-issue] verzenden mislukt", err);
+                alert("Verzenden mislukt. Kijk in de console voor details.");
+            }
+        };
+    }
+
+    function insertReportIssueButton() {
+        const el = document.getElementById("quickLinks");
+        if (!el) return;
+        if (el.querySelector("#report-issue-btn")) return;
+
+        const btn = document.createElement("button");
+        btn.id = "report-issue-btn";
+        btn.type = "button";
+        btn.className = "icon-btn header-link";
+        btn.title = "Probleem melden";
+        btn.setAttribute("aria-label", "Probleem melden");
+        btn.textContent = "🐞";
+
+        el.appendChild(btn);
+    }
+
+
     function initMenu() {
         if (wired) return;
         wired = true;
         setHeaderQuickLinks();
+        insertReportIssueButton();
+        initIssueReportModal();
         bindHamburger();
         bindNeonMainnav();
         if (window.DEBUG) console.log("[menu] wired");
     }
+
 
     document.addEventListener("partials:loaded", initMenu);
 
