@@ -175,7 +175,7 @@ function bindNeonMainnav() {
   });
 }
 
-    const REPORT_ISSUE_URL = "https://REGIO-PROJECT.cloudfunctions.net/reportIssue"; // TODO: straks invullen
+    const REPORT_ISSUE_URL = "https://us-central1-prive-jo.cloudfunctions.net/reportIssue"; 
 
     function gatherIssueContext(extra) {
         const env = window.APP_ENV || "UNKNOWN";
