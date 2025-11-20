@@ -1,10 +1,13 @@
 // Script/Javascript/main.js
 import {
 getFirebaseApp,
+firebaseConfig,
+// Auth
 getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
+// Firestore
 getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc, deleteDoc,
 query, where, getDoc, getDocs
-} from "./firebase-config.js"
+} from "./firebase-config.js";
 
 /* ────────────────────────────────────────────────────────────────────────────
    Firebase init
@@ -13,6 +16,50 @@ const app = getFirebaseApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+
+const IS_DEV_ENV = window.APP_ENV === "DEV";
+
+let devDebugPanelEl = null;
+
+function initDevDebugPanel() {
+  if (!IS_DEV_ENV) return;
+
+  devDebugPanelEl = document.createElement("div");
+  devDebugPanelEl.id = "dev-debug-panel";
+  Object.assign(devDebugPanelEl.style, {
+    position: "fixed",
+    left: "8px",
+    bottom: "8px",
+    padding: "4px 8px",
+    fontSize: "11px",
+    background: "rgba(0,0,0,0.7)",
+    color: "#fff",
+    borderRadius: "4px",
+    zIndex: 9999,
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    pointerEvents: "none"
+  });
+
+  document.body.appendChild(devDebugPanelEl);
+  updateDevDebugPanel(null);
+}
+
+function updateDevDebugPanel(user) {
+  if (!IS_DEV_ENV || !devDebugPanelEl) return;
+
+  const env = window.APP_ENV || "UNKNOWN";
+  const projectId = firebaseConfig.projectId || "nvt";
+  const uid = user && user.uid ? user.uid : "geen";
+  const email = user && user.email ? user.email : "geen";
+
+  // LET OP: backticks ` ... ` rond de hele string
+  devDebugPanelEl.textContent =
+    `ENV: ${env} | projectId: ${projectId} | uid: ${uid} | email: ${email}`;
+}
+
+// meteen initialiseren
+initDevDebugPanel();
+
 
 // Omgevingsklasse op body zetten: env-dev of env-main
 if (window.APP_ENV === "DEV") {
@@ -236,70 +283,74 @@ alert("Login fout: " + (e.code || e.message));
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
+if (!user) {
+updateDevDebugPanel(null);
+return;
+}
 
-  // UIDs die volledige toegang hebben
-  const ownerUids = [
-    "KNjbJuZV1MZMEUQKsViehVhW3832", // PROD UID
-    "RraloFcyZoSGHNRwY9pmBBoszCR2" // DEV UID
-  ];
+// beide UIDs voor jou
+const ownerUids = [
+"KNjbJuZV1MZMEUQKsViehVhW3832", // PROD
+"RraloFcyZoSGHNRwY9pmBBoszCR2" // DEV
+];
 
-  const isOwner = ownerUids.includes(user.uid);
-  const isDevEnv = window.APP_ENV === "DEV";
+const isOwner = ownerUids.includes(user.uid);
+const isDevEnv = window.APP_ENV === "DEV";
 
-  console.log("Auth state changed", {
-    uid: user.uid,
-    env: window.APP_ENV,
-    isOwner,
-    path: location.pathname
-  });
+console.log("Auth state changed", {
+uid: user.uid,
+env: window.APP_ENV,
+isOwner,
+path: location.pathname
+});
 
-  // Redirect alleen op MAIN, niet op DEV
-  if (!isDevEnv && !isOwner && !location.pathname.endsWith("/plan.html")) {
-    location.replace("../HTML/plan.html");
-    return;
-  }
+// redirect alleen op MAIN, niet op DEV
+if (!isDevEnv && !isOwner && !location.pathname.endsWith("/plan.html")) {
+location.replace("../HTML/plan.html");
+return;
+}
 
-  currentUser = user;
-  if (authDiv) authDiv.style.display = "none";
-  if (appDiv) appDiv.style.display = "block";
+currentUser = user;
+updateDevDebugPanel(user);
 
-  // settings
-  onSnapshot(doc(db, "settings", currentUser.uid), (snap) => {
-    settings = snap.exists() ? (snap.data() || {}) : {};
+if (authDiv) authDiv.style.display = "none";
+if (appDiv) appDiv.style.display = "block";
 
-    const themePref = settings.theme || "system";
-    applyTheme(themePref);
-    try { localStorage.setItem("theme_pref", themePref); } catch {}
+// settings
+onSnapshot(doc(db, "settings", currentUser.uid), (snap) => {
+settings = snap.exists() ? (snap.data() || {}) : {};
+const themePref = settings.theme || "system";
+applyTheme(themePref);
+try { localStorage.setItem("theme_pref", themePref); } catch {}
 
-    if (!settings.modeSlots) {
-      settings.modeSlots = { werk: Array(6).fill({}), prive: Array(6).fill({}) };
-    }
-    currentMode = settings.preferredMode || "werk";
-    if (modeSwitch) modeSwitch.checked = (currentMode === "prive");
-    renderAll();
-  });
+if (!settings.modeSlots) {
+  settings.modeSlots = { werk: Array(6).fill({}), prive: Array(6).fill({}) };
+}
+currentMode = settings.preferredMode || "werk";
+if (modeSwitch) modeSwitch.checked = (currentMode === "prive");
+renderAll();
+});
 
-  // categories
-  onSnapshot(collection(db, "categories"), (snap) => {
-    categories = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(c => c.active !== false);
-    fillBothCategoryLists();
-    renderAll();
-  });
+// categories
+onSnapshot(collection(db, "categories"), (snap) => {
+categories = snap.docs
+.map(d => ({ id: d.id, ...d.data() }))
+.filter(c => c.active !== false);
+fillBothCategoryLists();
+renderAll();
+});
 
-  // todos (alleen eigen items)
-  const qTodos = query(collection(db, "todos"), where("uid", "==", currentUser.uid));
-  onSnapshot(qTodos, (snap) => {
-    todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    todos.sort((a, b) => {
-      const ta = a.createdAt ? dateVal(a.createdAt) : 0;
-      const tb = b.createdAt ? dateVal(b.createdAt) : 0;
-      return ta - tb;
-    });
-    renderAll();
-  });
+// todos (alleen eigen items)
+const qTodos = query(collection(db, "todos"), where("uid", "==", currentUser.uid));
+onSnapshot(qTodos, (snap) => {
+todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+todos.sort((a, b) => {
+const ta = a.createdAt ? dateVal(a.createdAt) : 0;
+const tb = b.createdAt ? dateVal(b.createdAt) : 0;
+return ta - tb;
+});
+renderAll();
+});
 });
 
 
