@@ -1,13 +1,46 @@
 {
   "hosting": {
     "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
-      { "source": "/",        "destination": "/index.html" },
-      { "source": "/plan",    "destination": "/HTML/plan.html" },
-      { "source": "/notes",   "destination": "/HTML/notes.html" },
-      { "source": "/tijd",    "destination": "/HTML/tijd.html" },
-      { "source": "/settings","destination": "/HTML/settings.html" }
+      {
+        "source": "/",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/plan",
+        "destination": "/HTML/plan.html"
+      },
+      {
+        "source": "/notes",
+        "destination": "/HTML/notes.html"
+      },
+      {
+        "source": "/tijd",
+        "destination": "/HTML/tijd.html"
+      },
+      {
+        "source": "/settings",
+        "destination": "/HTML/settings.html"
+      }
     ]
-  }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
 }
