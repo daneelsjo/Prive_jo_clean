@@ -1,0 +1,108 @@
+/* CSS/page-workflow.css */
+
+.page-workflow .page {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  max-width: none;
+  margin: 1rem auto;
+}
+
+.page-workflow .content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.page-workflow .page-header h1 {
+  font-size: 1.8rem;
+  margin: 0 0 0.25rem 0;
+}
+
+.page-workflow .page-header p {
+  margin: 0;
+  opacity: 0.8;
+}
+
+/* Bord layout */
+
+.workflow-board {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+/* Kolommen */
+
+.wf-column {
+  flex: 1 0 260px;
+  min-width: 230px;
+  max-width: none;
+  background: var(--card, #111827);
+  color: var(--fg, #e5e7eb);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wf-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.wf-column-title {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.wf-column-count {
+  font-size: 0.85rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wf-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wf-card {
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+  cursor: default;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+}
+
+.wf-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+  border-color: rgba(248, 250, 252, 0.7);
+}
+
+/* Kleine screens */
+
+@media (max-width: 768px) {
+  .page-workflow .content {
+    padding: 1rem;
+  }
+
+  .wf-column {
+    min-width: 190px;
+  }
+}
