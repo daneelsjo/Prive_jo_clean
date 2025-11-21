@@ -1,6 +1,5 @@
-// public/script/javascript/workflow.js
-// Workflow board met Firestore (read + CRUD voor kaarten + drag & drop + tagbeheer)
-// Kolommen: 4 vaste kolommen (Backlog, Te bespreken, In progress, Afgewerkt)
+// Script/Javascript/workflow.js
+// Workflow board met Firestore (CRUD kaarten, drag & drop, tagbeheer in modal)
 
 import {
   getFirebaseApp,
@@ -24,25 +23,25 @@ const db = getFirestore(app)
 const auth = getAuth(app)
 
 // Collectie namen
-const COL_BOARDS = "workflowBoards"
+const COL_BOARDS  = "workflowBoards"
 const COL_COLUMNS = "workflowColumns"
-const COL_CARDS = "workflowCards"
-const COL_TAGS = "workflowTags"
+const COL_CARDS   = "workflowCards"
+const COL_TAGS    = "workflowTags"
 
 // Default kolommen (vast)
 const DEFAULT_COLUMNS = [
-  { key: "backlog", title: "Backlog", order: 1 },
-  { key: "to-discuss", title: "Te bespreken", order: 2 },
-  { key: "in-progress", title: "In progress", order: 3 },
-  { key: "done", title: "Afgewerkt", order: 4 }
+  { key: "backlog",      title: "Backlog",      order: 1 },
+  { key: "to-discuss",   title: "Te bespreken", order: 2 },
+  { key: "in-progress",  title: "In progress",  order: 3 },
+  { key: "done",         title: "Afgewerkt",    order: 4 }
 ]
 
-// Vaste prioriteitstags (per board + user)
+// Vaste prioriteitstags (niet wijzigbaar, altijd actief)
 const PRIORITY_TAGS = [
-  { key: "priority-low", name: "Low", color: "#16a34a" },        // groen
-  { key: "priority-normal", name: "Normal", color: "#2563eb" },  // blauw
-  { key: "priority-high", name: "High", color: "#f97316" },      // oranje
-  { key: "priority-critical", name: "Critical", color: "#dc2626" } // rood
+  { key: "priority-low",      name: "Low",      color: "#16a34a" }, // groen
+  { key: "priority-normal",   name: "Normal",   color: "#2563eb" }, // blauw
+  { key: "priority-high",     name: "High",     color: "#f97316" }, // oranje
+  { key: "priority-critical", name: "Critical", color: "#dc2626" }  // rood
 ]
 
 // Eenvoudige app state
@@ -57,9 +56,8 @@ const state = {
   // Tags
   tags: [],
   tagsById: new Map(),
-  tagsLoaded: false,
 
-  // Form / UI referenties (kaarten)
+  // Kaartformulier
   formSectionEl: null,
   formEl: null,
   mode: "create", // "create" of "edit"
@@ -69,7 +67,7 @@ const state = {
   inputDescription: null,
   btnDelete: null,
 
-  // Tagbeheer UI
+  // Tagbeheer modal
   tagsModalEl: null,
   tagsListEl: null,
 
@@ -98,6 +96,7 @@ function setBoardMessage(text) {
 async function getOrCreateDefaultBoard(uid) {
   const boardsRef = collection(db, COL_BOARDS)
 
+  // Zoek default board
   const qDefault = query(
     boardsRef,
     where("uid", "==", uid),
@@ -109,6 +108,7 @@ async function getOrCreateDefaultBoard(uid) {
     return { id: docSnap.id, ...docSnap.data() }
   }
 
+  // Anders pak eerste board van user
   const qAny = query(boardsRef, where("uid", "==", uid))
   snap = await getDocs(qAny)
   if (!snap.empty) {
@@ -116,6 +116,7 @@ async function getOrCreateDefaultBoard(uid) {
     return { id: docSnap.id, ...docSnap.data() }
   }
 
+  // Nog geen board, maak er één
   const boardDoc = await addDoc(boardsRef, {
     uid,
     name: "Workflow board",
@@ -142,6 +143,7 @@ async function fetchColumnsOrCreateDefaults(boardId, uid) {
   let snap = await getDocs(qCols)
 
   if (snap.empty) {
+    // Geen kolommen, defaults aanmaken
     for (const def of DEFAULT_COLUMNS) {
       await addDoc(colsRef, {
         boardId,
@@ -195,7 +197,7 @@ async function fetchCards(boardId, uid) {
   return cards
 }
 
-// Tags ophalen + vaste prioriteitstags garanderen
+// Tags ophalen en vaste prioriteiten garanderen
 async function fetchAndEnsureTags(boardId, uid) {
   const tagsRef = collection(db, COL_TAGS)
   const baseQuery = query(
@@ -251,7 +253,7 @@ async function fetchAndEnsureTags(boardId, uid) {
   return tags
 }
 
-// Kolommen + kaarten samenvoegen voor render
+// Kolommen en kaarten samenvoegen
 function mergeColumnsAndCards(columns, cards) {
   const byColumnId = {}
   columns.forEach(col => {
@@ -274,6 +276,7 @@ function mergeColumnsAndCards(columns, cards) {
   }))
 }
 
+// Board renderen
 function renderBoard(columns) {
   const root = getBoardRoot()
   if (!root) return
@@ -328,8 +331,7 @@ function renderBoard(columns) {
   })
 }
 
-// Helpers voor datum
-
+// Datum helpers
 function toDateInputValue(dueDate) {
   if (!dueDate) return ""
   let d = dueDate
@@ -342,7 +344,7 @@ function toDateInputValue(dueDate) {
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, "0")
   const day = String(d.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
+  return year + "-" + month + "-" + day
 }
 
 function fromDateInputValue(value) {
@@ -360,14 +362,13 @@ function fromDateInputValue(value) {
   return new Date(year, month - 1, day)
 }
 
-// UI: toolbar + formulier + tagbeheer
-
+// Toolbar en modals opbouwen
 function buildToolbarAndModals() {
   const content = document.querySelector(".page-workflow .content")
   const boardSection = getBoardRoot()
   if (!content || !boardSection) return
 
-  // Toolbar met "Nieuwe kaart" en "Tags beheren"
+  // Toolbar
   const toolbar = document.createElement("section")
   toolbar.className = "wf-toolbar"
 
@@ -390,7 +391,7 @@ function buildToolbarAndModals() {
   toolbar.appendChild(newBtn)
   toolbar.appendChild(tagsBtn)
 
-  // Kaart formulier (modal)
+  // Kaartformulier modal
   const formSection = document.createElement("section")
   formSection.className = "wf-card-form wf-card-form--hidden"
 
@@ -475,13 +476,21 @@ function buildToolbarAndModals() {
 
   const tagsInfo = document.createElement("p")
   tagsInfo.textContent =
-    "Vaste prioriteitstags per board. Naam en kleur zijn vast, je beheert enkel activatie en een korte opmerking."
+    "Vaste prioriteitstags kunnen niet uitgezet worden. Je kunt extra tags aanmaken en tags actief of inactief zetten."
 
   const tagsList = document.createElement("div")
   tagsList.className = "wf-tags-list"
 
   const tagsActions = document.createElement("div")
   tagsActions.className = "wf-card-form-actions"
+
+  const newTagBtn = document.createElement("button")
+  newTagBtn.type = "button"
+  newTagBtn.className = "wf-btn wf-btn-primary"
+  newTagBtn.textContent = "Nieuwe tag"
+  newTagBtn.addEventListener("click", () => {
+    handleNewTag()
+  })
 
   const tagsCloseBtn = document.createElement("button")
   tagsCloseBtn.type = "button"
@@ -491,6 +500,7 @@ function buildToolbarAndModals() {
     closeTagsModal()
   })
 
+  tagsActions.appendChild(newTagBtn)
   tagsActions.appendChild(tagsCloseBtn)
 
   tagsInner.appendChild(tagsTitle)
@@ -505,12 +515,12 @@ function buildToolbarAndModals() {
     }
   })
 
-  // In DOM plaatsen: toolbar + modals net boven het board
+  // In DOM
   content.insertBefore(toolbar, boardSection)
   content.insertBefore(formSection, boardSection)
   content.insertBefore(tagsSection, boardSection)
 
-  // State bijwerken
+  // State referenties
   state.formSectionEl = formSection
   state.formEl = form
   state.inputTitle = inputTitle
@@ -522,6 +532,7 @@ function buildToolbarAndModals() {
   state.tagsListEl = tagsList
 }
 
+// Kaartformulier open/dicht
 function openCreateForm() {
   if (!state.formSectionEl) return
   closeTagsModal()
@@ -565,8 +576,7 @@ function closeForm() {
   state.editingCardId = null
 }
 
-// Tagbeheer UI
-
+// Tagbeheer open/dicht
 function openTagsModal() {
   if (!state.tagsModalEl) return
   closeForm()
@@ -581,6 +591,7 @@ function closeTagsModal() {
   state.tagsModalEl.classList.add("wf-card-form--hidden")
 }
 
+// Tags lijst renderen
 function renderTagsList() {
   if (!state.tagsListEl) return
 
@@ -600,75 +611,121 @@ function renderTagsList() {
     row.className = "wf-tag-row"
     row.dataset.tagId = tag.id
 
+    const noteText = tag.note ? String(tag.note) : ""
+
     const colorSwatch = document.createElement("span")
     colorSwatch.className = "wf-tag-color"
     colorSwatch.style.backgroundColor = tag.color || "#64748b"
-    colorSwatch.title = tag.note || ""
+    if (noteText) {
+      colorSwatch.title = noteText
+    }
 
     const nameEl = document.createElement("span")
     nameEl.className = "wf-tag-name"
     nameEl.textContent = tag.name || ""
-
-    const noteInput = document.createElement("input")
-    noteInput.type = "text"
-    noteInput.className = "wf-tag-note"
-    noteInput.placeholder = "Korte opmerking"
-    noteInput.value = tag.note || ""
-    noteInput.addEventListener("blur", () => {
-      handleTagNoteChange(tag.id, noteInput.value)
-    })
+    if (noteText) {
+      nameEl.title = noteText
+    }
 
     const toggleLabel = document.createElement("label")
     toggleLabel.className = "wf-tag-toggle"
 
     const toggleInput = document.createElement("input")
     toggleInput.type = "checkbox"
-    toggleInput.checked = !!tag.active
     toggleInput.className = "wf-tag-toggle-input"
-    toggleInput.addEventListener("change", () => {
-      handleTagActiveChange(tag.id, toggleInput.checked)
-    })
 
     const toggleSlider = document.createElement("span")
     toggleSlider.className = "wf-tag-toggle-slider"
+
+    const isBuiltin = !!tag.builtin
+
+    if (isBuiltin) {
+      // Vaste tags: altijd actief, niet wijzigbaar
+      toggleInput.checked = true
+      toggleInput.disabled = true
+      toggleLabel.classList.add("wf-tag-toggle-disabled")
+    } else {
+      toggleInput.checked = !!tag.active
+      toggleInput.addEventListener("change", () => {
+        handleTagActiveChange(tag.id, toggleInput.checked)
+      })
+    }
 
     toggleLabel.appendChild(toggleInput)
     toggleLabel.appendChild(toggleSlider)
 
     row.appendChild(colorSwatch)
     row.appendChild(nameEl)
-    row.appendChild(noteInput)
     row.appendChild(toggleLabel)
 
     container.appendChild(row)
   })
 }
 
-async function handleTagNoteChange(tagId, newNote) {
-  const tag = state.tagsById.get(tagId)
-  const trimmed = newNote.trim()
-  const current = String(tag && tag.note ? tag.note : "")
-  if (!tag || trimmed === current) return
+// Nieuwe tag
+async function handleNewTag() {
+  if (!state.uid || !state.boardId) {
+    window.alert("Geen board geladen.")
+    return
+  }
+
+  const name = window.prompt("Naam van de nieuwe tag")
+  if (name === null) return
+  const trimmedName = name.trim()
+  if (!trimmedName) {
+    window.alert("Naam is verplicht.")
+    return
+  }
+
+  const defaultColor = "#64748b"
+  let color = window.prompt(
+    "Kleur in hex formaat, bijvoorbeeld #64748b",
+    defaultColor
+  )
+  if (color === null) return
+  color = color.trim()
+  if (!color) {
+    color = defaultColor
+  }
+
+  const note = window.prompt("Korte opmerking (optioneel)", "") || ""
 
   try {
-    const tagRef = doc(db, COL_TAGS, tagId)
-    await updateDoc(tagRef, {
-      note: trimmed
+    const tagsRef = collection(db, COL_TAGS)
+    await addDoc(tagsRef, {
+      boardId: state.boardId,
+      uid: state.uid,
+      name: trimmedName,
+      color,
+      active: true,
+      builtin: false,
+      builtinKey: null,
+      note,
+      createdAt: serverTimestamp()
     })
     await reloadTags()
   } catch (err) {
-    console.error("Fout bij opslaan opmerking voor tag", err)
-    window.alert("Er ging iets mis bij het opslaan van de opmerking.")
+    console.error("Fout bij aanmaken tag", err)
+    window.alert("Er ging iets mis bij het aanmaken van de tag.")
   }
 }
 
+// Toggle actief
 async function handleTagActiveChange(tagId, newActive) {
   const tag = state.tagsById.get(tagId)
   if (!tag) return
 
+  if (tag.builtin) {
+    const input = findToggleInputForTag(tagId)
+    if (input) {
+      input.checked = true
+    }
+    return
+  }
+
   if (!newActive) {
     const ok = window.confirm(
-      `Tag "${tag.name}" inactief zetten? Bestaande kaarten blijven deze tag bewaren, maar nieuwe kaarten zouden ze in de toekomst niet meer moeten gebruiken.`
+      'Tag "' + tag.name + '" inactief zetten? Bestaande kaarten houden deze tag, maar voor nieuw gebruik is ze dan uit.'
     )
     if (!ok) {
       const input = findToggleInputForTag(tagId)
@@ -686,20 +743,20 @@ async function handleTagActiveChange(tagId, newActive) {
     })
     await reloadTags()
   } catch (err) {
-    console.error("Fout bij aanpassen active voor tag", err)
+    console.error("Fout bij aanpassen tag active", err)
     window.alert("Er ging iets mis bij het aanpassen van de tag.")
   }
 }
 
 function findToggleInputForTag(tagId) {
   if (!state.tagsListEl) return null
-  const row = state.tagsListEl.querySelector(`.wf-tag-row[data-tag-id="${tagId}"]`)
+  const selector = '.wf-tag-row[data-tag-id="' + tagId + '"]'
+  const row = state.tagsListEl.querySelector(selector)
   if (!row) return null
   return row.querySelector(".wf-tag-toggle-input")
 }
 
-// CRUD kaart acties
-
+// Sort helpers
 function getNextSortValueForColumn(columnId) {
   let maxSort = 0
   state.cardsById.forEach(card => {
@@ -718,6 +775,7 @@ function getNextSortValueForBacklog() {
   return getNextSortValueForColumn(state.backlogColumnId)
 }
 
+// Kaart opslaan
 async function handleFormSubmit(event) {
   event.preventDefault()
   if (!state.uid || !state.boardId) {
@@ -780,6 +838,7 @@ async function handleFormSubmit(event) {
   }
 }
 
+// Kaart verwijderen
 async function handleDeleteCard() {
   if (state.mode !== "edit" || !state.editingCardId) {
     return
@@ -798,8 +857,7 @@ async function handleDeleteCard() {
   }
 }
 
-// Board laden
-
+// Board en tags herladen
 async function reloadBoard() {
   if (!state.uid || !state.boardId) return
 
@@ -839,12 +897,10 @@ async function reloadTags() {
   tags.forEach(t => {
     state.tagsById.set(t.id, t)
   })
-  state.tagsLoaded = true
   renderTagsList()
 }
 
-// Drag & drop helpers
-
+// Drag & drop
 function clearDropHighlights() {
   const roots = document.querySelectorAll(".wf-column-cards.wf-drop-target")
   roots.forEach(el => el.classList.remove("wf-drop-target"))
@@ -957,8 +1013,7 @@ function setupDragAndDropHandlers() {
   root.addEventListener("drop", onDrop)
 }
 
-// Kaart klik handler
-
+// Klik op kaart
 function setupCardClickHandler() {
   const root = getBoardRoot()
   if (!root) return
@@ -973,7 +1028,6 @@ function setupCardClickHandler() {
 }
 
 // Init
-
 function initWorkflowBoard() {
   const root = getBoardRoot()
   if (!root) {
