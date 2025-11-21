@@ -80,7 +80,6 @@ function setBoardMessage(text) {
 async function getOrCreateDefaultBoard(uid) {
   const boardsRef = collection(db, COL_BOARDS)
 
-  // Probeer standaard board te vinden
   const qDefault = query(
     boardsRef,
     where("uid", "==", uid),
@@ -89,24 +88,16 @@ async function getOrCreateDefaultBoard(uid) {
   let snap = await getDocs(qDefault)
   if (!snap.empty) {
     const docSnap = snap.docs[0]
-    return {
-      id: docSnap.id,
-      ...docSnap.data()
-    }
+    return { id: docSnap.id, ...docSnap.data() }
   }
 
-  // Als er wel een board is maar geen isDefault, pak eerste
   const qAny = query(boardsRef, where("uid", "==", uid))
   snap = await getDocs(qAny)
   if (!snap.empty) {
     const docSnap = snap.docs[0]
-    return {
-      id: docSnap.id,
-      ...docSnap.data()
-    }
+    return { id: docSnap.id, ...docSnap.data() }
   }
 
-  // Nieuw board aanmaken
   const boardDoc = await addDoc(boardsRef, {
     uid,
     name: "Workflow board",
@@ -133,7 +124,6 @@ async function fetchColumnsOrCreateDefaults(boardId, uid) {
   let snap = await getDocs(qCols)
 
   if (snap.empty) {
-    // Geen kolommen, defaults aanmaken
     for (const def of DEFAULT_COLUMNS) {
       await addDoc(colsRef, {
         boardId,
@@ -143,7 +133,6 @@ async function fetchColumnsOrCreateDefaults(boardId, uid) {
         createdAt: serverTimestamp()
       })
     }
-    // Opnieuw ophalen
     snap = await getDocs(qCols)
   }
 
@@ -188,7 +177,6 @@ async function fetchCards(boardId, uid) {
   return cards
 }
 
-// Kolommen + kaarten samenvoegen voor render
 function mergeColumnsAndCards(columns, cards) {
   const byColumnId = {}
   columns.forEach(col => {
@@ -210,8 +198,6 @@ function mergeColumnsAndCards(columns, cards) {
     cards: byColumnId[col.id] || []
   }))
 }
-
-// UI render van board
 
 function renderBoard(columns) {
   const root = getBoardRoot()
@@ -258,9 +244,7 @@ function renderBoard(columns) {
       titleSpan.className = "wf-card-title"
       titleSpan.textContent = card.title || "(zonder titel)"
 
-      // Deadline tonen doen we later, nu enkel titel
       cardEl.appendChild(titleSpan)
-
       listEl.appendChild(cardEl)
     })
 
@@ -290,7 +274,6 @@ function fromDateInputValue(value) {
   if (!value) return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  // Formaat: YYYY-MM-DD
   const parts = trimmed.split("-")
   if (parts.length !== 3) return null
   const year = Number(parts[0])
@@ -299,7 +282,6 @@ function fromDateInputValue(value) {
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
     return null
   }
-  // Maand is 0-based in Date
   return new Date(year, month - 1, day)
 }
 
@@ -310,7 +292,6 @@ function buildToolbarAndForm() {
   const boardSection = getBoardRoot()
   if (!content || !boardSection) return
 
-  // Toolbar met 1 knop "Nieuwe kaart"
   const toolbar = document.createElement("section")
   toolbar.className = "wf-toolbar"
 
@@ -324,7 +305,6 @@ function buildToolbarAndForm() {
 
   toolbar.appendChild(newBtn)
 
-  // Formulier sectie (standaard verborgen als modal)
   const formSection = document.createElement("section")
   formSection.className = "wf-card-form wf-card-form--hidden"
 
@@ -391,18 +371,15 @@ function buildToolbarAndForm() {
 
   formSection.appendChild(form)
 
-  // In DOM plaatsen: toolbar + form net boven het board
   content.insertBefore(toolbar, boardSection)
   content.insertBefore(formSection, boardSection)
 
-  // Events
   form.addEventListener("submit", handleFormSubmit)
   cancelBtn.addEventListener("click", () => {
     closeForm()
   })
   deleteBtn.addEventListener("click", handleDeleteCard)
 
-  // State bijwerken
   state.formSectionEl = formSection
   state.formEl = form
   state.inputTitle = inputTitle
@@ -502,7 +479,6 @@ async function handleFormSubmit(event) {
       }
       await updateDoc(cardRef, updateData)
     } else {
-      // Nieuwe kaart in Backlog kolom
       if (!state.backlogColumnId) {
         window.alert("Geen Backlog kolom gevonden.")
         return
@@ -643,20 +619,37 @@ function onDragEnd() {
 
 function onDragOver(event) {
   if (!state.draggingCardId) return
-  const columnCardsEl = event.target.closest(".wf-column-cards")
-  if (!columnCardsEl) return
+
+  const container = event.target.closest(".wf-column-cards, .wf-column")
+  if (!container) return
+
   event.preventDefault()
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = "move"
   }
+
+  let columnCardsEl = container
+  if (columnCardsEl.classList.contains("wf-column")) {
+    columnCardsEl = columnCardsEl.querySelector(".wf-column-cards")
+  }
+  if (!columnCardsEl) return
+
   highlightDropTarget(columnCardsEl)
 }
 
 function onDrop(event) {
   if (!state.draggingCardId) return
-  const columnCardsEl = event.target.closest(".wf-column-cards")
-  if (!columnCardsEl) return
+
+  const container = event.target.closest(".wf-column-cards, .wf-column")
+  if (!container) return
+
   event.preventDefault()
+
+  let columnCardsEl = container
+  if (columnCardsEl.classList.contains("wf-column")) {
+    columnCardsEl = columnCardsEl.querySelector(".wf-column-cards")
+  }
+  if (!columnCardsEl) return
 
   const newColumnId = columnCardsEl.dataset.columnId
   const cardId = state.draggingCardId
