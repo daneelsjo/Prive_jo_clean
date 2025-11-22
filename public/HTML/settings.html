@@ -11,6 +11,21 @@
   <link rel="stylesheet" href="../CSS/components-menu.css">
   <link rel="stylesheet" href="../CSS/components-sidemenu.css">
   <link rel="stylesheet" href="../CSS/page-settings.css">
+  <script>
+    // 1. DIT ZORGT VOOR DE RODE BALK
+    window.APP_ENV = "DEV"; 
+
+    // Thema voorkeur
+    (function () {
+      try {
+        var pref = localStorage.getItem('theme_pref') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) { /* no-op */ }
+    })();
+  </script>
 </head>
 
 <body class="settings-page">
@@ -85,6 +100,8 @@
   <!-- Eerst includes, dan menu, dan page-script -->
   <script src="../script/javascript/include-partials.js"></script>
   <script src="../script/javascript/menu.js"></script>
+  
+  <script type="module" src="../script/javascript/main.js"></script>
   <script type="module" src="../script/javascript/time.js"></script>
 
   <!-- op HTML/settings.html: -->
