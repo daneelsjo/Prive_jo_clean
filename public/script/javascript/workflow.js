@@ -1,26 +1,13 @@
-// workflow.js - V0.3-12 Update
-// Stylized Tags, Grouped Selection, UI Consistency
+// workflow.js - V0.3-13 Update
+// Layout fix, Auto Numbering, Deadlines, Popup, Tags Switch & Delete, Log Edit
 
 import {
-  getFirebaseApp,
-  getFirestore,
-  collection,
-  addDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  query,
-  where,
-  getDocs,
-  getAuth,
-  onAuthStateChanged
+  getFirebaseApp, getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
+  serverTimestamp, query, where, getDocs, getAuth, onAuthStateChanged
 } from "./firebase-config.js"
 
 // --- MOCK LOGGING ---
-function logEntry(data) {
-  // console.log("[SYSTEM LOG]", data); 
-}
+function logEntry(data) { /* console.log(data); */ }
 
 // --- Config & Constants ---
 const app = getFirebaseApp()
@@ -49,19 +36,19 @@ const PRIORITY_TAGS = [
 ]
 
 const PRIORITY_VALS = {
-  "priority-critical": 4,
-  "priority-high": 3,
-  "priority-normal": 2,
-  "priority-low": 1
+  "priority-critical": 4, "priority-high": 3, "priority-normal": 2, "priority-low": 1
 }
 
 // --- State ---
 const state = {
   uid: null, boardId: null,
-  columns: [], columnsById: new Map(),
-  cardsById: new Map(),
+  columns: [], cardsById: new Map(),
   tags: [], tagsById: new Map(),
   backlogColumnId: null,
+  
+  // Computed data for numbering
+  allCardsSorted: [], // Array of all cards sorted by creation date (for IDs)
+
   filter: { keyword: "", tags: new Set() },
   dragState: { cardId: null },
   form: { mode: "create", cardId: null, workingTags: new Set(), activeTab: "details" },
@@ -88,12 +75,8 @@ function setBoardMessage(msg, isError = false) {
 
 function showToast(message) {
   let toast = qs(".wf-toast");
-  if (!toast) {
-    toast = createEl("div", "wf-toast");
-    document.body.appendChild(toast);
-  }
-  toast.textContent = message;
-  toast.classList.add("visible");
+  if (!toast) { toast = createEl("div", "wf-toast"); document.body.appendChild(toast); }
+  toast.textContent = message; toast.classList.add("visible");
   setTimeout(() => { toast.classList.remove("visible"); }, 3500);
 }
 
@@ -103,19 +86,37 @@ function handleActionError(action, error, context = {}, userMessage = "Er is een
   showToast(userMessage);
 }
 
-// --- Sorting & Date ---
+// --- Date Helpers ---
 const formatDateForInput = (timestamp) => {
-  if (!timestamp) return ""
-  const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp)
-  if (isNaN(date)) return ""
-  return date.toISOString().split('T')[0]
+  if (!timestamp) return "";
+  const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date)) return "";
+  return date.toISOString().split('T')[0];
 }
-
 const parseDateFromInput = (val) => {
-  if (!val) return null
-  return new Date(val)
+  if (!val) return null;
+  return new Date(val);
+}
+// Helper voor rode tekst
+function getUrgency(dueDate) {
+  if (!dueDate) return { isUrgent: false, isOverdue: false, diffDays: 999 };
+  const d = typeof dueDate.toDate === 'function' ? dueDate.toDate() : new Date(dueDate);
+  const now = new Date();
+  // Zet tijd op middernacht voor eerlijke dag-vergelijking
+  d.setHours(23,59,59,999); now.setHours(0,0,0,0);
+  
+  const diffTime = d - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return {
+    isOverdue: diffDays < 0,
+    isUrgent: diffDays >= 0 && diffDays <= 7,
+    diffDays,
+    dateObj: d
+  };
 }
 
+// --- Sorting Logic ---
 function getCardPriorityValue(card) {
   if (!card.tags || !card.tags.length) return 0;
   let maxPrio = 0;
@@ -134,36 +135,30 @@ function getCardPriorityValue(card) {
 }
 
 function sortCardsLogic(a, b) {
-  const prioA = getCardPriorityValue(a);
-  const prioB = getCardPriorityValue(b);
+  const prioA = getCardPriorityValue(a); const prioB = getCardPriorityValue(b);
   if (prioA !== prioB) return prioB - prioA;
-  
   const dateA = a.dueDate ? (a.dueDate.toDate ? a.dueDate.toDate() : new Date(a.dueDate)) : null;
   const dateB = b.dueDate ? (b.dueDate.toDate ? b.dueDate.toDate() : new Date(b.dueDate)) : null;
   if (dateA && dateB) { if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime(); }
-  else if (dateA && !dateB) return -1; 
-  else if (!dateA && dateB) return 1; 
-
+  else if (dateA && !dateB) return -1; else if (!dateA && dateB) return 1; 
   return (a.title || "").localeCompare(b.title || "");
 }
 
 // --- Data Operations ---
 async function getOrCreateBoard(uid) {
-  try {
-    const boardsRef = collection(db, COLLECTIONS.BOARDS)
-    const q = query(boardsRef, where("uid", "==", uid))
-    const snap = await getDocs(q)
-    if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() }
-    const newBoard = { uid, name: "Mijn Workflow", isDefault: true, createdAt: serverTimestamp() }
-    const ref = await addDoc(boardsRef, newBoard)
-    return { id: ref.id, ...newBoard }
-  } catch (err) { handleActionError("getOrCreateBoard", err); throw err; }
+  const boardsRef = collection(db, COLLECTIONS.BOARDS);
+  const q = query(boardsRef, where("uid", "==", uid));
+  const snap = await getDocs(q);
+  if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() };
+  const newBoard = { uid, name: "Mijn Workflow", isDefault: true, createdAt: serverTimestamp() };
+  const ref = await addDoc(boardsRef, newBoard);
+  return { id: ref.id, ...newBoard };
 }
 
 async function fetchColumns(boardId, uid) {
-  const colRef = collection(db, COLLECTIONS.COLUMNS)
-  const q = query(colRef, where("boardId", "==", boardId), where("uid", "==", uid))
-  let snap = await getDocs(q)
+  const colRef = collection(db, COLLECTIONS.COLUMNS);
+  const q = query(colRef, where("boardId", "==", boardId), where("uid", "==", uid));
+  let snap = await getDocs(q);
   if (snap.empty) {
     const batch = DEFAULT_COLUMNS.map(def => addDoc(colRef, { boardId, uid, title: def.title, order: def.order, createdAt: serverTimestamp() }));
     await Promise.all(batch); snap = await getDocs(q);
@@ -172,16 +167,16 @@ async function fetchColumns(boardId, uid) {
 }
 
 async function fetchCards(boardId, uid) {
-  const q = query(collection(db, COLLECTIONS.CARDS), where("boardId","==",boardId), where("uid","==",uid))
+  const q = query(collection(db, COLLECTIONS.CARDS), where("boardId","==",boardId), where("uid","==",uid));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 async function fetchAndSyncTags(boardId, uid) {
-  const tagsRef = collection(db, COLLECTIONS.TAGS)
-  const q = query(tagsRef, where("boardId","==",boardId), where("uid","==",uid))
-  const snap = await getDocs(q)
-  let loadedTags = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  const tagsRef = collection(db, COLLECTIONS.TAGS);
+  const q = query(tagsRef, where("boardId","==",boardId), where("uid","==",uid));
+  const snap = await getDocs(q);
+  let loadedTags = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   const existing = new Set(loadedTags.map(t => t.name));
   const missing = PRIORITY_TAGS.filter(p => !existing.has(p.name));
   if(missing.length > 0) {
@@ -198,20 +193,34 @@ function renderBoard() {
   const root = state.dom.board; root.innerHTML = "";
   if (!state.columns.length) { setBoardMessage("Geen kolommen."); return; }
 
+  // 1. Calculate Numbering (#1, #2) based on creation date of ALL cards
+  state.allCardsSorted = Array.from(state.cardsById.values()).sort((a,b) => {
+     const tA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : 0) : 0;
+     const tB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : 0) : 0;
+     return tA - tB;
+  });
+  // Assign a virtual property 'visualId' (1-based index)
+  state.allCardsSorted.forEach((card, index) => { card.visualId = index + 1; });
+
+  // 2. Filtering
   const keyword = state.filter.keyword.toLowerCase().trim();
   const filterTags = state.filter.tags;
 
-  const filtered = Array.from(state.cardsById.values()).filter(card => {
-    const matchText = !keyword || (card.title||"").toLowerCase().includes(keyword);
+  const filtered = state.allCardsSorted.filter(card => {
+    const matchText = !keyword || (card.title||"").toLowerCase().includes(keyword) || (card.visualId && String(card.visualId).includes(keyword));
     let matchTags = true;
     if(filterTags.size > 0) matchTags = (card.tags||[]).some(id => filterTags.has(id));
     return matchText && matchTags;
   });
 
+  // 3. Sorting inside columns
   filtered.sort(sortCardsLogic);
+
+  // 4. Distribute
   const byCol = {}; state.columns.forEach(c => byCol[c.id] = []);
   filtered.forEach(c => { if(byCol[c.columnId]) byCol[c.columnId].push(c) });
 
+  // 5. Render
   state.columns.forEach(col => {
     const colEl = createEl("div", "wf-column");
     const header = createEl("header", "wf-column-header");
@@ -230,24 +239,36 @@ function renderBoard() {
 
 function createCardElement(card) {
   const el = createEl("article", "wf-card"); el.dataset.cardId = card.id; el.draggable = true;
-  const title = createEl("div", "wf-card-title", card.title); el.appendChild(title);
+
+  // Header: Title/ID left, Date right
+  const header = createEl("div", "wf-card-header");
+  
+  const titleGroup = createEl("div", "wf-card-title-group");
+  const idSpan = createEl("span", "wf-card-id", `#${card.visualId}`);
+  titleGroup.appendChild(idSpan);
+  titleGroup.appendChild(document.createTextNode(card.title || "Naamloos"));
+  header.appendChild(titleGroup);
 
   if (card.dueDate) {
-    const d = typeof card.dueDate.toDate === 'function' ? card.dueDate.toDate() : new Date(card.dueDate);
-    const dateSpan = createEl("div", "", "📅 " + d.toLocaleDateString('nl-NL', {day:'numeric', month:'short'}));
-    dateSpan.style.fontSize = "0.75rem"; dateSpan.style.opacity = "0.7"; dateSpan.style.marginTop = "0.25rem";
-    el.appendChild(dateSpan);
+    const urgency = getUrgency(card.dueDate);
+    const dateStr = urgency.dateObj.toLocaleDateString('nl-NL', { day:'numeric', month:'short' });
+    const dateEl = createEl("div", "wf-card-date", dateStr);
+    if(urgency.isUrgent || urgency.isOverdue) {
+       dateEl.classList.add("urgent");
+       dateEl.title = urgency.isOverdue ? "Vervallen!" : "Vervalt bijna!";
+    }
+    header.appendChild(dateEl);
   }
+  el.appendChild(header);
 
+  // Tags
   if (card.tags && card.tags.length > 0) {
     const chips = createEl("div", "wf-card-tags-chips");
     card.tags.forEach(tagId => {
       const tag = state.tagsById.get(tagId);
       if (tag && tag.active !== false) {
-        // NEW: Simple Chip style (no dot)
         const chip = createEl("span", "wf-tag-chip", tag.name);
-        chip.style.backgroundColor = tag.color; // Achtergrond kleur
-        // Contrast wordt in CSS geregeld (witte tekst)
+        chip.style.backgroundColor = tag.color;
         chips.appendChild(chip);
       }
     });
@@ -255,6 +276,58 @@ function createCardElement(card) {
   }
   return el;
 }
+
+// --- Urgent Popup Logic ---
+function checkUrgencyAndShowPopup() {
+  const todayStr = new Date().toDateString();
+  const dismissed = localStorage.getItem("workflow_popup_dismissed_" + todayStr);
+  if (dismissed) return;
+
+  const overdueItems = [];
+  const urgentItems = [];
+
+  state.allCardsSorted.forEach(card => {
+    // Skip cards in "Done" column (hardcoded check on title 'Afgewerkt' or order 4 if preferred)
+    // We assume the last column is Done. Let's check via column Title
+    const col = state.columnsById.get(card.columnId);
+    if(col && col.title.toLowerCase() === "afgewerkt") return; 
+
+    const u = getUrgency(card.dueDate);
+    if (u.isOverdue) overdueItems.push(card);
+    else if (u.isUrgent) urgentItems.push(card);
+  });
+
+  if (overdueItems.length === 0 && urgentItems.length === 0) return;
+
+  // Build Popup Content
+  const list = qs("#urgent-popup-list");
+  list.innerHTML = "";
+
+  const addItem = (card, label, cls) => {
+    const row = createEl("div", `wf-urgent-item ${cls}`);
+    const dStr = getUrgency(card.dueDate).dateObj.toLocaleDateString('nl-NL', {day:'numeric', month:'short'});
+    row.innerHTML = `<span><strong>#${card.visualId}</strong> ${card.title}</span> <span>${dStr} (${label})</span>`;
+    list.appendChild(row);
+  };
+
+  overdueItems.forEach(c => addItem(c, "Vervallen", "overdue"));
+  urgentItems.forEach(c => addItem(c, "Binnenkort", "near"));
+
+  // Show Modal
+  const modal = qs("#modal-urgent");
+  modal.classList.remove("wf-card-form--hidden");
+}
+
+function closeUrgentPopup() {
+  const modal = qs("#modal-urgent");
+  const checkbox = qs("#urgent-popup-check");
+  
+  if (checkbox.checked) {
+    localStorage.setItem("workflow_popup_dismissed_" + new Date().toDateString(), "true");
+  }
+  modal.classList.add("wf-card-form--hidden");
+}
+
 
 // --- Modal Form & Tags Logic ---
 function switchModalTab(tabName) {
@@ -265,11 +338,10 @@ function switchModalTab(tabName) {
   qs("#tab-content-timeline").classList.toggle("active", tabName === 'timeline');
 }
 
-// NEW: Grouped Tag Selection
 function renderFormTagSelector() {
   const { chipsContainer, tagsListContainer } = state.dom.formTags;
   
-  // 1. Render Top Chips (Huidige selectie visualisatie)
+  // Top Chips
   chipsContainer.innerHTML = "";
   if (state.form.workingTags.size === 0) {
     const ph = createEl("span", "", "Geen tags geselecteerd");
@@ -285,35 +357,28 @@ function renderFormTagSelector() {
     });
   }
 
-  // 2. Render Selection List (Gesplitst)
+  // Selection List
   tagsListContainer.innerHTML = "";
   const allTags = state.tags.filter(t => t.active !== false);
-  
   const selectedTags = allTags.filter(t => state.form.workingTags.has(t.id));
   const availableTags = allTags.filter(t => !state.form.workingTags.has(t.id));
 
   const createTagButton = (tag, isSelected) => {
     const btn = createEl("div", "wf-tag-pill" + (isSelected ? " selected" : ""));
-    btn.textContent = tag.name;
-    btn.style.backgroundColor = tag.color;
-    
+    btn.textContent = tag.name; btn.style.backgroundColor = tag.color;
     btn.addEventListener("click", () => {
-      if (isSelected) state.form.workingTags.delete(tag.id);
-      else state.form.workingTags.add(tag.id);
-      renderFormTagSelector(); // Re-render om te verplaatsen tussen groepen
+      if (isSelected) state.form.workingTags.delete(tag.id); else state.form.workingTags.add(tag.id);
+      renderFormTagSelector();
     });
     return btn;
   };
 
-  // Groep 1: Geselecteerd
   if (selectedTags.length > 0) {
     tagsListContainer.appendChild(createEl("div", "wf-tags-section-title", "Huidige tags"));
     const row = createEl("div", "wf-tags-columns");
     selectedTags.forEach(t => row.appendChild(createTagButton(t, true)));
     tagsListContainer.appendChild(row);
   }
-
-  // Groep 2: Beschikbaar
   if (availableTags.length > 0) {
     const title = createEl("div", "wf-tags-section-title", "Toevoegen");
     if(selectedTags.length > 0) title.style.marginTop = "1rem";
@@ -322,20 +387,96 @@ function renderFormTagSelector() {
     availableTags.forEach(t => row.appendChild(createTagButton(t, false)));
     tagsListContainer.appendChild(row);
   }
-
-  if (allTags.length === 0) {
-    tagsListContainer.innerHTML = "<p style='opacity:0.5; font-size:0.85rem;'>Geen tags aangemaakt.</p>";
-  }
 }
 
+// --- Manage Tags UI (Switches & Deletes) ---
+function renderManageTagsList() {
+  const c = state.dom.manageTagsList; c.innerHTML=""; c.className="wf-tags-list-board";
+  
+  // Split System vs Custom
+  const systemTags = state.tags.filter(t => t.builtin);
+  const customTags = state.tags.filter(t => !t.builtin);
+
+  const renderSection = (title, tags, allowDelete) => {
+    if(tags.length === 0) return;
+    const header = createEl("div", "wf-tags-section-title", title);
+    header.style.marginTop = "0.5rem";
+    c.appendChild(header);
+
+    tags.forEach(t => {
+      const r = createEl("div", "wf-tag-row");
+      
+      const left = createEl("div", "", ""); left.style.display="flex"; left.style.alignItems="center"; left.style.gap="0.5rem";
+      const p = createEl("span", "wf-tag-chip", t.name); p.style.backgroundColor=t.color;
+      left.appendChild(p);
+      r.appendChild(left);
+
+      const right = createEl("div", "wf-tag-row-actions");
+      
+      // Toggle Switch
+      const l = createEl("label", "wf-switch");
+      const i = createEl("input"); i.type="checkbox"; i.checked=t.active!==false; i.disabled=!!t.builtin;
+      if(!t.builtin) {
+          i.addEventListener("change", async()=>{ 
+              try{ await updateDoc(doc(db,COLLECTIONS.TAGS,t.id),{active:i.checked}); reloadData(); }
+              catch(e){handleActionError("toggleTag",e); i.checked = !i.checked; }
+          });
+      }
+      l.appendChild(i); l.appendChild(createEl("span","wf-slider"));
+      right.appendChild(l);
+
+      // Delete Button (Only Custom)
+      if (allowDelete) {
+        const delBtn = createEl("button", "btn-icon-small", "🗑️");
+        delBtn.title = "Tag verwijderen";
+        delBtn.addEventListener("click", async () => {
+            if(confirm(`Tag "${t.name}" definitief verwijderen?`)) {
+                try { await deleteDoc(doc(db, COLLECTIONS.TAGS, t.id)); reloadData(); renderManageTagsList(); }
+                catch(e) { handleActionError("delTag", e); }
+            }
+        });
+        right.appendChild(delBtn);
+      }
+
+      r.appendChild(right);
+      c.appendChild(r);
+    });
+  }
+
+  renderSection("Standaard Tags", systemTags, false);
+  renderSection("Eigen Tags", customTags, true);
+}
+
+// --- Logs (Edit/Delete) ---
 function renderCardLogs(card) {
   const list = qs(".wf-log-list"); list.innerHTML = "";
   const logs = card.logs || [];
   if (logs.length === 0) { list.innerHTML = `<div style="opacity:0.6; font-size:0.85rem; text-align:center; padding:0.5rem;">Nog geen logs.</div>`; return; }
-  logs.forEach(log => {
+  
+  // Add ID to legacy logs if missing (just for DOM handling)
+  const logsWithId = logs.map((l, idx) => ({ ...l, _idx: idx }));
+
+  logsWithId.forEach(log => {
     const item = createEl("div", "wf-log-item");
     const dateStr = new Date(log.timestamp).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-    item.innerHTML = `<span class="wf-log-date">${dateStr}</span><span class="wf-log-content">${log.content}</span>`;
+    
+    const contentGroup = createEl("div", "wf-log-content-group");
+    contentGroup.innerHTML = `<span class="wf-log-date">${dateStr}</span><span class="wf-log-content">${log.content}</span>`;
+    item.appendChild(contentGroup);
+
+    const actions = createEl("div", "wf-log-actions");
+    
+    // Edit
+    const editBtn = createEl("button", "btn-icon-small", "✏️");
+    editBtn.addEventListener("click", () => editLogEntry(log._idx, log.content));
+    actions.appendChild(editBtn);
+
+    // Delete
+    const delBtn = createEl("button", "btn-icon-small", "🗑️");
+    delBtn.addEventListener("click", () => deleteLogEntry(log._idx));
+    actions.appendChild(delBtn);
+
+    item.appendChild(actions);
     list.appendChild(item);
   });
 }
@@ -371,6 +512,7 @@ async function reloadData() {
       if(cur) { renderCardLogs(cur); renderCardLinks(cur); }
     }
     renderBoard();
+    checkUrgencyAndShowPopup(); // Check pop-up
   } catch (err) { handleActionError("reloadData", err); }
 }
 
@@ -390,12 +532,12 @@ function openCardForm(cardId = null) {
     deadline.value = formatDateForInput(card.dueDate);
     if(card.tags) card.tags.forEach(t => state.form.workingTags.add(t));
     
-    state.dom.btnDelete.style.display = "block"; // Show Delete
+    state.dom.btnDelete.style.display = "block"; 
     timelineTabBtn.style.display = "block"; timelineOverlay.style.display = "none";
     renderCardLogs(card); renderCardLinks(card);
   } else {
     title.value = ""; desc.value = ""; deadline.value = "";
-    state.dom.btnDelete.style.display = "none"; // Hide Delete
+    state.dom.btnDelete.style.display = "none"; 
     timelineTabBtn.style.opacity = "0.5"; timelineOverlay.style.display = "flex";
   }
   
@@ -443,6 +585,29 @@ async function addLogEntry() {
   try { await updateDoc(doc(db, COLLECTIONS.CARDS, state.form.cardId), {logs}); input.value=""; card.logs=logs; renderCardLogs(card); } 
   catch(e){ handleActionError("addLog",e); }
 }
+
+async function deleteLogEntry(index) {
+  if(!confirm("Log verwijderen?")) return;
+  const card = state.cardsById.get(state.form.cardId);
+  const logs = [...(card.logs || [])];
+  logs.splice(index, 1); // Remove at index
+  try { await updateDoc(doc(db, COLLECTIONS.CARDS, state.form.cardId), {logs}); card.logs=logs; renderCardLogs(card); } 
+  catch(e){ handleActionError("delLog",e); }
+}
+
+async function editLogEntry(index, oldContent) {
+  const newText = prompt("Wijzig log:", oldContent);
+  if (newText === null || newText.trim() === "") return;
+  
+  const card = state.cardsById.get(state.form.cardId);
+  const logs = [...(card.logs || [])];
+  if(logs[index]) {
+      logs[index] = { ...logs[index], content: newText.trim() }; // Keep timestamp or update it? Keeping it is usually better for history.
+  }
+  try { await updateDoc(doc(db, COLLECTIONS.CARDS, state.form.cardId), {logs}); card.logs=logs; renderCardLogs(card); } 
+  catch(e){ handleActionError("editLog",e); }
+}
+
 async function addLinkEntry() {
   const nInput = qs("#input-link-name"), uInput = qs("#input-link-url");
   const url = uInput.value.trim(); if(!url) return;
@@ -462,21 +627,8 @@ async function deleteLinkEntry(id) {
 async function createNewTag() {
   const name = prompt("Tag naam:"); if(!name) return;
   const color = prompt("Kleur (hex):", "#6366f1") || "#6366f1";
-  try { await addDoc(collection(db, COLLECTIONS.TAGS), { boardId:state.boardId, uid:state.uid, name, color, active:true, builtin:false, createdAt:serverTimestamp() }); reloadData(); }
+  try { await addDoc(collection(db, COLLECTIONS.TAGS), { boardId:state.boardId, uid:state.uid, name, color, active:true, builtin:false, createdAt:serverTimestamp() }); reloadData(); renderManageTagsList(); }
   catch(e){ handleActionError("newTag",e); }
-}
-function renderManageTagsList() {
-  const c = state.dom.manageTagsList; c.innerHTML=""; c.className="wf-tags-list-board";
-  state.tags.forEach(t => {
-    const r = createEl("div", "wf-tag-row");
-    // Pill style in list
-    const p = createEl("span", "wf-tag-chip", t.name); p.style.backgroundColor=t.color;
-    r.appendChild(p);
-    const l = createEl("label", "wf-tag-toggle");
-    const i = createEl("input"); i.type="checkbox"; i.checked=t.active!==false; i.disabled=!!t.builtin;
-    i.addEventListener("change", async()=>{ try{ await updateDoc(doc(db,COLLECTIONS.TAGS,t.id),{active:i.checked}); reloadData(); }catch(e){handleActionError("toggleTag",e);}});
-    l.appendChild(i); l.appendChild(createEl("span","wf-tag-toggle-slider")); r.appendChild(l); c.appendChild(r);
-  });
 }
 
 // --- Drag Drop ---
@@ -494,19 +646,42 @@ function setupDragDrop() {
   });
 }
 
+// --- Filter Popover Fix (Clickable) ---
+function renderFilterPopover() {
+  const grid = state.dom.filterTagsGrid;
+  grid.innerHTML = "";
+  state.tags.filter(t => t.active !== false).forEach(tag => {
+    // Use .wf-filter-tag class
+    const pill = createEl("span", "wf-tag-chip wf-filter-tag", tag.name);
+    pill.style.backgroundColor = tag.color;
+    // Check state
+    if (state.filter.tags.has(tag.id)) pill.classList.add("selected");
+    
+    pill.addEventListener("click", () => {
+      if (state.filter.tags.has(tag.id)) state.filter.tags.delete(tag.id); else state.filter.tags.add(tag.id);
+      renderFilterPopover();
+      renderBoard();
+      // Toggle active class on button
+      const btn = qs(".wf-btn-filter");
+      if (state.filter.tags.size > 0) btn.classList.add("active"); else btn.classList.remove("active");
+    });
+    grid.appendChild(pill);
+  });
+}
+
 // --- Init ---
 function bindUI() {
   state.dom.board = $("workflow-board");
   const content = qs(".page-workflow .content");
   const board = $("workflow-board");
 
-  // Toolbar
+  // Toolbar (Reverted Info Text)
   const tb = createEl("section", "wf-toolbar");
   tb.innerHTML = `
     <button class="wf-btn wf-btn-primary btn-new-card">+ Nieuwe kaart</button>
     <div class="wf-search-wrapper"><span class="wf-search-icon">🔍</span><input type="text" class="wf-search-input" placeholder="Zoeken..."></div>
     <div style="position:relative;"><button class="wf-btn wf-btn-secondary wf-btn-filter" title="Filter">Filter</button><div class="wf-filter-popover"><div class="wf-filter-section-title">Filter op tags</div><div class="wf-filter-tags-grid"></div></div></div>
-    <div style="margin-left:auto; display:flex; gap:0.5rem; position:relative;"><button class="wf-btn wf-btn-secondary btn-manage-tags">🏷️ Tags</button><button class="wf-btn wf-btn-secondary btn-help">❓</button><div class="wf-help-popover"><h4>Info</h4><p>Sleep kaarten, bewerk details en voeg logs toe.</p></div></div>
+    <div style="margin-left:auto; display:flex; gap:0.5rem; position:relative;"><button class="wf-btn wf-btn-secondary btn-manage-tags">🏷️ Tags</button><button class="wf-btn wf-btn-secondary btn-help">❓</button><div class="wf-help-popover"><h4>Hoe werkt het bord?</h4><ul><li><strong>Kolommen:</strong> De status van je taak. Sleep kaarten van links naar rechts.</li><li><strong>Kaarten:</strong> Klik op een kaart om details te bewerken of te verwijderen.</li><li><strong>Tags:</strong> Gebruik tags voor prioriteit (Critical/High) of categorieën.</li><li><strong>Filters:</strong> Gebruik het zoekveld of de filterknop om specifieke taken te vinden.</li><li><strong>Sortering:</strong> Taken met de hoogste prioriteit en dichtste deadline staan automatisch bovenaan.</li></ul></div></div>
   `;
   content.insertBefore(tb, board);
 
@@ -518,7 +693,6 @@ function bindUI() {
         <button type="button" class="wf-tab-btn active" data-tab="details">Details</button>
         <button type="button" class="wf-tab-btn" data-tab="timeline">Tijdlijn & Links</button>
       </div>
-
       <div id="tab-content-details" class="wf-tab-content active">
         <div class="wf-form-group"><label>Titel</label><input type="text" name="title" required placeholder="Taak naam..."></div>
         <div class="wf-form-group"><label>Deadline</label><input type="date" name="deadline"></div>
@@ -536,7 +710,6 @@ function bindUI() {
           </div>
         </div>
       </div>
-
       <div id="tab-content-timeline" class="wf-tab-content">
         <div id="timeline-new-card-overlay" style="display:none; text-align:center; padding:2rem; opacity:0.7;"><p>Sla de kaart eerst op.</p></div>
         <div class="wf-log-wrapper">
@@ -569,6 +742,23 @@ function bindUI() {
   tm.innerHTML = `<div class="wf-card-form-inner"><h2>Tags Beheren</h2><div class="wf-tags-list-board"></div><div class="wf-card-form-actions"><button class="wf-btn wf-btn-primary btn-new-tag">Nieuwe Tag</button><button class="wf-btn wf-btn-secondary btn-close-tags">Sluiten</button></div></div>`;
   content.appendChild(tm);
 
+  // Urgent Popup Modal (NEW)
+  const um = createEl("section", "wf-card-form wf-card-form--hidden"); um.id = "modal-urgent";
+  um.innerHTML = `
+    <div class="wf-card-form-inner" style="max-width:450px;">
+      <h2 style="color:#ef4444;">⚠️ Aandacht vereist</h2>
+      <p style="font-size:0.9rem;">De volgende taken zijn vervallen of vervallen bijna:</p>
+      <div id="urgent-popup-list" class="wf-urgent-list"></div>
+      <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; margin-top:0.5rem;">
+         <input type="checkbox" id="urgent-popup-check"> <label for="urgent-popup-check">Niet meer tonen vandaag</label>
+      </div>
+      <div class="wf-card-form-actions">
+        <button class="wf-btn wf-btn-primary btn-close-urgent" style="width:100%">Begrepen</button>
+      </div>
+    </div>
+  `;
+  content.appendChild(um);
+
   // Refs
   state.dom.inputs = { title: qs("input[name='title']"), deadline: qs("input[name='deadline']"), desc: qs("textarea[name='description']") };
   state.dom.modals = { card: cm, tags: tm };
@@ -586,6 +776,7 @@ function bindUI() {
   qs(".btn-toggle-tags-panel").addEventListener("click", () => state.dom.formTags.panel.classList.toggle("wf-form-tags-panel--hidden"));
   qs(".btn-close-tags").addEventListener("click", () => state.dom.modals.tags.classList.add("wf-card-form--hidden"));
   qs(".btn-new-tag").addEventListener("click", createNewTag);
+  qs(".btn-close-urgent").addEventListener("click", closeUrgentPopup);
   state.dom.board.addEventListener("click", e => { const c = e.target.closest(".wf-card"); if (c) openCardForm(c.dataset.cardId); });
   
   // Tabs & Extra
@@ -598,7 +789,7 @@ function bindUI() {
   // Search/Filter UI
   qs(".wf-search-input").addEventListener("input", e => { state.filter.keyword = e.target.value; renderBoard(); });
   const fBtn = qs(".wf-btn-filter"), fPop = qs(".wf-filter-popover"), hBtn = qs(".btn-help"), hPop = qs(".wf-help-popover");
-  fBtn.addEventListener("click", e => { e.stopPropagation(); hPop.classList.remove("visible"); fPop.classList.toggle("visible"); });
+  fBtn.addEventListener("click", e => { e.stopPropagation(); hPop.classList.remove("visible"); fPop.classList.toggle("visible"); renderFilterPopover(); });
   hBtn.addEventListener("click", e => { e.stopPropagation(); fPop.classList.remove("visible"); hPop.classList.toggle("visible"); });
   document.addEventListener("click", e => {
     if(!fPop.contains(e.target) && e.target!==fBtn) fPop.classList.remove("visible");
