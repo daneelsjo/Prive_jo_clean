@@ -5,7 +5,7 @@
     // p dat met "/" start laten we ongemoeid, anders relativeren tussen root en /HTML/
     const isNested = () => /\/HTML\//i.test(location.pathname);
     const prefixPath = (p = "") => {
-        if (p.startsWith("/")) return p;                  // absolute pad, niets prefixen
+        if (p.startsWith("/")) return p; // absolute pad, niets prefixen
         return (isNested() ? "../" : "") + p.replace(/^\.\//, "");
     };
 
@@ -14,9 +14,9 @@
         const p = location.pathname.toLowerCase().replace(/\/+$/, "");
         if (p === "" || p === "/" || p.endsWith("/index.html")) return "index";
         if (p.endsWith("/settings") || p.endsWith("/settings.html") || p.endsWith("/html/settings.html")) return "settings";
-        if (p.endsWith("/notes")    || p.endsWith("/notes.html")    || p.endsWith("/notities.html") || p.endsWith("/html/notes.html")) return "notes";
-        if (p.endsWith("/tijd")     || p.endsWith("/tijd.html")     || p.endsWith("/html/tijd.html")) return "tijd";
-        if (p.endsWith("/plan")     || p.endsWith("/plan.html")     || p.endsWith("/html/plan.html")) return "plan";
+        if (p.endsWith("/notes") || p.endsWith("/notes.html") || p.endsWith("/notities.html") || p.endsWith("/html/notes.html")) return "notes";
+        if (p.endsWith("/tijd") || p.endsWith("/tijd.html") || p.endsWith("/html/tijd.html")) return "tijd";
+        if (p.endsWith("/plan") || p.endsWith("/plan.html") || p.endsWith("/html/plan.html")) return "plan";
         return "index";
     }
 
@@ -26,35 +26,11 @@
         const page = currentPage();
 
         const links = ({
-            index: [
-                { emoji: "📝", title: "Notities",        path: "/notes" },
-                { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" },
-                { emoji: "⚙️", title: "Instellingen",     path: "/settings" },
-                { emoji: "🗓️", title: "Plan",            path: "/plan" }
-            ],
-            settings: [
-                { emoji: "📌", title: "Post-its",         path: "/" },
-                { emoji: "📝", title: "Notities",         path: "/notes" },
-                { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" },
-                { emoji: "🗓️", title: "Plan",            path: "/plan" }
-            ],
-            notes: [
-                { emoji: "📌", title: "Post-its",         path: "/" },
-                { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" },
-                { emoji: "⚙️", title: "Instellingen",     path: "/settings" },
-                { emoji: "🗓️", title: "Plan",            path: "/plan" }
-            ],
-            tijd: [
-                { emoji: "📌", title: "Post-its",         path: "/" },
-                { emoji: "📝", title: "Notities",         path: "/notes" },
-                { emoji: "⚙️", title: "Instellingen",     path: "/settings" },
-                { emoji: "🗓️", title: "Plan",            path: "/plan" }
-            ],
-            plan: [
-                { emoji: "📌", title: "Post-its",         path: "/" },
-                { emoji: "📝", title: "Notities",         path: "/notes" },
-                { emoji: "⚙️", title: "Instellingen",     path: "/settings" }
-            ]
+            index: [{ emoji: "📝", title: "Notities", path: "/notes" }, { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" }, { emoji: "⚙️", title: "Instellingen", path: "/settings" }, { emoji: "🗓️", title: "Plan", path: "/plan" }],
+            settings: [{ emoji: "📌", title: "Post-its", path: "/" }, { emoji: "📝", title: "Notities", path: "/notes" }, { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" }, { emoji: "🗓️", title: "Plan", path: "/plan" }],
+            notes: [{ emoji: "📌", title: "Post-its", path: "/" }, { emoji: "⏱️", title: "Tijdsregistratie", path: "/tijd" }, { emoji: "⚙️", title: "Instellingen", path: "/settings" }, { emoji: "🗓️", title: "Plan", path: "/plan" }],
+            tijd: [{ emoji: "📌", title: "Post-its", path: "/" }, { emoji: "📝", title: "Notities", path: "/notes" }, { emoji: "⚙️", title: "Instellingen", path: "/settings" }, { emoji: "🗓️", title: "Plan", path: "/plan" }],
+            plan: [{ emoji: "📌", title: "Post-its", path: "/" }, { emoji: "📝", title: "Notities", path: "/notes" }, { emoji: "⚙️", title: "Instellingen", path: "/settings" }]
         })[page] || [];
 
         el.innerHTML = "";
@@ -93,6 +69,7 @@
             BS.setProperty("display", bd.hasAttribute("hidden") ? "none" : "block", "important");
         }
     }
+
     function openDrawer(drawer, bd, btn) {
         drawer.setAttribute("data-state", "open");
         drawer.setAttribute("aria-hidden", "false");
@@ -102,6 +79,7 @@
         btn && btn.setAttribute("aria-expanded", "true");
         document.body.style.overflow = "hidden";
     }
+
     function closeDrawer(drawer, bd, btn) {
         drawer.setAttribute("data-state", "closed");
         drawer.setAttribute("aria-hidden", "true");
@@ -128,54 +106,58 @@
             if (window.DEBUG) console.log("[menu] drawer", isOpen ? "CLOSE" : "OPEN");
         };
         bd.onclick = () => closeDrawer(drawer, bd, btn);
-        document.onkeydown = (e) => { if (e.key === "Escape") closeDrawer(drawer, bd, btn); };
+        document.onkeydown = (e) => {
+            if (e.key === "Escape") closeDrawer(drawer, bd, btn);
+        };
 
         drawer.querySelectorAll(".sidemenu-section h4").forEach(h => {
             h.onclick = () => h.parentElement.classList.toggle("open");
         });
     }
 
-function bindNeonMainnav() {
-  const nav = document.querySelector(".mainnav");
-  if (!nav) return;
+    function bindNeonMainnav() {
+        const nav = document.querySelector(".mainnav");
+        if (!nav) return;
 
-  // Toggle open/close op top-level items
-  nav.querySelectorAll("li.has-submenu > a").forEach(a => {
-    a.onclick = e => {
-      if (a.getAttribute("href") !== "#") return;
-      e.preventDefault();
-      const li = a.parentElement;
-      const wasOpen = li.classList.contains("open");
-      nav.querySelectorAll("li.has-submenu.open").forEach(s => s !== li && s.classList.remove("open"));
-      li.classList.toggle("open", !wasOpen);
-      a.setAttribute("aria-expanded", String(!wasOpen));
-    };
-  });
+        // Toggle open/close op top-level items
+        nav.querySelectorAll("li.has-submenu > a").forEach(a => {
+            a.onclick = e => {
+                if (a.getAttribute("href") !== "#") return;
+                e.preventDefault();
+                const li = a.parentElement;
+                const wasOpen = li.classList.contains("open");
+                nav.querySelectorAll("li.has-submenu.open").forEach(s => s !== li && s.classList.remove("open"));
+                li.classList.toggle("open", !wasOpen);
+                a.setAttribute("aria-expanded", String(!wasOpen));
+            };
+        });
 
-  // Klik buiten het menu sluit alles
-  document.addEventListener("click", e => {
-    if (!nav.contains(e.target)) {
-      nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
+        // Klik buiten het menu sluit alles
+        document.addEventListener("click", e => {
+            if (!nav.contains(e.target)) {
+                nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
+            }
+        });
+
+        // Klik op een link in een submenu sluit de open states
+        nav.querySelectorAll(".submenu a").forEach(a => {
+            a.addEventListener("click", () => {
+                setTimeout(() => {
+                    nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
+                }, 0);
+            });
+        });
     }
-  });
 
-  // Klik op een link in een submenu sluit de open states
-  nav.querySelectorAll(".submenu a").forEach(a => {
-    a.addEventListener("click", () => {
-      setTimeout(() => {
-        nav.querySelectorAll("li.has-submenu.open").forEach(li => li.classList.remove("open"));
-      }, 0);
-    });
-  });
+    // --- NIEUW: Deze functie pakt ALLE links met data-newtab, ook in het zijmenu ---
+    function bindGlobalNewTabs() {
+        document.querySelectorAll('a[data-newtab]').forEach(a => {
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+        });
+    }
 
-  // new tab ondersteuning via data-newtab
-  nav.querySelectorAll('a[data-newtab]').forEach(a => {
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-  });
-}
-
-    const REPORT_ISSUE_URL = "https://us-central1-prive-jo.cloudfunctions.net/reportIssue"; 
+    const REPORT_ISSUE_URL = "https://us-central1-prive-jo.cloudfunctions.net/reportIssue";
 
     function gatherIssueContext(extra) {
         const env = window.APP_ENV || "UNKNOWN";
@@ -199,7 +181,6 @@ function bindNeonMainnav() {
     }
 
     async function sendIssueToBackend(payload) {
-        // Placeholder als backend nog niet klaar is
         if (!REPORT_ISSUE_URL || REPORT_ISSUE_URL.indexOf("REGIO-PROJECT") !== -1) {
             console.log("[report-issue] payload (backend nog niet geconfigureerd):", payload);
             return;
@@ -244,7 +225,6 @@ function bindNeonMainnav() {
             pageInfoEl.textContent = pageId + " — " + location.href;
         };
 
-        // Wanneer de modal opengaat, info updaten
         document.addEventListener("click", (e) => {
             const btn = e.target.closest("#report-issue-btn");
             if (!btn) return;
@@ -270,13 +250,7 @@ function bindNeonMainnav() {
             }
 
             const context = includeTech ? gatherIssueContext() : null;
-
-            const payload = {
-                type,
-                title,
-                description,
-                context
-            };
+            const payload = { type, title, description, context };
 
             try {
                 await sendIssueToBackend(payload);
@@ -307,7 +281,6 @@ function bindNeonMainnav() {
         el.appendChild(btn);
     }
 
-
     function initMenu() {
         if (wired) return;
         wired = true;
@@ -316,9 +289,9 @@ function bindNeonMainnav() {
         initIssueReportModal();
         bindHamburger();
         bindNeonMainnav();
+        bindGlobalNewTabs(); // <--- Deze regelt nu ALLE new-tab links
         if (window.DEBUG) console.log("[menu] wired");
     }
-
 
     document.addEventListener("partials:loaded", initMenu);
 
@@ -328,7 +301,10 @@ function bindNeonMainnav() {
         const cs = getComputedStyle(d);
         return {
             state: d.getAttribute("data-state"),
-            left: cs.left, transform: cs.transform, display: cs.display, position: cs.position,
+            left: cs.left,
+            transform: cs.transform,
+            display: cs.display,
+            position: cs.position,
             rect: d.getBoundingClientRect()
         };
     };
@@ -359,7 +335,10 @@ function setupSideAccordion(drawer) {
 
         h.onclick = toggle;
         h.onkeydown = (e) => {
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggle();
+            }
         };
     });
 }
