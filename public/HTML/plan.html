@@ -6,15 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
   <title>Weekplanner – School</title>
-  <script>
+<script>
+    // 1. DIT ZORGT VOOR DE RODE BALK
+    window.APP_ENV = "DEV"; 
+
+    // Thema voorkeur
     (function () {
       try {
-        var pref = localStorage.getItem('app.theme') || 'system';
-        var final = pref === 'system' ?
-          (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') :
-          pref;
+        var pref = localStorage.getItem('theme_pref') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
         document.documentElement.setAttribute('data-theme', final);
-      } catch (e) {}
+      } catch (e) { /* no-op */ }
     })();
   </script>
   <script>document.documentElement.setAttribute('data-theme','dark');</script>
@@ -339,7 +343,9 @@
     <div id="print-root"></div>
   </template>
 <script src="../script/javascript/include-partials.js"></script>
-    <script src="../script/javascript/menu.js"></script>
+  <script src="../script/javascript/menu.js"></script>
+  
+  <script type="module" src="../script/javascript/main.js"></script>
   <script type="module" src="../script/javascript/modal.js"></script>
   <script type="module" src="../script/javascript/planner.js"></script>
   <div id="evt-tip" aria-hidden="true"></div>

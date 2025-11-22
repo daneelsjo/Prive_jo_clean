@@ -1,14 +1,12 @@
-// workflow.js - V0.4 Refactor (Behoud UI Logica, gebruik Global Core)
+// workflow.js - V0.4 Refactor (Fixed openCardForm)
 
 import {
   getFirebaseApp, getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
   serverTimestamp, query, where, getDocs
-  // LET OP: We importeren geen 'getAuth' meer, dat doet main.js nu
 } from "./firebase-config.js"
 
 // --- Config & Constants ---
-// We gebruiken de DB die main.js al heeft gestart (window.App.db)
-// Als fallback starten we hem zelf
+// Gebruik de centrale DB van main.js
 const app = getFirebaseApp();
 const db = window.App?.db || getFirestore(app);
 
@@ -421,6 +419,38 @@ async function reloadData() {
   } catch (err) { handleActionError("reloadData", err); }
 }
 
+// --- HIER IS DE ONTBREKENDE FUNCTIE TERUGGEPLAATST ---
+function openCardForm(cardId = null) {
+  state.form.mode = cardId ? "edit" : "create";
+  state.form.cardId = cardId;
+  state.form.workingTags = new Set();
+  switchModalTab('details');
+  
+  const { title, desc, deadline } = state.dom.inputs;
+  const timelineTabBtn = qs("[data-tab='timeline']");
+  const timelineOverlay = qs("#timeline-new-card-overlay");
+
+  if (cardId) {
+    const card = state.cardsById.get(cardId); if(!card) return;
+    title.value = card.title; desc.value = card.description || "";
+    deadline.value = formatDateForInput(card.dueDate);
+    if(card.tags) card.tags.forEach(t => state.form.workingTags.add(t));
+    
+    state.dom.btnDelete.style.display = "block"; 
+    timelineTabBtn.style.display = "block"; timelineOverlay.style.display = "none";
+    renderCardLogs(card); renderCardLinks(card);
+  } else {
+    title.value = ""; desc.value = ""; deadline.value = "";
+    state.dom.btnDelete.style.display = "none"; 
+    timelineTabBtn.style.opacity = "0.5"; timelineOverlay.style.display = "flex";
+  }
+  
+  state.dom.formTags.panel.classList.add("wf-form-tags-panel--hidden");
+  renderFormTagSelector();
+  state.dom.modals.card.classList.remove("wf-card-form--hidden");
+  title.focus();
+}
+
 async function saveCard(e) {
   e.preventDefault(); if (!state.uid) return;
   const title = state.dom.inputs.title.value.trim(); if(!title) return showToast("Titel is verplicht");
@@ -524,7 +554,6 @@ function bindUI() {
   const content = qs(".page-workflow .content");
   const board = $("workflow-board");
 
-  // --- HIER ZIT JOUW UI BOUWER - DIE BEHOUDEN WE 100% ---
   const tb = createEl("section", "wf-toolbar");
   tb.innerHTML = `
     <button class="wf-btn wf-btn-primary btn-new-card">+ Nieuwe kaart</button>
@@ -630,10 +659,8 @@ function bindUI() {
 
 // --- Bootstrap (AANGEPAST) ---
 document.addEventListener("DOMContentLoaded", () => {
-  // Bouw UI op zoals je gewend bent
   bindUI();
   
-  // Wacht op signaal van main.js dat de gebruiker is ingelogd
   document.addEventListener("app:auth_changed", (e) => {
     const user = e.detail.user;
     if (user) { 
@@ -644,7 +671,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Fallback: als we al ingelogd zijn
   if (window.App && window.App.currentUser) {
       const user = window.App.currentUser;
       state.uid = user.uid;
