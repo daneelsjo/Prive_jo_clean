@@ -1,6 +1,6 @@
 // workflow.js
 // Workflow board: Firestore CRUD, Drag & Drop, Tag Management
-// Geoptimaliseerde versie V0.3
+// GECORRIGEERDE VERSIE (Permission Fix)
 
 import {
   getFirebaseApp,
@@ -127,7 +127,12 @@ async function getOrCreateBoard(uid) {
 
 async function fetchColumns(boardId, uid) {
   const colRef = collection(db, COLLECTIONS.COLUMNS)
-  const q = query(colRef, where("boardId", "==", boardId))
+  // FIX: Expliciet filteren op UID toegevoegd voor security rules
+  const q = query(
+    colRef, 
+    where("boardId", "==", boardId),
+    where("uid", "==", uid) 
+  )
   let snap = await getDocs(q)
 
   if (snap.empty) {
@@ -146,9 +151,14 @@ async function fetchColumns(boardId, uid) {
     .sort((a, b) => (a.order || 0) - (b.order || 0))
 }
 
-async function fetchCards(boardId) {
+async function fetchCards(boardId, uid) {
   const cardsRef = collection(db, COLLECTIONS.CARDS)
-  const q = query(cardsRef, where("boardId", "==", boardId))
+  // FIX: Expliciet filteren op UID toegevoegd voor security rules
+  const q = query(
+    cardsRef, 
+    where("boardId", "==", boardId),
+    where("uid", "==", uid)
+  )
   const snap = await getDocs(q)
   
   return snap.docs
@@ -158,7 +168,12 @@ async function fetchCards(boardId) {
 
 async function fetchAndSyncTags(boardId, uid) {
   const tagsRef = collection(db, COLLECTIONS.TAGS)
-  const q = query(tagsRef, where("boardId", "==", boardId))
+  // FIX: Expliciet filteren op UID toegevoegd voor security rules
+  const q = query(
+    tagsRef, 
+    where("boardId", "==", boardId),
+    where("uid", "==", uid)
+  )
   const snap = await getDocs(q)
   
   let loadedTags = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -382,9 +397,10 @@ async function reloadData() {
   if (!state.uid || !state.boardId) return
   
   try {
+    // FIX: Uid doorgeven aan alle fetch functies
     const [cols, cards, tags] = await Promise.all([
       fetchColumns(state.boardId, state.uid),
-      fetchCards(state.boardId),
+      fetchCards(state.boardId, state.uid),
       fetchAndSyncTags(state.boardId, state.uid)
     ])
 
@@ -403,7 +419,7 @@ async function reloadData() {
     renderBoard()
   } catch (err) {
     console.error(err)
-    setBoardMessage("Fout bij laden data.")
+    setBoardMessage("Fout bij laden data: " + err.message)
   }
 }
 
@@ -576,10 +592,6 @@ function bindUI() {
   // Selecteer elementen 1x
   state.dom.board = $("workflow-board")
   
-  // Maak Modal Structuren in JS als ze nog niet in HTML staan? 
-  // Nee, we gaan ervan uit dat buildToolbarAndModals de DOM opbouwt zoals in origineel script,
-  // maar voor Clean Code is het beter als deze elementen gewoon in de HTML staan.
-  // Ik zal hier de 'build' functie aanroepen die de DOM injecteert.
   buildDOMStructure()
 
   // Bindings
