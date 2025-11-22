@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="nl">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +7,7 @@
   <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
 
   <script>
-    // Thema zo vroeg mogelijk zetten (zelfde als index, maar met ../ voor CSS)
+    // Thema voorkeur
     (function () {
       try {
         var pref = localStorage.getItem('theme_pref') || 'system';
@@ -27,34 +26,30 @@
 </head>
 
 <body class="page-workflow">
-  <!-- gedeelde header -->
-  <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
+  <div id="auth" style="display:none;"><button id="login-btn">🔐 Inloggen</button></div>
   <div data-include="../partials/header.html"></div>
 
-  <!-- APP -->
   <div id="app">
     <div class="page">
       <main class="content">
         <section class="page-header">
           <h1>Workflow board</h1>
-          <p>Overzicht van taken in kolommen, vergelijkbaar met een simpel Trello-bord.</p>
+          <p>Beheer je taken eenvoudig via slepen en neerzetten.</p>
         </section>
 
         <section id="workflow-board" class="workflow-board">
-          <!-- Kolommen worden door workflow.js ingevuld -->
+          <p style="opacity: 0.6;">Laden...</p>
         </section>
       </main>
     </div>
   </div>
 
-  <!-- Modals -->
   <div data-include="../partials/modals.html"></div>
+  
   <script type="module" src="../script/javascript/modal.js"></script>
-
-  <!-- Scripts -->
   <script src="../script/javascript/include-partials.js"></script>
   <script src="../script/javascript/menu.js"></script>
+  
   <script type="module" src="../script/javascript/workflow.js"></script>
 </body>
-
 </html>
