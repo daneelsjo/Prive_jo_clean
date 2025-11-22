@@ -1,6 +1,6 @@
 // workflow.js
-// Workflow board V0.3-07: Filtering & Sorting
-// Features: Text search, Tag filtering, Multi-level sorting (Prio > Date > Alpha)
+// Workflow board V0.3-09: Robustness, Error Handling & Logging
+// Includes: Central Error Handler, Loading States, Optimistic UI Rollbacks
 
 import {
   getFirebaseApp,
@@ -17,6 +17,13 @@ import {
   getAuth,
   onAuthStateChanged
 } from "./firebase-config.js"
+
+// --- MOCK LOGGING (Vervang dit door je eigen import als die bestaat) ---
+// import { logEntry } from "./logging.js"; 
+function logEntry(data) {
+  // Tijdelijke console log zodat je ziet dat het werkt
+  console.log("[SYSTEM LOG]", data); 
+}
 
 // --- Config & Constanten ---
 const app = getFirebaseApp()
@@ -37,7 +44,6 @@ const DEFAULT_COLUMNS = [
   { key: "done", title: "Afgewerkt", order: 4 }
 ]
 
-// Mapping voor sortering
 const PRIORITY_VALS = {
   "priority-critical": 4,
   "priority-high": 3,
@@ -66,7 +72,7 @@ const state = {
   // Filter State
   filter: {
     keyword: "",
-    tags: new Set() // Set van tag IDs die aan moeten staan
+    tags: new Set()
   },
 
   // UI State
@@ -94,9 +100,50 @@ const createEl = (tag, className, text = "") => {
   return el
 }
 
-function setBoardMessage(msg) {
+function setBoardMessage(msg, isError = false) {
   const boardEl = $("workflow-board")
-  if (boardEl) boardEl.innerHTML = `<p style="padding:1rem; opacity:0.7;">${msg}</p>`
+  if (boardEl) {
+    const color = isError ? "#ef4444" : "inherit";
+    boardEl.innerHTML = `<p style="padding:1rem; opacity:0.8; color:${color}">${msg}</p>`
+  }
+}
+
+// --- NIEUW: Centrale Error & Notification Handler ---
+
+function showToast(message) {
+  // Maak toast element als het er nog niet is
+  let toast = qs(".wf-toast");
+  if (!toast) {
+    toast = createEl("div", "wf-toast");
+    document.body.appendChild(toast);
+  }
+  
+  toast.textContent = message;
+  toast.classList.add("visible");
+
+  // Verberg na 3 seconden
+  setTimeout(() => {
+    toast.classList.remove("visible");
+  }, 3500);
+}
+
+function handleActionError(action, error, context = {}, userMessage = "Er is een fout opgetreden.") {
+  // 1. Log naar systeem
+  logEntry({
+    level: "error",
+    page: "workflow",
+    action: action,
+    message: error.message || String(error),
+    code: error.code || "unknown",
+    boardId: state.boardId,
+    uid: state.uid,
+    timestamp: new Date().toISOString(),
+    ...context // Voeg specifieke ID's toe (cardId, columnId, etc)
+  });
+
+  // 2. Toon melding aan gebruiker
+  console.error(`[Workflow Error] ${action}:`, error); // Voor dev in console
+  showToast(userMessage);
 }
 
 // --- Date & Sort Helpers ---
@@ -112,76 +159,66 @@ const parseDateFromInput = (val) => {
   return new Date(val)
 }
 
-// Haal numerieke prioriteit op van een kaart
 function getCardPriorityValue(card) {
   if (!card.tags || !card.tags.length) return 0;
   let maxPrio = 0;
-  
   card.tags.forEach(tagId => {
     const tag = state.tagsById.get(tagId);
-    if (tag && tag.builtin && tag.builtinKey) { // Gebruik builtinKey (bijv 'priority-high')
-      // Zoek sleutel op basis van de naam als key niet bestaat (legacy support), 
-      // maar voorkeur is builtinKey zoals opgeslagen in PRIORITY_TAGS
+    if (tag && tag.builtin && tag.builtinKey) {
       let val = PRIORITY_VALS[tag.builtinKey] || 0;
-      
-      // Fallback: zoek op naam als key mist
       if (val === 0) {
          const found = PRIORITY_TAGS.find(p => p.name === tag.name);
          if (found) val = PRIORITY_VALS[found.key];
       }
-
       if (val > maxPrio) maxPrio = val;
     }
   });
   return maxPrio;
 }
 
-// Hoofd sorteer functie
 function sortCardsLogic(a, b) {
-  // 1. Prioriteit (Hoog naar Laag)
   const prioA = getCardPriorityValue(a);
   const prioB = getCardPriorityValue(b);
   if (prioA !== prioB) return prioB - prioA;
 
-  // 2. Deadline (Dichtbij naar Ver, null achteraan)
   const dateA = a.dueDate ? (a.dueDate.toDate ? a.dueDate.toDate() : new Date(a.dueDate)) : null;
   const dateB = b.dueDate ? (b.dueDate.toDate ? b.dueDate.toDate() : new Date(b.dueDate)) : null;
 
   if (dateA && dateB) {
     if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
-  } else if (dateA && !dateB) {
-    return -1; // A heeft datum, B niet -> A komt eerst
-  } else if (!dateA && dateB) {
-    return 1; // B heeft datum, A niet -> B komt eerst
-  }
+  } else if (dateA && !dateB) return -1; 
+  else if (!dateA && dateB) return 1; 
 
-  // 3. Alfabetisch (Titel)
   const titleA = (a.title || "").toLowerCase();
   const titleB = (b.title || "").toLowerCase();
   return titleA.localeCompare(titleB);
 }
 
 // --- Firestore Data Operations ---
-// (Identiek aan V0.3 met permission fix)
 
 async function getOrCreateBoard(uid) {
-  const boardsRef = collection(db, COLLECTIONS.BOARDS)
-  const q = query(boardsRef, where("uid", "==", uid))
-  const snap = await getDocs(q)
-  
-  if (!snap.empty) {
-    const docSnap = snap.docs[0]
-    return { id: docSnap.id, ...docSnap.data() }
-  }
+  try {
+    const boardsRef = collection(db, COLLECTIONS.BOARDS)
+    const q = query(boardsRef, where("uid", "==", uid))
+    const snap = await getDocs(q)
+    
+    if (!snap.empty) {
+      const docSnap = snap.docs[0]
+      return { id: docSnap.id, ...docSnap.data() }
+    }
 
-  const newBoard = {
-    uid,
-    name: "Mijn Workflow",
-    isDefault: true,
-    createdAt: serverTimestamp()
+    const newBoard = {
+      uid,
+      name: "Mijn Workflow",
+      isDefault: true,
+      createdAt: serverTimestamp()
+    }
+    const ref = await addDoc(boardsRef, newBoard)
+    return { id: ref.id, ...newBoard }
+  } catch (err) {
+    handleActionError("getOrCreateBoard", err, {}, "Kon bord niet laden.");
+    throw err; // Rethrow zodat de init stopt
   }
-  const ref = await addDoc(boardsRef, newBoard)
-  return { id: ref.id, ...newBoard }
 }
 
 async function fetchColumns(boardId, uid) {
@@ -225,7 +262,7 @@ async function fetchAndSyncTags(boardId, uid) {
       addDoc(tagsRef, {
         boardId, uid, 
         name: p.name, color: p.color, 
-        active: true, builtin: true, builtinKey: p.key, // Belangrijk voor sortering
+        active: true, builtin: true, builtinKey: p.key,
         createdAt: serverTimestamp()
       }).then(ref => ({
         id: ref.id,
@@ -240,7 +277,6 @@ async function fetchAndSyncTags(boardId, uid) {
 }
 
 // --- Render Logic ---
-
 function renderBoard() {
   const root = state.dom.board
   root.innerHTML = ""
@@ -250,31 +286,21 @@ function renderBoard() {
     return
   }
 
-  // 1. Filter de kaarten
   const keyword = state.filter.keyword.toLowerCase().trim()
   const filterTags = state.filter.tags
 
   const filteredCards = Array.from(state.cardsById.values()).filter(card => {
-    // Tekst filter
     const matchText = !keyword || (card.title && card.title.toLowerCase().includes(keyword));
-    
-    // Tag filter (als er tags geselecteerd zijn, moet de kaart minstens 1 hebben)
     let matchTags = true;
     if (filterTags.size > 0) {
-      if (!card.tags || !card.tags.length) {
-        matchTags = false;
-      } else {
-        // Controleren of minstens één van de kaart-tags in het filter zit
-        matchTags = card.tags.some(tagId => filterTags.has(tagId));
-      }
+      if (!card.tags || !card.tags.length) matchTags = false;
+      else matchTags = card.tags.some(tagId => filterTags.has(tagId));
     }
     return matchText && matchTags;
   });
 
-  // 2. Sorteer de gefilterde kaarten
   filteredCards.sort(sortCardsLogic);
 
-  // 3. Groepeer per kolom
   const cardsByCol = {}
   state.columns.forEach(c => cardsByCol[c.id] = [])
   
@@ -284,7 +310,6 @@ function renderBoard() {
     }
   })
 
-  // 4. Render DOM
   state.columns.forEach(col => {
     const colEl = createEl("div", "wf-column")
     
@@ -292,11 +317,10 @@ function renderBoard() {
     header.appendChild(createEl("h2", "wf-column-title", col.title))
     const count = cardsByCol[col.id].length
     
-    // Toon count (eventueel met totaal als filter aanstaat)
     const totalInCol = Array.from(state.cardsById.values()).filter(c => c.columnId === col.id).length
     let countText = count.toString();
     if (count !== totalInCol) {
-      countText = `${count} / ${totalInCol}` // Visualiseer dat er gefilterd wordt
+      countText = `${count} / ${totalInCol}`
     }
     
     header.appendChild(createEl("span", "wf-column-count", countText))
@@ -322,7 +346,6 @@ function createCardElement(card) {
   const title = createEl("div", "wf-card-title", card.title)
   el.appendChild(title)
 
-  // Datum tonen indien aanwezig
   if (card.dueDate) {
     const d = typeof card.dueDate.toDate === 'function' ? card.dueDate.toDate() : new Date(card.dueDate);
     const dateSpan = createEl("div", "", "📅 " + d.toLocaleDateString('nl-NL', {day:'numeric', month:'short'}));
@@ -353,7 +376,6 @@ function createCardElement(card) {
   return el
 }
 
-// --- UI: Filter Popover Render ---
 function renderFilterPopover() {
   const grid = state.dom.filterTagsGrid;
   grid.innerHTML = "";
@@ -377,7 +399,7 @@ function renderFilterPopover() {
         pill.classList.add("selected");
       }
       updateFilterBtnState();
-      renderBoard(); // Live update
+      renderBoard(); 
     });
 
     grid.appendChild(pill);
@@ -396,11 +418,7 @@ function updateFilterBtnState() {
   }
 }
 
-// ... (RenderFormTagSelector en RenderManageTagsList blijven hetzelfde als V0.3, hier weggelaten voor beknoptheid. 
-// Neem ze over uit de vorige versie of vraag ze indien nodig, ze zijn niet gewijzigd behalve context) ...
-
 function renderFormTagSelector() {
-    // Zelfde als V0.3 (standaard)
     const { chipsContainer, tagsListContainer } = state.dom.formTags
     chipsContainer.innerHTML = ""
     if (state.form.workingTags.size === 0) {
@@ -441,7 +459,6 @@ function renderFormTagSelector() {
 }
 
 function renderManageTagsList() {
-    // Zelfde als V0.3
     const container = state.dom.manageTagsList
     container.innerHTML = ""; container.className = "wf-tags-list-board"
     state.tags.forEach(tag => {
@@ -460,7 +477,7 @@ function renderManageTagsList() {
     })
 }
 
-// --- Actions & Handlers ---
+// --- Actions & Handlers (Robust) ---
 
 async function reloadData() {
   if (!state.uid || !state.boardId) return
@@ -481,11 +498,11 @@ async function reloadData() {
     const backlog = cols.find(c => c.title === "Backlog") || cols[0]
     state.backlogColumnId = backlog ? backlog.id : null
 
-    renderFilterPopover(); // Update filter tags indien tags gewijzigd
+    renderFilterPopover(); 
     renderBoard();
   } catch (err) {
-    console.error(err)
-    setBoardMessage("Fout bij laden data: " + err.message)
+    handleActionError("reloadData", err, {}, "Fout bij laden van data. Herlaad de pagina.");
+    setBoardMessage("Er ging iets mis bij het laden van het board.", true);
   }
 }
 
@@ -524,6 +541,12 @@ async function saveCard(e) {
   const title = state.dom.inputs.title.value.trim()
   if (!title) return alert("Titel verplicht")
 
+  // Button state handling
+  const btn = e.submitter || qs("button[type='submit']", state.dom.modals.card);
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Bezig...";
+
   const data = {
     title,
     description: state.dom.inputs.desc.value.trim(),
@@ -545,44 +568,66 @@ async function saveCard(e) {
       data.createdAt = serverTimestamp()
       await addDoc(collection(db, COLLECTIONS.CARDS), data)
     }
+    
     state.dom.modals.card.classList.add("wf-card-form--hidden")
-    reloadData()
+    reloadData() // Refresh to get timestamps etc
   } catch (err) {
-    console.error(err)
-    alert("Opslaan mislukt")
+    handleActionError("saveCard", err, { cardData: data }, "Opslaan mislukt. Probeer opnieuw.");
+  } finally {
+    // Reset UI
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 }
 
 async function deleteCard() {
   if (!confirm("Weet je het zeker?")) return
+
+  const btn = state.dom.btnDelete;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Bezig...";
+
   try {
     await deleteDoc(doc(db, COLLECTIONS.CARDS, state.form.cardId))
     state.dom.modals.card.classList.add("wf-card-form--hidden")
     reloadData()
-  } catch(e) { console.error(e) }
+  } catch(err) { 
+    handleActionError("deleteCard", err, { cardId: state.form.cardId }, "Verwijderen mislukt.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 async function createNewTag() {
   const name = prompt("Tag naam:")
   if (!name) return
   const color = prompt("Kleur (hex):", "#6366f1") || "#6366f1"
+
   try {
     await addDoc(collection(db, COLLECTIONS.TAGS), {
       boardId: state.boardId, uid: state.uid,
       name, color, active: true, builtin: false, createdAt: serverTimestamp()
     })
     reloadData()
-  } catch (e) { console.error(e) }
+  } catch (err) { 
+    handleActionError("createNewTag", err, { name, color }, "Tag aanmaken mislukt.");
+  }
 }
 
 async function toggleTagActive(tagId, isActive) {
   try {
     await updateDoc(doc(db, COLLECTIONS.TAGS, tagId), { active: isActive })
     reloadData()
-  } catch(e) { console.error(e) }
+  } catch(err) { 
+    handleActionError("toggleTagActive", err, { tagId, isActive }, "Tag status wijzigen mislukt.");
+    // UI Rollback: herlaad lijst om checkbox terug te zetten
+    renderManageTagsList();
+  }
 }
 
-// --- Drag & Drop ---
+// --- Drag & Drop (Robust) ---
 function setupDragDrop() {
   const root = state.dom.board
   root.addEventListener("dragstart", e => {
@@ -612,13 +657,26 @@ function setupDragDrop() {
     const list = e.target.closest(".wf-column-cards")
     if (!list || !state.dragState.cardId) return
     list.classList.remove("wf-drop-target")
+    
     const newColId = list.dataset.columnId
     const card = state.cardsById.get(state.dragState.cardId)
-    if (card.columnId === newColId) return 
+    if (card.columnId === newColId) return // Geen verandering
+    
     try {
-      await updateDoc(doc(db, COLLECTIONS.CARDS, card.id), { columnId: newColId, updatedAt: serverTimestamp() })
-      reloadData()
-    } catch (err) { console.error(err); alert("Verplaatsen mislukt") }
+      // Optimistic UI update? Voorlopig doen we simpele wait.
+      // Update DB
+      await updateDoc(doc(db, COLLECTIONS.CARDS, card.id), { 
+        columnId: newColId, 
+        updatedAt: serverTimestamp() 
+      })
+      
+      reloadData() // Sync alles netjes
+    } catch (err) { 
+      handleActionError("moveCard", err, { cardId: card.id, from: card.columnId, to: newColId }, "Verplaatsen mislukt. De kaart staat terug.");
+      
+      // CRUCIAL: Rollback - herlaad data om kaart visueel terug te zetten
+      reloadData(); 
+    }
   })
 }
 
@@ -627,7 +685,7 @@ function setupDragDrop() {
 function bindUI() {
   state.dom.board = $("workflow-board")
   
-  // 1. Bouw DOM (nu met Filter controls)
+  // 1. Bouw DOM (Filter controls + Toast container space is virtual)
   const content = qs(".page-workflow .content")
   const board = $("workflow-board")
 
@@ -653,7 +711,7 @@ function bindUI() {
   `
   content.insertBefore(tb, board)
 
-  // (Hergebruik modal HTML uit vorige versie)
+  // Modals
   const cm = createEl("section", "wf-card-form wf-card-form--hidden")
   cm.innerHTML = `<form class="wf-card-form-inner"><div class="wf-form-group"><label>Titel</label><input type="text" name="title" required placeholder="Taak naam..."></div><div class="wf-form-group"><label>Deadline</label><input type="date" name="deadline"></div><div class="wf-form-group"><label>Omschrijving</label><textarea name="description" rows="3"></textarea></div><div class="wf-form-group wf-form-group-tags"><div class="wf-form-tags-header"><span>Tags</span><button type="button" class="wf-btn wf-btn-small wf-btn-secondary btn-toggle-tags-panel">Wijzigen</button></div><div class="wf-form-tags-chips"></div><div class="wf-form-tags-panel wf-form-tags-panel--hidden"><div class="wf-form-tags-list"></div></div></div><div class="wf-card-form-actions"><button type="button" class="wf-btn wf-btn-danger btn-delete-card">Verwijderen</button><button type="button" class="wf-btn wf-btn-secondary btn-cancel-card">Annuleren</button><button type="submit" class="wf-btn wf-btn-primary">Opslaan</button></div></form>`
   content.appendChild(cm)
@@ -678,7 +736,7 @@ function bindUI() {
   state.dom.btnDelete = qs(".btn-delete-card", cm)
   state.dom.filterTagsGrid = qs(".wf-filter-tags-grid", tb)
 
-  // Event Listeners Main
+  // Event Listeners
   qs(".btn-new-card").addEventListener("click", () => openCardForm())
   qs(".btn-manage-tags").addEventListener("click", () => {
     state.dom.modals.tags.classList.remove("wf-card-form--hidden")
@@ -696,7 +754,6 @@ function bindUI() {
     if (cardEl) openCardForm(cardEl.dataset.cardId)
   })
 
-  // Filter & Search Events
   const searchInput = qs(".wf-search-input");
   searchInput.addEventListener("input", (e) => {
     state.filter.keyword = e.target.value;
@@ -711,7 +768,6 @@ function bindUI() {
     filterPopover.classList.toggle("visible");
   });
 
-  // Sluit popover als je ernaast klikt
   document.addEventListener("click", (e) => {
     if (!filterPopover.contains(e.target) && e.target !== filterBtn) {
       filterPopover.classList.remove("visible");
@@ -729,6 +785,10 @@ document.addEventListener("DOMContentLoaded", () => {
       getOrCreateBoard(user.uid).then(board => {
         state.boardId = board.id
         reloadData()
+      }).catch(err => {
+         // Catch startup errors
+         console.error("Critical Startup Error", err);
+         setBoardMessage("Fatale fout bij laden: " + err.message, true);
       })
     } else {
       setBoardMessage("Log in om je bord te zien.")

@@ -489,3 +489,80 @@ input:disabled + .wf-tag-toggle-slider {
   opacity: 1;
   box-shadow: 0 0 0 2px var(--card, #1e293b), 0 0 0 4px var(--brand, #2563eb);
 }
+
+/* --- Toast Notifications (Error handling) --- */
+.wf-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #ef4444; /* Rood voor errors */
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wf-toast.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Loading state op buttons */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Help Popover (V0.3-10) --- */
+.wf-help-popover {
+  position: absolute;
+  top: 100%;
+  right: 0; /* Rechts uitlijnen zodat hij niet van scherm valt */
+  margin-top: 0.5rem;
+  background: var(--card, #1e293b);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  z-index: 60;
+  width: 300px;
+  display: none;
+  font-size: 0.9rem;
+  color: var(--fg, #e5e7eb);
+  line-height: 1.5;
+}
+
+.wf-help-popover.visible {
+  display: block;
+}
+
+.wf-help-popover h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.wf-help-popover ul {
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.wf-help-popover li {
+  margin-bottom: 0.5rem;
+  opacity: 0.9;
+}
+
+.wf-help-popover strong {
+  color: #60a5fa; /* Accentkleur voor termen */
+}
