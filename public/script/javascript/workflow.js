@@ -1,5 +1,5 @@
-// script/javascript/workflow.js
-// Workflow board met Firestore (CRUD kaarten, drag & drop, tagbeheer per kaart + tagbeheer per board)
+// Workflow board met Firestore (CRUD kaarten, drag & drop,
+// tagbeheer per board + per kaart via detail-modal)
 
 import {
   getFirebaseApp,
@@ -23,17 +23,17 @@ const db = getFirestore(app)
 const auth = getAuth(app)
 
 // Collectie namen
-const COL_BOARDS  = "workflowBoards"
+const COL_BOARDS = "workflowBoards"
 const COL_COLUMNS = "workflowColumns"
-const COL_CARDS   = "workflowCards"
-const COL_TAGS    = "workflowTags"
+const COL_CARDS = "workflowCards"
+const COL_TAGS = "workflowTags"
 
 // Vaste kolommen
 const DEFAULT_COLUMNS = [
-  { key: "backlog",     title: "Backlog",      order: 1 },
+  { key: "backlog",     title: "Backlog",     order: 1 },
   { key: "to-discuss",  title: "Te bespreken", order: 2 },
-  { key: "in-progress", title: "In progress",  order: 3 },
-  { key: "done",        title: "Afgewerkt",    order: 4 }
+  { key: "in-progress", title: "In progress", order: 3 },
+  { key: "done",        title: "Afgewerkt",   order: 4 }
 ]
 
 // Vaste prioriteitstags
@@ -57,7 +57,7 @@ const state = {
   tags: [],
   tagsById: new Map(),
 
-  // Kaartformulier
+  // Kaartformulier (detail)
   formSectionEl: null,
   formEl: null,
   mode: "create",
@@ -67,18 +67,15 @@ const state = {
   inputDescription: null,
   btnDelete: null,
 
+  // Tag UI in formulier
+  formTagsChipsEl: null,
+  formTagsPanelEl: null,
+  formTagsListEl: null,
+  cardTagsWorkingSet: null,
+
   // Tagbeheer (board)
   tagsModalEl: null,
   tagsListEl: null,
-
-  // Tag selectie per kaart
-  cardTagsModalEl: null,
-  cardTagsTitleEl: null,
-  cardTagsChipsEl: null,
-  cardTagsSelectedEl: null,
-  cardTagsAvailableEl: null,
-  cardTagsCardId: null,
-  cardTagsWorkingSet: null,
 
   // Drag
   draggingCardId: null
@@ -105,7 +102,6 @@ function setBoardMessage(text) {
 async function getOrCreateDefaultBoard(uid) {
   const boardsRef = collection(db, COL_BOARDS)
 
-  // Default board
   const qDefault = query(
     boardsRef,
     where("uid", "==", uid),
@@ -117,7 +113,6 @@ async function getOrCreateDefaultBoard(uid) {
     return { id: docSnap.id, ...docSnap.data() }
   }
 
-  // Eerste board van user
   const qAny = query(boardsRef, where("uid", "==", uid))
   snap = await getDocs(qAny)
   if (!snap.empty) {
@@ -125,7 +120,6 @@ async function getOrCreateDefaultBoard(uid) {
     return { id: docSnap.id, ...docSnap.data() }
   }
 
-  // Nog geen board, aanmaken
   const boardDoc = await addDoc(boardsRef, {
     uid,
     name: "Workflow board",
@@ -349,7 +343,6 @@ function renderBoard(columns) {
       titleSpan.textContent = card.title || "(zonder titel)"
       cardEl.appendChild(titleSpan)
 
-      // Tags chips op kaart
       const cardTags = Array.isArray(card.tags) ? card.tags : []
       if (cardTags.length > 0 && state.tagsById && state.tagsById.size > 0) {
         const chipsRow = document.createElement("div")
@@ -363,13 +356,6 @@ function renderBoard(columns) {
           cardEl.appendChild(chipsRow)
         }
       }
-
-      // Tag knop op kaart
-      const tagBtn = document.createElement("button")
-      tagBtn.type = "button"
-      tagBtn.className = "wf-card-tags-btn"
-      tagBtn.textContent = "Tag"
-      cardEl.appendChild(tagBtn)
 
       listEl.appendChild(cardEl)
     })
@@ -416,7 +402,6 @@ function buildToolbarAndModals() {
   const boardSection = getBoardRoot()
   if (!content || !boardSection) return
 
-  // Toolbar
   const toolbar = document.createElement("section")
   toolbar.className = "wf-toolbar"
 
@@ -439,7 +424,6 @@ function buildToolbarAndModals() {
   toolbar.appendChild(newBtn)
   toolbar.appendChild(tagsBtn)
 
-  // Kaartformulier modal
   const formSection = document.createElement("section")
   formSection.className = "wf-card-form wf-card-form--hidden"
 
@@ -477,6 +461,42 @@ function buildToolbarAndModals() {
   descGroup.appendChild(descLabel)
   descGroup.appendChild(inputDescription)
 
+  const tagsGroup = document.createElement("div")
+  tagsGroup.className = "wf-form-group wf-form-group-tags"
+
+  const tagsHeader = document.createElement("div")
+  tagsHeader.className = "wf-form-tags-header"
+
+  const tagsLabel = document.createElement("span")
+  tagsLabel.textContent = "Tags"
+
+  const tagsToggleBtn = document.createElement("button")
+  tagsToggleBtn.type = "button"
+  tagsToggleBtn.className = "wf-btn wf-btn-small"
+  tagsToggleBtn.textContent = "🏷️ Tags wijzigen"
+
+  const tagsChips = document.createElement("div")
+  tagsChips.className = "wf-form-tags-chips"
+
+  const tagsPanel = document.createElement("div")
+  tagsPanel.className = "wf-form-tags-panel wf-form-tags-panel--hidden"
+
+  const tagsList = document.createElement("div")
+  tagsList.className = "wf-form-tags-list"
+
+  tagsPanel.appendChild(tagsList)
+
+  tagsHeader.appendChild(tagsLabel)
+  tagsHeader.appendChild(tagsToggleBtn)
+
+  tagsGroup.appendChild(tagsHeader)
+  tagsGroup.appendChild(tagsChips)
+  tagsGroup.appendChild(tagsPanel)
+
+  tagsToggleBtn.addEventListener("click", () => {
+    tagsPanel.classList.toggle("wf-form-tags-panel--hidden")
+  })
+
   const actions = document.createElement("div")
   actions.className = "wf-card-form-actions"
 
@@ -502,6 +522,7 @@ function buildToolbarAndModals() {
   form.appendChild(titleGroup)
   form.appendChild(deadlineGroup)
   form.appendChild(descGroup)
+  form.appendChild(tagsGroup)
   form.appendChild(actions)
 
   formSection.appendChild(form)
@@ -512,7 +533,6 @@ function buildToolbarAndModals() {
   })
   deleteBtn.addEventListener("click", handleDeleteCard)
 
-  // Tagbeheer modal (board)
   const tagsSection = document.createElement("section")
   tagsSection.className = "wf-card-form wf-card-form--hidden"
 
@@ -526,8 +546,8 @@ function buildToolbarAndModals() {
   tagsInfo.textContent =
     "Vaste prioriteitstags kunnen niet uitgezet worden. Je kunt extra tags aanmaken en tags actief of inactief zetten."
 
-  const tagsList = document.createElement("div")
-  tagsList.className = "wf-tags-list"
+  const tagsListBoard = document.createElement("div")
+  tagsListBoard.className = "wf-tags-list"
 
   const tagsActions = document.createElement("div")
   tagsActions.className = "wf-card-form-actions"
@@ -553,7 +573,7 @@ function buildToolbarAndModals() {
 
   tagsInner.appendChild(tagsTitle)
   tagsInner.appendChild(tagsInfo)
-  tagsInner.appendChild(tagsList)
+  tagsInner.appendChild(tagsListBoard)
   tagsInner.appendChild(tagsActions)
   tagsSection.appendChild(tagsInner)
 
@@ -563,85 +583,10 @@ function buildToolbarAndModals() {
     }
   })
 
-  // Tag selectie per kaart modal
-  const cardTagsSection = document.createElement("section")
-  cardTagsSection.className = "wf-card-form wf-card-form--hidden"
-
-  const cardTagsInner = document.createElement("div")
-  cardTagsInner.className = "wf-card-form-inner"
-
-  const cardTagsTitle = document.createElement("h2")
-  cardTagsTitle.className = "wf-card-tags-title"
-  cardTagsTitle.textContent = "Tags voor kaart"
-
-  const cardTagsChips = document.createElement("div")
-  cardTagsChips.className = "wf-card-tags-chips-modal"
-
-  const cardTagsListsWrapper = document.createElement("div")
-  cardTagsListsWrapper.className = "wf-card-tags-lists"
-
-  const selectedGroup = document.createElement("div")
-  selectedGroup.className = "wf-card-tags-group"
-  const selectedHeader = document.createElement("h3")
-  selectedHeader.textContent = "Gekoppelde tags"
-  const selectedList = document.createElement("div")
-  selectedList.className = "wf-card-tags-list-selected"
-  selectedGroup.appendChild(selectedHeader)
-  selectedGroup.appendChild(selectedList)
-
-  const availableGroup = document.createElement("div")
-  availableGroup.className = "wf-card-tags-group"
-  const availableHeader = document.createElement("h3")
-  availableHeader.textContent = "Niet gekoppeld"
-  const availableList = document.createElement("div")
-  availableList.className = "wf-card-tags-list-available"
-  availableGroup.appendChild(availableHeader)
-  availableGroup.appendChild(availableList)
-
-  cardTagsListsWrapper.appendChild(selectedGroup)
-  cardTagsListsWrapper.appendChild(availableGroup)
-
-  const cardTagsActions = document.createElement("div")
-  cardTagsActions.className = "wf-card-form-actions"
-
-  const cardTagsSaveBtn = document.createElement("button")
-  cardTagsSaveBtn.type = "button"
-  cardTagsSaveBtn.className = "wf-btn wf-btn-primary"
-  cardTagsSaveBtn.textContent = "Opslaan"
-  cardTagsSaveBtn.addEventListener("click", () => {
-    handleSaveCardTags()
-  })
-
-  const cardTagsCancelBtn = document.createElement("button")
-  cardTagsCancelBtn.type = "button"
-  cardTagsCancelBtn.className = "wf-btn wf-btn-secondary"
-  cardTagsCancelBtn.textContent = "Annuleren"
-  cardTagsCancelBtn.addEventListener("click", () => {
-    closeCardTagsModal()
-  })
-
-  cardTagsActions.appendChild(cardTagsSaveBtn)
-  cardTagsActions.appendChild(cardTagsCancelBtn)
-
-  cardTagsInner.appendChild(cardTagsTitle)
-  cardTagsInner.appendChild(cardTagsChips)
-  cardTagsInner.appendChild(cardTagsListsWrapper)
-  cardTagsInner.appendChild(cardTagsActions)
-  cardTagsSection.appendChild(cardTagsInner)
-
-  cardTagsSection.addEventListener("click", event => {
-    if (event.target === cardTagsSection) {
-      closeCardTagsModal()
-    }
-  })
-
-  // In DOM
   content.insertBefore(toolbar, boardSection)
   content.insertBefore(formSection, boardSection)
   content.insertBefore(tagsSection, boardSection)
-  content.insertBefore(cardTagsSection, boardSection)
 
-  // State refs
   state.formSectionEl = formSection
   state.formEl = form
   state.inputTitle = inputTitle
@@ -649,21 +594,111 @@ function buildToolbarAndModals() {
   state.inputDescription = inputDescription
   state.btnDelete = deleteBtn
 
-  state.tagsModalEl = tagsSection
-  state.tagsListEl = tagsList
+  state.formTagsChipsEl = tagsChips
+  state.formTagsPanelEl = tagsPanel
+  state.formTagsListEl = tagsList
 
-  state.cardTagsModalEl = cardTagsSection
-  state.cardTagsTitleEl = cardTagsTitle
-  state.cardTagsChipsEl = cardTagsChips
-  state.cardTagsSelectedEl = selectedList
-  state.cardTagsAvailableEl = availableList
+  state.tagsModalEl = tagsSection
+  state.tagsListEl = tagsListBoard
+}
+
+// Tags in formulier renderen
+function renderFormTagsArea() {
+  const chipsEl = state.formTagsChipsEl
+  const listEl = state.formTagsListEl
+  if (!chipsEl || !listEl) return
+
+  chipsEl.innerHTML = ""
+  listEl.innerHTML = ""
+
+  const working = state.cardTagsWorkingSet || new Set()
+  const tags = state.tags || []
+
+  if (working.size === 0) {
+    const span = document.createElement("span")
+    span.textContent = "Geen tags gekoppeld."
+    span.style.opacity = "0.8"
+    chipsEl.appendChild(span)
+  } else {
+    working.forEach(tagId => {
+      const tag = state.tagsById.get(tagId)
+      if (!tag) return
+      chipsEl.appendChild(buildTagChip(tag))
+    })
+  }
+
+  if (!tags.length) {
+    const p = document.createElement("p")
+    p.textContent = "Nog geen tags beschikbaar."
+    p.style.opacity = "0.8"
+    listEl.appendChild(p)
+    return
+  }
+
+  tags.forEach(tag => {
+    const row = document.createElement("label")
+    row.className = "wf-card-tag-option"
+
+    const input = document.createElement("input")
+    input.type = "checkbox"
+    input.checked = working.has(tag.id)
+
+    const colorDot = document.createElement("span")
+    colorDot.className = "wf-tag-color"
+    colorDot.style.backgroundColor = tag.color || "#64748b"
+
+    const nameSpan = document.createElement("span")
+    nameSpan.className = "wf-tag-name"
+    nameSpan.textContent = tag.name || ""
+    if (tag.note) {
+      nameSpan.title = tag.note
+    }
+
+    input.addEventListener("change", () => {
+      if (!state.cardTagsWorkingSet) {
+        state.cardTagsWorkingSet = new Set()
+      }
+      if (input.checked) {
+        state.cardTagsWorkingSet.add(tag.id)
+      } else {
+        state.cardTagsWorkingSet.delete(tag.id)
+      }
+      updateFormTagsChipsOnly()
+    })
+
+    row.appendChild(input)
+    row.appendChild(colorDot)
+    row.appendChild(nameSpan)
+
+    listEl.appendChild(row)
+  })
+}
+
+function updateFormTagsChipsOnly() {
+  const chipsEl = state.formTagsChipsEl
+  if (!chipsEl) return
+
+  chipsEl.innerHTML = ""
+  const working = state.cardTagsWorkingSet || new Set()
+  if (working.size === 0) {
+    const span = document.createElement("span")
+    span.textContent = "Geen tags gekoppeld."
+    span.style.opacity = "0.8"
+    chipsEl.appendChild(span)
+    return
+  }
+
+  working.forEach(tagId => {
+    const tag = state.tagsById.get(tagId)
+    if (!tag) return
+    chipsEl.appendChild(buildTagChip(tag))
+  })
 }
 
 // Kaartformulier open/dicht
 function openCreateForm() {
   if (!state.formSectionEl) return
   closeTagsModal()
-  closeCardTagsModal()
 
   state.mode = "create"
   state.editingCardId = null
@@ -671,6 +706,13 @@ function openCreateForm() {
   state.inputDeadline.value = ""
   state.inputDescription.value = ""
   state.btnDelete.style.display = "none"
+  state.cardTagsWorkingSet = new Set()
+
+  if (state.formTagsPanelEl) {
+    state.formTagsPanelEl.classList.add("wf-form-tags-panel--hidden")
+  }
+
+  renderFormTagsArea()
   state.formSectionEl.classList.remove("wf-card-form--hidden")
   state.inputTitle.focus()
 }
@@ -684,7 +726,6 @@ function openEditForm(cardId) {
   }
 
   closeTagsModal()
-  closeCardTagsModal()
 
   state.mode = "edit"
   state.editingCardId = cardId
@@ -694,6 +735,14 @@ function openEditForm(cardId) {
   state.inputDescription.value = card.description || ""
   state.btnDelete.style.display = "inline-block"
 
+  const currentTags = Array.isArray(card.tags) ? card.tags : []
+  state.cardTagsWorkingSet = new Set(currentTags)
+
+  if (state.formTagsPanelEl) {
+    state.formTagsPanelEl.classList.add("wf-form-tags-panel--hidden")
+  }
+
+  renderFormTagsArea()
   state.formSectionEl.classList.remove("wf-card-form--hidden")
   state.inputTitle.focus()
 }
@@ -703,13 +752,13 @@ function closeForm() {
   state.formSectionEl.classList.add("wf-card-form--hidden")
   state.mode = "create"
   state.editingCardId = null
+  state.cardTagsWorkingSet = null
 }
 
-// Tagbeheer open/dicht
+// Tagbeheer (board)
 function openTagsModal() {
   if (!state.tagsModalEl) return
   closeForm()
-  closeCardTagsModal()
   state.tagsModalEl.classList.remove("wf-card-form--hidden")
   reloadTags().catch(err => {
     console.error("Fout bij laden tags", err)
@@ -854,7 +903,9 @@ async function handleTagActiveChange(tagId, newActive) {
 
   if (!newActive) {
     const ok = window.confirm(
-      'Tag "' + tag.name + '" inactief zetten? Bestaande kaarten houden deze tag, maar voor nieuw gebruik is ze dan uit.'
+      'Tag "' +
+        tag.name +
+        '" inactief zetten? Bestaande kaarten houden deze tag, maar voor nieuw gebruik is ze dan uit.'
     )
     if (!ok) {
       const input = findToggleInputForTag(tagId)
@@ -883,148 +934,6 @@ function findToggleInputForTag(tagId) {
   const row = state.tagsListEl.querySelector(selector)
   if (!row) return null
   return row.querySelector(".wf-tag-toggle-input")
-}
-
-// Tag selectie per kaart modal helpers
-function openCardTagsModal(cardId) {
-  if (!state.cardTagsModalEl) return
-
-  const card = state.cardsById.get(cardId)
-  if (!card) {
-    console.warn("Kaart niet gevonden voor tags", cardId)
-    return
-  }
-
-  closeForm()
-  closeTagsModal()
-
-  state.cardTagsCardId = cardId
-  const currentTags = Array.isArray(card.tags) ? card.tags : []
-  state.cardTagsWorkingSet = new Set(currentTags)
-
-  if (state.cardTagsTitleEl) {
-    const title = card.title || "(zonder titel)"
-    state.cardTagsTitleEl.textContent = "Tags voor kaart: " + title
-  }
-
-  renderCardTagsModalContent()
-  state.cardTagsModalEl.classList.remove("wf-card-form--hidden")
-}
-
-function closeCardTagsModal() {
-  if (!state.cardTagsModalEl) return
-  state.cardTagsModalEl.classList.add("wf-card-form--hidden")
-  state.cardTagsCardId = null
-  state.cardTagsWorkingSet = null
-}
-
-function renderCardTagsModalContent() {
-  const selectedContainer = state.cardTagsSelectedEl
-  const availableContainer = state.cardTagsAvailableEl
-  const chipsContainer = state.cardTagsChipsEl
-  if (!selectedContainer || !availableContainer || !chipsContainer) return
-
-  selectedContainer.innerHTML = ""
-  availableContainer.innerHTML = ""
-  chipsContainer.innerHTML = ""
-
-  // Chips bovenaan
-  updateCardTagsChipsOnly()
-
-  // Lijsten vullen
-  const tags = state.tags || []
-  const working = state.cardTagsWorkingSet || new Set()
-
-  tags.forEach(tag => {
-    const isSelected = working.has(tag.id)
-
-    const label = document.createElement("label")
-    label.className = "wf-card-tag-option"
-
-    const input = document.createElement("input")
-    input.type = "checkbox"
-    input.checked = isSelected
-
-    const colorDot = document.createElement("span")
-    colorDot.className = "wf-tag-color"
-    colorDot.style.backgroundColor = tag.color || "#64748b"
-
-    const nameSpan = document.createElement("span")
-    nameSpan.className = "wf-tag-name"
-    nameSpan.textContent = tag.name || ""
-
-    label.appendChild(input)
-    label.appendChild(colorDot)
-    label.appendChild(nameSpan)
-
-    input.addEventListener("change", () => {
-      if (!state.cardTagsWorkingSet) {
-        state.cardTagsWorkingSet = new Set()
-      }
-      if (input.checked) {
-        state.cardTagsWorkingSet.add(tag.id)
-      } else {
-        state.cardTagsWorkingSet.delete(tag.id)
-      }
-      updateCardTagsChipsOnly()
-    })
-
-    if (isSelected) {
-      selectedContainer.appendChild(label)
-    } else {
-      availableContainer.appendChild(label)
-    }
-  })
-
-  if (!selectedContainer.childNodes.length) {
-    const p = document.createElement("p")
-    p.textContent = "Nog geen tags gekoppeld."
-    p.style.opacity = "0.8"
-    selectedContainer.appendChild(p)
-  }
-}
-
-function updateCardTagsChipsOnly() {
-  const chipsContainer = state.cardTagsChipsEl
-  if (!chipsContainer) return
-  chipsContainer.innerHTML = ""
-
-  const working = state.cardTagsWorkingSet
-  if (!working || working.size === 0) {
-    const span = document.createElement("span")
-    span.textContent = "Geen tags gekoppeld."
-    span.style.opacity = "0.8"
-    chipsContainer.appendChild(span)
-    return
-  }
-
-  working.forEach(tagId => {
-    const tag = state.tagsById.get(tagId)
-    if (!tag) return
-    chipsContainer.appendChild(buildTagChip(tag))
-  })
-}
-
-async function handleSaveCardTags() {
-  if (!state.cardTagsCardId || !state.cardTagsWorkingSet) {
-    closeCardTagsModal()
-    return
-  }
-
-  try {
-    const cardRef = doc(db, COL_CARDS, state.cardTagsCardId)
-    const newTags = Array.from(state.cardTagsWorkingSet)
-    await updateDoc(cardRef, {
-      tags: newTags,
-      updatedAt: serverTimestamp()
-    })
-    await reloadBoard()
-  } catch (err) {
-    console.error("Fout bij opslaan tags voor kaart", err)
-    window.alert("Er ging iets mis bij het opslaan van de tags.")
-  } finally {
-    closeCardTagsModal()
-  }
 }
 
 // Sort helpers
@@ -1057,6 +966,8 @@ async function handleFormSubmit(event) {
   const title = state.inputTitle.value.trim()
   const description = state.inputDescription.value.trim()
   const dueDate = fromDateInputValue(state.inputDeadline.value)
+  const workingTags = state.cardTagsWorkingSet || new Set()
+  const tagsArray = Array.from(workingTags)
 
   if (!title) {
     window.alert("Titel is verplicht.")
@@ -1070,6 +981,7 @@ async function handleFormSubmit(event) {
       const updateData = {
         title,
         description,
+        tags: tagsArray,
         updatedAt: serverTimestamp()
       }
       if (dueDate) {
@@ -1091,7 +1003,7 @@ async function handleFormSubmit(event) {
         uid: state.uid,
         title,
         description,
-        tags: [],
+        tags: tagsArray,
         sort: sortValue,
         status: "Backlog",
         createdAt: serverTimestamp(),
@@ -1164,6 +1076,13 @@ async function reloadBoard() {
   const merged = mergeColumnsAndCards(columns, cards)
   renderBoard(merged)
   renderTagsList()
+
+  if (
+    state.formSectionEl &&
+    !state.formSectionEl.classList.contains("wf-card-form--hidden")
+  ) {
+    renderFormTagsArea()
+  }
 }
 
 async function reloadTags() {
@@ -1175,6 +1094,13 @@ async function reloadTags() {
     state.tagsById.set(tag.id, tag)
   })
   renderTagsList()
+
+  if (
+    state.formSectionEl &&
+    !state.formSectionEl.classList.contains("wf-card-form--hidden")
+  ) {
+    renderFormTagsArea()
+  }
 }
 
 // Drag & drop
@@ -1290,26 +1216,12 @@ function setupDragAndDropHandlers() {
   root.addEventListener("drop", onDrop)
 }
 
-// Klik op kaart
+// Klik op kaart => detail openen
 function setupCardClickHandler() {
   const root = getBoardRoot()
   if (!root) return
 
   root.addEventListener("click", event => {
-    // Eerst checken of het de Tag-knop is
-    const tagBtn = event.target.closest(".wf-card-tags-btn")
-    if (tagBtn) {
-      const cardEl = tagBtn.closest(".wf-card")
-      if (!cardEl) return
-      const cardId = cardEl.getAttribute("data-card-id")
-      if (!cardId) return
-      event.preventDefault()
-      event.stopPropagation()
-      openCardTagsModal(cardId)
-      return
-    }
-
-    // Anders volledige kaart = open edit
     const cardEl = event.target.closest(".wf-card")
     if (!cardEl) return
     const cardId = cardEl.getAttribute("data-card-id")
@@ -1337,7 +1249,6 @@ function initWorkflowBoard() {
       setBoardMessage("Meld je aan om het workflow board te zien.")
       return
     }
-
     state.uid = user.uid
 
     loadAndRenderBoardForUser(user.uid).catch(err => {
