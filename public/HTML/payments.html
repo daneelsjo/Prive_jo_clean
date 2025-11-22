@@ -6,15 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
   <title>Betalingen</title>
-  <script>
+<script>
+    // 1. DIT ZORGT VOOR DE RODE BALK
+    window.APP_ENV = "DEV"; 
+
+    // Thema voorkeur
     (function () {
       try {
-        var pref = localStorage.getItem('app.theme') || 'system';
+        var pref = localStorage.getItem('theme_pref') || 'system';
         var final = pref === 'system'
           ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           : pref;
         document.documentElement.setAttribute('data-theme', final);
-      } catch (e) { }
+      } catch (e) { /* no-op */ }
     })();
   </script>
   <link rel="stylesheet" href="../CSS/main.css">

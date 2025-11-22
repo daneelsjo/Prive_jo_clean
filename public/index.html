@@ -19,6 +19,7 @@
       } catch (e) { /* no-op */ }
     })();
   </script>
+ 
 
   <link rel="stylesheet" href="CSS/main.css" />
   <link rel="stylesheet" href="CSS/components-menu.css" />
@@ -27,6 +28,11 @@
 </head>
 
 <body class="page-index">
+   <script>
+  // Dit regelt of de balk rood wordt!
+  // Zet op "PROD" als je live gaat.
+  window.APP_ENV = "DEV"; 
+</script>
   <!-- AUTH -->
   <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
 
@@ -85,6 +91,7 @@
 
     <!-- Scripts -->
     <script src="script/javascript/include-partials.js"></script> <script src="script/javascript/menu.js"></script> <script type="module" src="script/javascript/modal.js"></script> <script type="module" src="script/javascript/time.js"></script> <script type="module" src="script/javascript/main.js"></script>
+<script type="module" src="script/javascript/index.js"></script>
 </body>
 
 </html>

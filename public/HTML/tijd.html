@@ -6,17 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
     <title>Tijdsregistratie</title>
-    <script>
-        (function () {
-            try {
-                var pref = localStorage.getItem('app.theme') || 'system';
-                var final = pref === 'system'
-                    ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                    : pref;
-                document.documentElement.setAttribute('data-theme', final);
-            } catch (e) { }
-        })();
-    </script>
+<script>
+    // 1. DIT ZORGT VOOR DE RODE BALK
+    window.APP_ENV = "DEV"; 
+
+    // Thema voorkeur
+    (function () {
+      try {
+        var pref = localStorage.getItem('theme_pref') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) { /* no-op */ }
+    })();
+  </script>
     <link rel="stylesheet" href="../CSS/main.css">
     <link rel="stylesheet" href="../CSS/components-menu.css">
     <link rel="stylesheet" href="../CSS/components-sidemenu.css">
@@ -148,7 +152,9 @@
 
     <!-- Eerst includes, dan menu, dan tijdsregistratie -->
     <script src="../script/javascript/include-partials.js"></script>
-    <script src="../script/javascript/menu.js"></script>
+  <script src="../script/javascript/menu.js"></script>
+  
+  <script type="module" src="../script/javascript/main.js"></script>
 
     <!-- jsPDF + AutoTable -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
