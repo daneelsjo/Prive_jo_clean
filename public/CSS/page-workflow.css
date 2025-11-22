@@ -1,5 +1,6 @@
 /* CSS/page-workflow.css */
 
+/* --- Layout & Base --- */
 .page-workflow .page {
   display: grid;
   grid-template-columns: 1fr;
@@ -25,25 +26,59 @@
   opacity: 0.8;
 }
 
-/* Bord layout */
+/* --- Toolbar --- */
+.wf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 
+.wf-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.wf-btn:hover {
+  opacity: 0.9;
+}
+
+.wf-btn-primary {
+  background: var(--brand, #2563eb);
+  color: #f9fafb;
+}
+.wf-btn-secondary {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--fg, #e5e7eb);
+}
+.wf-btn-danger {
+  background: #b91c1c;
+  color: #f9fafb;
+}
+.wf-btn-small {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.55rem;
+}
+
+/* --- Bord Layout --- */
 .workflow-board {
   display: flex;
   flex-direction: row;
   gap: 1rem;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   width: 100%;
   overflow-x: auto;
-  padding-bottom: 0.5rem;
+  padding-bottom: 1rem;
+  min-height: 400px;
 }
 
-/* Kolommen */
-
+/* --- Kolommen --- */
 .wf-column {
-  flex: 1 0 260px;
-  min-width: 230px;
-  max-width: none;
+  flex: 0 0 280px; /* Vaste breedte, niet krimpen */
   background: var(--card, #111827);
   color: var(--fg, #e5e7eb);
   border-radius: 0.75rem;
@@ -51,465 +86,299 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  max-height: 80vh;
 }
 
 .wf-column-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem;
 }
 
 .wf-column-title {
   font-size: 1rem;
   margin: 0;
+  font-weight: 600;
 }
 
 .wf-column-count {
-  font-size: 0.85rem;
-  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.6rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: bold;
 }
 
 .wf-column-cards {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  overflow-y: auto;
+  min-height: 50px; /* Zorgt dat lege kolom drop target blijft */
+  padding-bottom: 0.25rem;
 }
 
-.wf-card {
-  background: rgba(15, 23, 42, 0.9);
+/* Drop target highlight */
+.wf-drop-target {
+  background: rgba(37, 99, 235, 0.1);
   border-radius: 0.5rem;
-  padding: 0.5rem 0.6rem;
+  outline: 2px dashed rgba(37, 99, 235, 0.5);
+}
+
+/* --- Kaarten --- */
+.wf-card {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
   font-size: 0.9rem;
-  cursor: default;
-  border: 1px solid rgba(148, 163, 184, 0.4);
+  cursor: grab;
+  border: 1px solid rgba(148, 163, 184, 0.2);
   transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .wf-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
-  border-color: rgba(248, 250, 252, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  border-color: rgba(148, 163, 184, 0.5);
 }
 
-/* Kleine screens */
-
-@media (max-width: 768px) {
-  .page-workflow .content {
-    padding: 1rem;
-  }
-
-  .wf-column {
-    min-width: 190px;
-  }
+.wf-card:active {
+  cursor: grabbing;
 }
 
-/* Toolbar boven het board */
-.wf-toolbar {
+.wf-card-title {
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.wf-card-tags-chips {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* Tag Chips (klein op kaart) */
+.wf-tag-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  font-size: 0.7rem;
 }
 
-/* Basis knoppen voor workflow */
-.wf-btn {
-  border: none;
-  border-radius: 999px;
-  padding: 0.45rem 1rem;
-  font-size: 0.9rem;
-  cursor: pointer;
+.wf-tag-chip-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
-.wf-btn-primary {
-  background: var(--brand, #2563eb);
-  color: #f9fafb;
-}
-
-.wf-btn-secondary {
-  background: rgba(148, 163, 184, 0.15);
-  color: var(--fg, #e5e7eb);
-}
-
-.wf-btn-danger {
-  background: #b91c1c;
-  color: #f9fafb;
-}
-
-/* Modal voor kaart-formulier */
+/* --- Modals / Forms --- */
 .wf-card-form {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.85);
-  z-index: 40;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 0.2s;
 }
 
-/* Verborgen toestand */
 .wf-card-form--hidden {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .wf-card-form-inner {
   width: 100%;
-  max-width: 480px;
-  background: var(--card, #111827);
+  max-width: 500px;
+  background: var(--card, #1e293b);
   color: var(--fg, #e5e7eb);
-  border-radius: 0.9rem;
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .wf-form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
 }
 
 .wf-form-group label {
   font-size: 0.85rem;
-  opacity: 0.85;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .wf-form-group input,
 .wf-form-group textarea {
-  border-radius: 0.6rem;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  padding: 0.45rem 0.6rem;
-  font-size: 0.9rem;
-  background: rgba(15, 23, 42, 0.8);
-  color: #e5e7eb;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 0.5rem;
+  font-size: 0.95rem;
+  background: rgba(15, 23, 42, 0.5);
+  color: inherit;
 }
 
-.wf-form-group textarea {
-  resize: vertical;
-  min-height: 80px;
+.wf-form-group input:focus,
+.wf-form-group textarea:focus {
+  outline: none;
+  border-color: var(--brand, #2563eb);
+  ring: 2px solid var(--brand, #2563eb);
 }
 
 .wf-card-form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-/* Kleine schermen */
-@media (max-width: 600px) {
-  .wf-card-form-inner {
-    margin: 0 1rem;
-    padding: 1rem 1.1rem;
-  }
-}
-
-.wf-tags-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.wf-tag-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-  font-size: 0.9rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.5rem;
-  background: rgba(15, 23, 42, 0.7);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.wf-tag-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.8);
-  flex-shrink: 0;
-}
-
-.wf-tag-name {
-  flex: 1;
-  min-width: 0;
-}
-
-/* Toggle switch */
-
-.wf-tag-toggle {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.wf-tag-toggle-input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.wf-tag-toggle-slider {
-  width: 36px;
-  height: 20px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.6);
-  position: relative;
-  transition: background 0.15s ease;
-}
-
-.wf-tag-toggle-slider::before {
-  content: "";
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: #f9fafb;
-  left: 2px;
-  top: 2px;
-  transition: transform 0.15s ease;
-}
-
-.wf-tag-toggle-input:checked + .wf-tag-toggle-slider {
-  background: #22c55e;
-}
-
-.wf-tag-toggle-input:checked + .wf-tag-toggle-slider::before {
-  transform: translateX(16px);
-}
-
-.wf-tag-toggle-input:disabled + .wf-tag-toggle-slider {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.wf-tag-toggle-disabled {
-  cursor: default;
-}
-
-/* ===== Workflow tags – GitHub-achtige stijl ===== */
-
-/* Groep in formulier */
-
-.wf-form-group-tags {
-  margin-top: 0.75rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.4);
-  padding-top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
+/* --- Tag Beheer & Selectie in Form --- */
 .wf-form-tags-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.wf-form-tags-header span {
-  font-weight: 500;
-}
-
-.wf-btn.wf-btn-small {
-  font-size: 0.8rem;
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-}
-
-/* Gekozen tags bovenaan in de detailmodal */
-
-.wf-form-tags-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  min-height: 1.5rem;
-}
-
-/* Een tag-chip (gebruik ik ook op de kaarten zelf) */
-
-.wf-tag-chip {
-  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  font-size: 0.78rem;
-  line-height: 1;
+  margin-bottom: 0.5rem;
 }
-
-.wf-tag-chip-color {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.8);
-}
-
-.wf-tag-chip-label {
-  white-space: nowrap;
-}
-
-/* Panel met lijst zoals GitHub "Apply labels to this issue" */
 
 .wf-form-tags-panel {
-  margin-top: 0.35rem;
-  border-radius: 0.5rem;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  background: rgba(15, 23, 42, 0.98);
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
-  max-height: 260px;
-  overflow-y: auto;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .wf-form-tags-panel--hidden {
   display: none;
 }
 
-/* Elke rij in de taglijst */
-
-.wf-form-tags-list {
-  display: flex;
-  flex-direction: column;
+.wf-tags-group {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
 }
 
-.wf-card-tag-option {
+.wf-tags-group-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.wf-tags-columns {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.82rem;
+}
+
+/* Tag Pill (in selectie modal) */
+.wf-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: white;
   cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.wf-tag-pill:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
 }
 
 .wf-card-tag-option input[type="checkbox"] {
-  margin: 0;
+  display: none;
 }
 
-.wf-card-tag-option .wf-tag-color {
-  width: 1.3rem;
-  height: 0.9rem;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.9);
-}
-
-.wf-card-tag-option .wf-tag-name {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.wf-card-tag-option:hover {
-  background: rgba(30, 64, 175, 0.4);
-}
-
-/* Tagkleur algemeen (ook in board-weergave) */
-
-.wf-tag-color {
-  display: inline-block;
-}
-
-/* Chips onderaan op de kaart zelf */
-
-.wf-card-tags-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.35rem;
-}
-
-/* Tagbeheer pagina-niveau (lijst in Tags beheren) */
-
-.wf-tags-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
-}
-
-.wf-tag-row {
+/* Lijst in "Tags Beheren" board modal */
+.wf-tags-list-board .wf-tag-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 0.85rem;
-  padding: 0.3rem 0.4rem;
-  border-radius: 0.35rem;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
 }
 
-.wf-tag-row:hover {
-  background: rgba(15, 23, 42, 0.8);
-}
-
-.wf-tag-row .wf-tag-color {
-  width: 1.1rem;
-  height: 0.8rem;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.9);
-}
-
-.wf-tag-row .wf-tag-name {
-  flex: 1;
-}
-
-/* Toggle zoals GitHub "Active" */
-
+/* Toggle Switch */
 .wf-tag-toggle {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
 }
 
-.wf-tag-toggle-input {
+.wf-tag-toggle input {
   opacity: 0;
   width: 0;
   height: 0;
 }
 
 .wf-tag-toggle-slider {
-  width: 2.1rem;
-  height: 1.1rem;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.5);
-  position: relative;
-  transition: background 0.15s ease;
-}
-
-.wf-tag-toggle-slider::before {
-  content: "";
   position: absolute;
-  top: 0.12rem;
-  left: 0.12rem;
-  width: 0.8rem;
-  height: 0.8rem;
-  border-radius: 999px;
-  background: #0f172a;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-  transition: transform 0.15s ease;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #4b5563;
+  transition: 0.4s;
+  border-radius: 20px;
 }
 
-.wf-tag-toggle-input:checked + .wf-tag-toggle-slider {
-  background: #22c55e;
+.wf-tag-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
 }
 
-.wf-tag-toggle-input:checked + .wf-tag-toggle-slider::before {
-  transform: translateX(0.9rem);
+input:checked + .wf-tag-toggle-slider {
+  background-color: #22c55e;
+}
+input:checked + .wf-tag-toggle-slider:before {
+  transform: translateX(16px);
+}
+input:disabled + .wf-tag-toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.wf-tag-toggle-disabled .wf-tag-toggle-slider {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* Kaarten zelf iets meer ruimte voor tags */
-
-.wf-card {
-  padding-bottom: 0.65rem;
+@media (max-width: 768px) {
+  .page-workflow .content {
+    padding: 1rem;
+  }
+  .wf-column {
+    flex: 0 0 85vw;
+  }
 }
