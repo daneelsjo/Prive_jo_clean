@@ -28,14 +28,15 @@ exports.reportIssue = functions.https.onRequest(async (req, res) => {
     return
   }
 
-  const cfg = functions.config()
-  const token = cfg.github && cfg.github.token
-  const repo = cfg.github && cfg.github.repo
+    const token = process.env.GITHUB_TOKEN
+  const repo = process.env.GITHUB_REPO
 
   if (!token || !repo) {
+    console.error("Missing GITHUB_TOKEN or GITHUB_REPO env vars")
     res.status(500).json({ error: "GitHub config ontbreekt" })
     return
   }
+
 
   const body = req.body || {}
   const type = body.type
