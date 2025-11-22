@@ -566,3 +566,154 @@ button:disabled {
 .wf-help-popover strong {
   color: #60a5fa; /* Accentkleur voor termen */
 }
+
+/* --- Tabs in Modal (V0.3-11) --- */
+.wf-tab-nav {
+  display: flex;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.wf-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--fg, #e5e7eb);
+  padding: 0.5rem 0.2rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.wf-tab-btn:hover {
+  opacity: 1;
+}
+
+.wf-tab-btn.active {
+  opacity: 1;
+  border-bottom-color: var(--brand, #2563eb);
+  color: var(--brand, #2563eb);
+  font-weight: 500;
+}
+
+.wf-tab-content {
+  display: none;
+  animation: fadeIn 0.2s ease;
+}
+
+.wf-tab-content.active {
+  display: flex; /* of block, afhankelijk van layout */
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Logs / Tijdlijn --- */
+.wf-log-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.wf-log-input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.wf-log-input-group input {
+  flex: 1;
+}
+
+.wf-log-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wf-log-item {
+  font-size: 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.wf-log-item:last-child {
+  border-bottom: none;
+}
+
+.wf-log-date {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  display: block;
+  margin-bottom: 0.1rem;
+}
+
+/* --- Document Links --- */
+.wf-links-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wf-link-input-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+}
+
+.wf-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wf-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.wf-link-item a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.wf-link-item a:hover {
+  text-decoration: underline;
+}
+
+.wf-btn-icon-small {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  padding: 0 0.3rem;
+}
+
+.wf-btn-icon-small:hover {
+  opacity: 1;
+}
