@@ -601,15 +601,40 @@ button.ghost {
   color: #e5e7eb;
 }
 
-/* Omgeving-kleuren */
+/* ==========================================
+   DEV OMGEVING STYLING (Rode Balk)
+   ========================================== */
+
+/* Zodra body de class "env-dev" heeft (via main.js), wordt dit actief */
 body.env-dev .topbar,
 body.env-dev .mainnav {
-  background-color: #8b0000;
+  background-color: #7f1d1d !important; /* Donkerrood (forceer) */
+  background-image: none !important;
+  border-bottom-color: #991b1b !important;
+  color: #ffffff !important; /* Witte tekst */
 }
 
+/* Zorg dat de links en het logo wit worden */
+body.env-dev .topbar .brand,
+body.env-dev .mainnav a,
+body.env-dev .header-icons .header-link {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Voeg (DEV) tekst toe achter de merknaam */
 body.env-dev .brand::after {
   content: " (DEV)";
-  font-weight: normal;
+  font-size: 0.75em;
+  opacity: 0.9;
   margin-left: 0.5rem;
-  font-size: 0.85em;
+  font-weight: normal;
+  color: #fecaca; /* Lichtrood */
+}
+
+/* De info-box links onderin (optioneel als je die niet via JS doet) */
+#dev-debug-panel {
+  background: #7f1d1d !important;
+  color: white !important;
+  border: 1px solid #fff;
 }
