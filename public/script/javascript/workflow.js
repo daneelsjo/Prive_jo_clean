@@ -1,4 +1,4 @@
-// workflow.js - V0.4 Refactor (Fixed openCardForm)
+// workflow.js - V0.4.1 (Tag Color Picker Update)
 
 import {
   getFirebaseApp, getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
@@ -6,7 +6,6 @@ import {
 } from "./firebase-config.js"
 
 // --- Config & Constants ---
-// Gebruik de centrale DB van main.js
 const app = getFirebaseApp();
 const db = window.App?.db || getFirestore(app);
 
@@ -31,6 +30,13 @@ const PRIORITY_TAGS = [
   { key: "priority-critical", name: "Critical", color: "#dc2626" }
 ]
 
+// Nieuw: Kleurenpalet voor eigen tags
+const TAG_PALETTE = [
+  "#64748b", "#ef4444", "#f97316", "#f59e0b", "#84cc16", 
+  "#10b981", "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", 
+  "#8b5cf6", "#d946ef", "#f43f5e", "#881337"
+];
+
 const PRIORITY_VALS = {
   "priority-critical": 4, "priority-high": 3, "priority-normal": 2, "priority-low": 1
 }
@@ -45,6 +51,7 @@ const state = {
   filter: { keyword: "", tags: new Set() },
   dragState: { cardId: null },
   form: { mode: "create", cardId: null, workingTags: new Set(), activeTab: "details" },
+  newTagState: { color: TAG_PALETTE[0] }, // Nieuwe state voor tag creatie
   dom: {} 
 }
 
@@ -419,7 +426,6 @@ async function reloadData() {
   } catch (err) { handleActionError("reloadData", err); }
 }
 
-// --- HIER IS DE ONTBREKENDE FUNCTIE TERUGGEPLAATST ---
 function openCardForm(cardId = null) {
   state.form.mode = cardId ? "edit" : "create";
   state.form.cardId = cardId;
@@ -513,11 +519,60 @@ async function deleteLinkEntry(id) {
   catch(e){ handleActionError("deleteLink",e); }
 }
 
-async function createNewTag() {
-  const name = prompt("Tag naam:"); if(!name) return;
-  const color = prompt("Kleur (hex):", "#6366f1") || "#6366f1";
-  try { await addDoc(collection(db, COLLECTIONS.TAGS), { boardId:state.boardId, uid:state.uid, name, color, active:true, builtin:false, createdAt:serverTimestamp() }); reloadData(); renderManageTagsList(); }
-  catch(e){ handleActionError("newTag",e); }
+// --- NEW TAG LOGIC (MODAL) ---
+function createNewTag() {
+  // Reset fields
+  qs("#new-tag-name").value = "";
+  state.newTagState.color = TAG_PALETTE[0];
+  renderNewTagColorPicker();
+  
+  // Show Modal
+  state.dom.modals.newTag.classList.remove("wf-card-form--hidden");
+  qs("#new-tag-name").focus();
+}
+
+function renderNewTagColorPicker() {
+  const container = qs("#new-tag-colors");
+  container.innerHTML = "";
+  TAG_PALETTE.forEach(color => {
+    const circle = createEl("div", "", "");
+    circle.style.width = "24px"; circle.style.height = "24px";
+    circle.style.borderRadius = "50%"; circle.style.backgroundColor = color;
+    circle.style.cursor = "pointer";
+    circle.style.border = (state.newTagState.color === color) ? "2px solid #fff" : "2px solid transparent";
+    if (state.newTagState.color === color) circle.style.boxShadow = "0 0 0 2px #2563eb"; // Highlight
+    
+    circle.onclick = () => {
+      state.newTagState.color = color;
+      renderNewTagColorPicker();
+    };
+    container.appendChild(circle);
+  });
+}
+
+async function saveNewTag() {
+  const nameInput = qs("#new-tag-name");
+  const name = nameInput.value.trim();
+  if(!name) return showToast("Naam verplicht");
+  
+  try {
+    await addDoc(collection(db, COLLECTIONS.TAGS), {
+      boardId: state.boardId,
+      uid: state.uid,
+      name: name,
+      color: state.newTagState.color,
+      active: true,
+      builtin: false,
+      createdAt: serverTimestamp()
+    });
+    
+    // Reset & Close
+    state.dom.modals.newTag.classList.add("wf-card-form--hidden");
+    reloadData();
+    renderManageTagsList(); // Refresh list if open
+  } catch (e) {
+    handleActionError("saveNewTag", e);
+  }
 }
 
 // --- Drag Drop ---
@@ -608,6 +663,27 @@ function bindUI() {
   const tm = createEl("section", "wf-card-form wf-card-form--hidden"); tm.id = "modal-tags";
   tm.innerHTML = `<div class="wf-card-form-inner"><h2>Tags Beheren</h2><div class="wf-tags-list-board"></div><div class="wf-card-form-actions"><button class="wf-btn wf-btn-primary btn-new-tag">Nieuwe Tag</button><button class="wf-btn wf-btn-secondary btn-close-tags">Sluiten</button></div></div>`;
   content.appendChild(tm);
+  
+  // NEW: Create Tag Modal (Color Picker)
+  const ntm = createEl("section", "wf-card-form wf-card-form--hidden"); ntm.id = "modal-new-tag";
+  ntm.innerHTML = `
+    <div class="wf-card-form-inner" style="max-width:350px;">
+      <h3>Nieuwe Tag</h3>
+      <div class="wf-form-group">
+        <label>Naam</label>
+        <input type="text" id="new-tag-name" placeholder="Naam van tag..." autocomplete="off">
+      </div>
+      <div class="wf-form-group">
+        <label>Kleur</label>
+        <div id="new-tag-colors" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.2rem;"></div>
+      </div>
+      <div class="wf-card-form-actions">
+        <button class="wf-btn wf-btn-secondary btn-cancel-new-tag">Annuleren</button>
+        <button class="wf-btn wf-btn-primary btn-save-new-tag">Opslaan</button>
+      </div>
+    </div>
+  `;
+  content.appendChild(ntm);
 
   const um = createEl("section", "wf-card-form wf-card-form--hidden"); um.id = "modal-urgent";
   um.innerHTML = `
@@ -622,7 +698,7 @@ function bindUI() {
   content.appendChild(um);
 
   state.dom.inputs = { title: qs("input[name='title']"), deadline: qs("input[name='deadline']"), desc: qs("textarea[name='description']") };
-  state.dom.modals = { card: cm, tags: tm };
+  state.dom.modals = { card: cm, tags: tm, newTag: ntm };
   state.dom.formTags = { chipsContainer: qs(".wf-form-tags-chips", cm), panel: qs(".wf-form-tags-panel", cm), tagsListContainer: qs(".wf-form-tags-list", cm) };
   state.dom.manageTagsList = qs(".wf-tags-list-board", tm);
   state.dom.btnDelete = qs(".btn-delete-card", cm);
@@ -635,7 +711,12 @@ function bindUI() {
   state.dom.btnDelete.addEventListener("click", deleteCard);
   qs(".btn-toggle-tags-panel").addEventListener("click", () => state.dom.formTags.panel.classList.toggle("wf-form-tags-panel--hidden"));
   qs(".btn-close-tags").addEventListener("click", () => state.dom.modals.tags.classList.add("wf-card-form--hidden"));
+  
+  // New Tag Listeners
   qs(".btn-new-tag").addEventListener("click", createNewTag);
+  qs(".btn-cancel-new-tag").addEventListener("click", () => state.dom.modals.newTag.classList.add("wf-card-form--hidden"));
+  qs(".btn-save-new-tag").addEventListener("click", saveNewTag);
+
   qs(".btn-close-urgent").addEventListener("click", closeUrgentPopup);
   state.dom.board.addEventListener("click", e => { const c = e.target.closest(".wf-card"); if (c) openCardForm(c.dataset.cardId); });
   
