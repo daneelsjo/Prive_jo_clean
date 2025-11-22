@@ -7,6 +7,9 @@
   <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
 
   <script>
+    // 1. Zet omgeving op DEV voor de rode balk
+    window.APP_ENV = "DEV"; 
+    
     // Thema voorkeur
     (function () {
       try {
@@ -19,22 +22,22 @@
     })();
   </script>
 
-  <link rel="stylesheet" href="../CSS/main.css" />
-  <link rel="stylesheet" href="../CSS/components-menu.css" />
-  <link rel="stylesheet" href="../CSS/components-sidemenu.css" />
-  <link rel="stylesheet" href="../CSS/page-workflow.css" />
+  <link rel="stylesheet" href="../Style/CSS/main.css" />
+  <link rel="stylesheet" href="../Style/CSS/components-menu.css" />
+  <link rel="stylesheet" href="../Style/CSS/components-sidemenu.css" />
+  <link rel="stylesheet" href="../Style/CSS/page-workflow.css" />
 </head>
 
 <body class="page-workflow">
   <div id="auth" style="display:none;"><button id="login-btn">🔐 Inloggen</button></div>
+  
   <div data-include="../partials/header.html"></div>
 
-  <div id="app">
+  <div id="app" style="display:none;">
     <div class="page">
       <main class="content">
         <section class="page-header">
           <h1>Workflow board</h1>
-          <p>Beheer je taken eenvoudig via slepen en neerzetten.</p>
         </section>
 
         <section id="workflow-board" class="workflow-board">
@@ -46,10 +49,11 @@
 
   <div data-include="../partials/modals.html"></div>
   
-  <script type="module" src="../script/javascript/modal.js"></script>
-  <script src="../script/javascript/include-partials.js"></script>
-  <script src="../script/javascript/menu.js"></script>
+  <script type="module" src="../Script/Javascript/modal.js"></script>
+  <script src="../Script/Javascript/include-partials.js"></script>
+  <script src="../Script/Javascript/menu.js"></script>
   
-  <script type="module" src="../script/javascript/workflow.js"></script>
+  <script type="module" src="../Script/Javascript/main.js"></script>
+  <script type="module" src="../Script/Javascript/workflow.js"></script>
 </body>
 </html>
