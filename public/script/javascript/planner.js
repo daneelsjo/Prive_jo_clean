@@ -919,8 +919,7 @@ const PALETTE = [
 
   /* ── UI wiring ── */
   bind("#login-btn", "click", () => signInWithPopup(auth, provider));
-  bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderView(); if(currentUser) refreshPlans(); });
-  bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderView(); if(currentUser) refreshPlans(); });
+
   
   // Type kiezen in backlog-modal (werkt met segmented .seg knoppen)
 document.addEventListener('click', (e)=>{
