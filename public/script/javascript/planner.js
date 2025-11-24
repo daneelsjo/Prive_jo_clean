@@ -1370,17 +1370,7 @@ document.addEventListener('input', (e)=>{
   if(currentUser) refreshPlans();
 });
 
-// Navigatieknoppen: vorige/volgende
-document.getElementById('prevWeek')?.addEventListener('click', ()=>{
-  if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()-1); }
-  else { weekStart = addDays(weekStart,-7); }
-  renderView(); if(currentUser) refreshPlans();
-});
-document.getElementById('nextWeek')?.addEventListener('click', ()=>{
-  if (viewMode === 'day') { dayDate.setDate(dayDate.getDate()+1); }
-  else { weekStart = addDays(weekStart, 7); }
-  renderView(); if(currentUser) refreshPlans();
-});
+
 
 
   function renderSubjectsDatalist(){
