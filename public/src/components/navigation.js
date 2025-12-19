@@ -165,7 +165,7 @@ function renderQuickLinks() {
         { icon: "⚙️",  title: "Settings",   href: "src/modules/settings/settings.html" },
         { icon: "🗓️", title: "Planner",    href: "src/modules/planner/plan.html" },
         { icon: "📬", title: "Agenda",     href: "src/modules/agendabuilder/agendabuilder.html" },
-        { icon: "🔀", title: "Workflow",   href: "src/modules/workflow/workflow.html" }
+        { icon: "🔀", title: "Workflow",   href: "src/modules/Workflow/workflow.html" }
     ];
 
     container.innerHTML = "";
