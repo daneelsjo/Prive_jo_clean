@@ -2,17 +2,18 @@
 
 console.log("🚦 Navigation.js bestand geladen");
 
-// --- GLOBAL STATE ---
-// Deze variabele voorkomt dat het script 2x start (en dus 2x klikt)
-let navigationInitialized = false;
+// --- STATE ---
+let listenersInitialized = false; // Voorkomt dubbele klik-events
 
 const REPORT_ISSUE_URL = "https://us-central1-prive-jo.cloudfunctions.net/reportIssue";
 
 /**
- * 1. PADEN FIXEN
+ * 1. PADEN FIXEN (DOM Modificatie)
+ * Deze mag/moet draaien zodra de HTML er is.
  */
 function getPathPrefix() {
     const path = window.location.pathname;
+    // Check diepte. src/modules/map/file.html = 3 mappen diep = ../../../
     if (path.includes("/src/modules/") || path.includes("/HTML/")) {
         return "../../../";
     }
@@ -21,42 +22,51 @@ function getPathPrefix() {
 
 function fixPaths() {
     const prefix = getPathPrefix();
-    if (!prefix) return;
+    if (!prefix) return; // Geen correctie nodig in root
 
+    // Fix links (voorkom dubbele prefix via check)
     document.querySelectorAll("a[data-internal]").forEach(link => {
         const href = link.getAttribute("href");
-        if (href && !href.startsWith("http") && !href.startsWith(prefix) && !href.startsWith("#") && !href.startsWith("mailto")) {
-            link.setAttribute("href", prefix + href);
+        if (href && !href.startsWith("http") && !href.startsWith("#") && !href.startsWith("mailto")) {
+            // Alleen toevoegen als het er nog niet staat
+            if (!href.startsWith(prefix)) {
+                link.setAttribute("href", prefix + href);
+            }
         }
     });
 
+    // Fix images
     document.querySelectorAll("img[data-fix-path]").forEach(img => {
         const src = img.getAttribute("src");
-        if (src && !src.startsWith("http") && !src.startsWith(prefix)) {
-            img.setAttribute("src", prefix + src);
+        if (src && !src.startsWith("http")) {
+            if (!src.startsWith(prefix)) {
+                img.setAttribute("src", prefix + src);
+            }
         }
     });
 }
 
 /**
- * 2. KLIK AFHANDELING
+ * 2. KLIK AFHANDELING (Global Listeners)
+ * Deze mag maar 1 KEER draaien, anders krijg je dubbele open/dicht acties.
  */
-function initGlobalClicks() {
-    // Verwijder eerst eventuele oude listeners om zeker te zijn (hoewel de flag dit ook al doet)
-    // Maar document.removeEventListener werkt lastig met anonieme functies, dus we vertrouwen op de 'navigationInitialized' flag.
+function initGlobalListeners() {
+    if (listenersInitialized) return; // Stop als we al luisteren
+    listenersInitialized = true;
+
+    console.log("👂 Global Listeners geactiveerd");
 
     document.addEventListener("click", (e) => {
         
-        // A. HAMBURGER (Sidebar openen)
+        // A. HAMBURGER
         const btn = e.target.closest("#hamburgerBtn");
         if (btn) {
-            e.preventDefault(); 
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             toggleSidebar();
             return;
         }
 
-        // B. BACKDROP (Sidebar sluiten)
+        // B. BACKDROP
         const bd = e.target.closest("#sidemenu-backdrop");
         if (bd) {
             toggleSidebar(false);
@@ -74,8 +84,7 @@ function initGlobalClicks() {
         // D. SIDEBAR ACCORDEON
         const header = e.target.closest(".sidemenu-section h4");
         if (header) {
-            const section = header.parentElement;
-            section.classList.toggle("open");
+            header.parentElement.classList.toggle("open");
             return;
         }
     });
@@ -87,7 +96,7 @@ function initGlobalClicks() {
 }
 
 /**
- * HELPER: Toggle
+ * HELPER: Sidebar Toggle
  */
 function toggleSidebar(forceState = null) {
     const sidemenu = document.getElementById("sidemenu");
@@ -99,8 +108,6 @@ function toggleSidebar(forceState = null) {
     const currentState = sidemenu.getAttribute("data-state") === "open";
     const newState = forceState !== null ? forceState : !currentState;
 
-    console.log("👉 Toggle Sidebar actie:", newState ? "OPEN" : "DICHT");
-
     sidemenu.setAttribute("data-state", newState ? "open" : "closed");
     sidemenu.setAttribute("aria-hidden", String(!newState));
     
@@ -110,34 +117,29 @@ function toggleSidebar(forceState = null) {
         backdrop.hidden = !newState;
         backdrop.style.display = newState ? "block" : "none";
     }
-
     document.body.style.overflow = newState ? "hidden" : "";
 }
 
 /**
- * 3. DROPDOWN MENU
+ * 3. UI INITIALISATIE (Menu's & Icons)
+ * Draait zodra de HTML er is.
  */
-function initTopMenu() {
-    setTimeout(() => {
-        const dropdowns = document.querySelectorAll(".mainnav .has-submenu");
-        dropdowns.forEach(item => {
-            let closeTimer;
-            item.addEventListener("mouseenter", () => {
-                clearTimeout(closeTimer);
-                dropdowns.forEach(o => o !== item && o.classList.remove("open"));
-                item.classList.add("open");
-            });
-            item.addEventListener("mouseleave", () => {
-                closeTimer = setTimeout(() => item.classList.remove("open"), 300);
-            });
+function initUIComponents() {
+    // Dropdowns
+    const dropdowns = document.querySelectorAll(".mainnav .has-submenu");
+    dropdowns.forEach(item => {
+        let closeTimer;
+        item.addEventListener("mouseenter", () => {
+            clearTimeout(closeTimer);
+            dropdowns.forEach(o => o !== item && o.classList.remove("open"));
+            item.classList.add("open");
         });
-    }, 200);
-}
+        item.addEventListener("mouseleave", () => {
+            closeTimer = setTimeout(() => item.classList.remove("open"), 300);
+        });
+    });
 
-/**
- * 4. NEW TABS
- */
-function enforceNewTabs() {
+    // New Tabs force
     const links = document.querySelectorAll(".mainnav a, .sidemenu-section a");
     links.forEach(link => {
         const href = link.getAttribute("href");
@@ -150,11 +152,11 @@ function enforceNewTabs() {
 }
 
 /**
- * 5. QUICK LINKS
+ * 4. QUICK LINKS
  */
 function renderQuickLinks() {
     const container = document.getElementById("quickLinks");
-    if (!container) return;
+    if (!container) return; // Kan gebeuren als header er nog niet is
 
     const prefix = getPathPrefix();
     const definitions = [
@@ -179,6 +181,7 @@ function renderQuickLinks() {
         container.appendChild(a);
     });
 
+    // Bug Knop
     const btn = document.createElement("button");
     btn.id = "report-issue-btn";
     btn.className = "icon-btn header-link";
@@ -190,6 +193,7 @@ function renderQuickLinks() {
 }
 
 function initIssueReportModal() {
+    // Event delegation, dus kan in initGlobalListeners, maar apart is ook prima
     document.addEventListener("click", (e) => {
         if(e.target.closest("#report-issue-btn") && window.Modal) {
             window.Modal.open("modal-report-issue");
@@ -198,31 +202,25 @@ function initIssueReportModal() {
 }
 
 /**
- * HOOFD START FUNCTIE (Met beveiliging!)
+ * HOOFD START FUNCTIE
+ * Wordt aangeroepen als de pagina laadt OF als de partials (header) klaar zijn.
  */
 function bootstrapNavigation() {
-    // BEVEILIGING: Als we al gestart zijn, stop direct!
-    if (navigationInitialized) {
-        console.log("⚠️ Navigation reeds gestart, overslaan...");
-        return;
-    }
-    navigationInitialized = true; // Markeer als gestart
+    console.log("🚀 Navigation Bootstrap...");
+    
+    // 1. Start de luisteraars (maar 1 keer!)
+    initGlobalListeners();
+    initIssueReportModal(); // Mag ook bij global listeners
 
-    console.log("🚀 Navigation Bootstrap start...");
+    // 2. Fix de DOM (Paden, Iconen, Menu's)
+    // Dit mag vaker draaien (bv. als header later wordt ingevoegd)
     fixPaths();
-    initGlobalClicks();
-    initTopMenu();
     renderQuickLinks();
-    initIssueReportModal();
-    enforceNewTabs();
+    initUIComponents();
 }
 
-// 1. Luister naar het event
+// TRIGGER 1: Als de partials (header) geladen zijn (De belangrijkste!)
 document.addEventListener("partials:loaded", bootstrapNavigation);
 
-// 2. Fallback timer
-if (document.readyState === "complete" || document.readyState === "interactive") {
-    setTimeout(bootstrapNavigation, 100);
-} else {
-    document.addEventListener("DOMContentLoaded", bootstrapNavigation);
-}
+// TRIGGER 2: Fallback voor als DOM geladen is (Start alvast de listeners)
+document.addEventListener("DOMContentLoaded", bootstrapNavigation);
