@@ -88,19 +88,26 @@ async function ensureStandardTags(uid) {
 
 function startStreams() {
     subscribeToColumns(currentUser.uid, boardId, (data) => { columns = data; renderBoard(); renderColConfig(); });
+    
     subscribeToTags(currentUser.uid, (data) => { 
         tags = data; 
         renderBoard(); 
         renderTagConfig();
-        // Als tags geladen zijn, her-check urgentie (voor tag namen)
         if(cards.length > 0) checkUrgentItems(); 
     });
+
+    // --- VOEG DEZE REGEL TOE ---
+    subscribeToChecklistTemplates(currentUser.uid, (data) => {
+        checklistTemplates = data;
+        renderTemplateConfig();     // Update de lijst in Instellingen
+        populateTemplateSelect();   // Update de dropdown in de Kaart
+    });
+    // ---------------------------
     
     const q = query(collection(db, "workflowCards"), where("boardId", "==", boardId), where("uid", "==", currentUser.uid));
     onSnapshot(q, (snap) => { 
         cards = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
         renderBoard();
-        // CHECK URGENTIE BIJ LADEN KAARTEN
         checkUrgentItems();
     }, (err) => console.error(err));
 }

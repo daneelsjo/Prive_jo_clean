@@ -193,12 +193,75 @@ function renderQuickLinks() {
 }
 
 function initIssueReportModal() {
-    // Event delegation, dus kan in initGlobalListeners, maar apart is ook prima
+    // 1. Luister naar openen (Bug knop)
     document.addEventListener("click", (e) => {
         if(e.target.closest("#report-issue-btn") && window.Modal) {
+            // Vul technische info in (optioneel, als je een element hebt in je modal)
+            const infoEl = document.getElementById("report-page-info");
+            if (infoEl) infoEl.textContent = window.location.pathname;
+            
             window.Modal.open("modal-report-issue");
         }
     });
+
+    // 2. Luister naar VERSTUREN (De ontbrekende stap)
+    const submitBtn = document.getElementById("report-submit");
+    if (submitBtn) {
+        // We clonen de knop om oude event listeners te verwijderen (veiligheid tegen dubbele kliks)
+        const newBtn = submitBtn.cloneNode(true);
+        submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+
+        newBtn.addEventListener("click", async () => {
+            const titleEl = document.getElementById("report-title");
+            const descEl = document.getElementById("report-description");
+            const typeEl = document.getElementById("report-type");
+            const techEl = document.getElementById("report-include-tech");
+
+            // Validatie
+            if (!titleEl || !descEl || !titleEl.value || !descEl.value) {
+                alert("Vul een titel en omschrijving in.");
+                return;
+            }
+
+            // UI Feedback
+            newBtn.disabled = true;
+            newBtn.textContent = "Verzenden...";
+
+            try {
+                // Data verzamelen
+                const context = (techEl && techEl.checked) ? {
+                    url: window.location.href,
+                    userAgent: navigator.userAgent,
+                    screen: `${window.innerWidth}x${window.innerHeight}`,
+                    env: window.APP_ENV || "UNKNOWN"
+                } : null;
+
+                const payload = {
+                    type: typeEl ? typeEl.value : "bug",
+                    title: titleEl.value,
+                    description: descEl.value,
+                    context
+                };
+
+                // Versturen
+                await sendIssueToBackend(payload);
+                
+                alert("Melding succesvol verzonden! Bedankt.");
+                if (window.Modal) window.Modal.close();
+                
+                // Reset velden
+                titleEl.value = "";
+                descEl.value = "";
+
+            } catch (err) {
+                console.error(err);
+                alert("Fout bij verzenden: " + err.message);
+            } finally {
+                newBtn.disabled = false;
+                newBtn.textContent = "Versturen";
+            }
+        });
+    }
 }
 
 /**
