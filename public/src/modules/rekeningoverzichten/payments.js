@@ -5,7 +5,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
   // Firestore
   getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, serverTimestamp, query, where, orderBy
-} from "./firebase-config.js";
+} from "../../../script/javascript/firebase-config.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 
 const app = getFirebaseApp();

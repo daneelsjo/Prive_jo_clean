@@ -15,14 +15,14 @@
 }
 
 /* ---------- Page layout 75/25 ---------- */
-.planner-page {
+.module-planner {
   width: 100%;
   max-width: none;
   margin: 0;
   --gap: 1rem
   padding-inline: var(--gap);
 }
-.planner-page .page {
+.module-planner .page {
   width: 100% !important;
   margin: 0 !important;
   display: grid;
@@ -48,20 +48,20 @@
 }
 
 /* Left column must be allowed to grow */
-.planner-page .leftcol{ min-width: 0; }
+.module-planner .leftcol{ min-width: 0; }
 
 /* Right column stays usable */
-.planner-page .rightcol{ min-width: 320px; }
+.module-planner .rightcol{ min-width: 320px; }
 
 /* Header row spans both columns */
-.planner-page .toprow,
-.planner-page .header-card,
-.planner-page .weekbar{ grid-column: 1 / -1; }
+.module-planner .toprow,
+.module-planner .header-card,
+.module-planner .weekbar{ grid-column: 1 / -1; }
 
 /* Backlog card fills its column */
-.planner-page .rightcol > .card{ width: 100%; }
+.module-planner .rightcol > .card{ width: 100%; }
 @media (max-width: 1100px) {
-  .planner-page .page {
+  .module-planner .page {
     grid-template-columns: 1fr;
   }
   .rightcol {
@@ -84,7 +84,7 @@
   user-select: none;/* ====== Sticky + onafhankelijke scroll ====== */
 
 /* Links: alleen de kalender scrolt; bovenste kaart (week/print/…) blijft staan */
-.planner-page .leftcol .calendar-card{
+.module-planner .leftcol .calendar-card{
   /* hoogte: hele viewport minus wat marge; pas zo nodig aan */
   height: calc(100dvh - 280px);
   min-height: 320px;
@@ -92,7 +92,7 @@
 }
 
 /* Dagenkoppen blijven zichtbaar terwijl je door het raster scrolt */
-.planner-page .leftcol .calendar .col-head{
+.module-planner .leftcol .calendar .col-head{
   position: sticky;
   top: 0;
   z-index: 3;
@@ -102,7 +102,7 @@
 }
 
 /* Rechts: backlog krijgt eigen scrollbar onder de knoppenbalk */
-.planner-page .rightcol > .card{
+.module-planner .rightcol > .card{
   display: flex;
   flex-direction: column;
   height: calc(100dvh - 2 * var(--gap));
@@ -110,7 +110,7 @@
 }
 
 /* eerste child in de backlog-card is je kop met "Backlog (vakken)" + knoppen */
-.planner-page .rightcol > .card > :first-child{
+.module-planner .rightcol > .card > :first-child{
   position: sticky;
   top: 0;
   z-index: 4;
@@ -125,7 +125,7 @@
 }
 
 /* optioneel: iets kleinere buitenmarges zodat de kalender links wat meer ruimte krijgt */
-.planner-page{
+.module-planner{
   --gap: 1rem;               /* ruimte tussen kolommen én aan de zijkanten */
   padding-inline: var(--gap);
 }

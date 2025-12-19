@@ -1,25 +1,23 @@
-<!-- partials/header.html -->
 <header class="topbar" role="banner">
-    <button id="hamburgerBtn" class="icon-btn" aria-label="Menu" aria-controls="sidemenu"
-        aria-expanded="false">☰</button>
-    <div class="brand"><strong>Landingspagina JO</strong></div>
+    <button id="hamburgerBtn" class="icon-btn" aria-label="Menu" aria-controls="sidemenu" aria-expanded="false">☰</button>
+    
+    <div class="brand" id="brandLogo" style="cursor: pointer;" title="Terug naar Dashboard">
+        <strong>JD Solutions</strong>
+    </div>
+    
     <nav class="header-icons" id="quickLinks" aria-label="Snelkoppelingen"></nav>
 </header>
 
-<!-- Topmenubalk met neon-tekst -->
 <nav class="mainnav" aria-label="Hoofdmenu">
     <ul>
-        <li><a class="menu-link" href="https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox" data-newtab><span
-                    class="label">Email</span></a></li>
-        <li><a class="menu-link" href="https://drive.google.com/drive/u/0/my-drive" data-newtab><span
-                    class="label">Drive</span></a></li>
-        <li><a class="menu-link" href="https://calendar.google.com/calendar/u/0/r" data-newtab><span
-                    class="label">Agenda</span></a></li>
+        <li><a class="menu-link" href="https://mail.google.com/mail/u/0/" data-newtab><span class="label">Email</span></a></li>
+        <li><a class="menu-link" href="https://drive.google.com/drive/u/0/my-drive" data-newtab><span class="label">Drive</span></a></li>
+        <li><a class="menu-link" href="https://calendar.google.com/calendar" data-newtab><span class="label">Agenda</span></a></li>
         <li><a class="menu-link" href="https://optech-jo.web.app/" data-newtab><span
                     class="label">optech Site</span></a></li>
-        <li><a class="menu-link" href="../HTML/workflow.html" data-newtab><span
-                    class="label">workflow</span></a></li>
+        
 
+       
         <!-- Verdi -->
         <li class="has-submenu">
             <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span
@@ -100,19 +98,19 @@
     </ul>
 </nav>
 
-
-<!-- Uitklapbare zijmenu -->
 <aside id="sidemenu" class="sidemenu" aria-hidden="true" data-state="closed">
     <nav class="sidemenu-section">
-        <h4>Links Zone Rand</h4>
+        <h4>Modules</h4>
         <ul>
-            <li><a href="https://zonerand.be" data-newtab>Zone Rand</a></li>
-            <li><a href="https://sites.google.com/brandweer.zonerand.be/transparand/homepage" data-newtab>Transparand</a></li>
-            <li><a href="https://sites.google.com/brandweer.zonerand.be/modusoperandi" data-newtab>Modus operandi</a></li>
-            <li><a href="https://sites.google.com/brandweer.zonerand.be/vto-post-kontich/homepage" data-newtab>Site VTO Kontich</a></li>
+            <li><a href="index.html" data-internal>🏠 Dashboard</a></li>
+            <li><a href="src/modules/time/tijd.html" data-internal>⏱️ Tijdsregistratie</a></li>
+            <li><a href="src/modules/sticknotes/sticknotes.html" data-internal>📝 Sticknotes</a></li>
+            <li><a href="src/modules/planner/plan.html" data-internal>📅 Planner</a></li>
+            <li><a href="src/modules/agendabuilder/agendabuilder.html" data-internal>📬 Agenda Builder</a></li>
+            <li><a href="src/modules/settings/settings.html" data-internal>⚙️ Instellingen</a></li>
+            <li><a href="src/modules/workflow/workflow.html" data-internal>� workflow</a></li>
         </ul>
     </nav>
-
     <nav class="sidemenu-section">
         <h4>OPTECH</h4>
         <ul>
@@ -144,4 +142,3 @@
     </nav>
 </aside>
 <div id="sidemenu-backdrop" hidden></div>
-

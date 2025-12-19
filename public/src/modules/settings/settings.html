@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="nl">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Instellingen</title>
-  <link rel="icon" href="../IMG/JD_Web_Solutions.ico">
+  <title>Instellingen | JD Solutions</title>
+  <link rel="icon" href="../../../IMG/JD_Web_Solutions.ico">
 
-  <link rel="stylesheet" href="../CSS/main.css">
-  <link rel="stylesheet" href="../CSS/components-menu.css">
-  <link rel="stylesheet" href="../CSS/components-sidemenu.css">
-  <link rel="stylesheet" href="../CSS/page-settings.css">
+  <link rel="stylesheet" href="../../../CSS/main.css">
+  <link rel="stylesheet" href="../../../CSS/components-menu.css">
+  <link rel="stylesheet" href="../../../CSS/components-sidemenu.css">
+  
+  <link rel="stylesheet" href="./settings.css">
+  
   <script>
-    // 1. DIT ZORGT VOOR DE RODE BALK
     window.APP_ENV = "DEV"; 
-
-    // Thema voorkeur
     (function () {
       try {
         var pref = localStorage.getItem('theme_pref') || 'system';
@@ -28,20 +26,13 @@
   </script>
 </head>
 
-<body class="settings-page">
-  <!-- AUTH -->
-  <div id="auth">
-    <button id="login-btn">🔐 Inloggen met Google</button>
-  </div>
+<body class="module-settings">
+  <div data-include="../../../partials/header.html"></div>
 
-  <!-- gedeelde header -->
-  <div data-include="../partials/header.html"></div>
-
-  <!-- APP -->
   <div id="app" style="display:none;">
     <div class="page">
       <main class="content">
-        <!-- Weergave -->
+        
         <section class="card">
           <h2>Weergave</h2>
           <div style="display:flex; gap:1rem; flex-wrap:wrap; justify-content:center;">
@@ -54,7 +45,6 @@
           </div>
         </section>
 
-        <!-- Categorieën -->
         <section class="card">
           <h2>Categorieën</h2>
           <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; justify-content:center;">
@@ -68,11 +58,8 @@
           <div id="catList" style="margin-top:1rem;"></div>
         </section>
 
-        <!-- Post-its per modus -->
         <section class="card">
           <h2>Post-its per modus</h2>
-
-          <!-- icon-toggle -->
           <div class="mode-toggle">
             <input type="checkbox" id="modeSwitchSettings" aria-label="Schakel tussen werk en privé" />
             <label for="modeSwitchSettings" class="switch icon-only">
@@ -81,34 +68,23 @@
               <span class="icon icon-prive" title="Privé">🏠</span>
             </label>
           </div>
-
           <div id="modeSlots"></div>
           <div style="display:flex; justify-content:center;">
             <button id="saveModeSlots" class="primary" style="margin-top:.75rem;">💾 Opslaan</button>
           </div>
         </section>
-      </main>
 
-      <aside class="rightcol"><!-- leeg, layout consistent --></aside>
+      </main>
+      <aside class="rightcol"></aside>
     </div>
   </div>
 
-  <!-- Modals en header partials -->
-  <div data-include="../partials/modals.html"></div>
-  <script type="module" src="../script/javascript/modal.js"></script>
-
-  <!-- Eerst includes, dan menu, dan page-script -->
-  <script src="../script/javascript/include-partials.js"></script>
-  <script src="../script/javascript/menu.js"></script>
+  <div data-include="../../../partials/modals.html"></div>
   
-  <script type="module" src="../script/javascript/main.js"></script>
-  <script type="module" src="../script/javascript/time.js"></script>
-
-  <!-- op HTML/settings.html: -->
-  <script type="module" src="../script/javascript/settings.js"></script>
-  <!-- op HTML/notes.html: -->
-  <!-- <script type="module" src="../Script/Javascript/notes.js"></script> -->
-
+  <script src="../../../script/javascript/include-partials.js"></script>
+  <script type="module" src="../../../script/javascript/modal.js"></script>
+  <script type="module" src="../../../src/components/navigation.js"></script>
+  
+  <script type="module" src="./settings.js"></script>
 </body>
-
 </html>

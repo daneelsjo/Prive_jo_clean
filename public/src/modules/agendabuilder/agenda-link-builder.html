@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agenda Link Builder — POST → Make</title>
+  <style>
+    :root{--bg:#0b1020;--card:#121a33;--muted:#96a0c6;--text:#e9edff;--accent:#6aa6ff}
+    html,body{height:100%}body{margin:0;background:linear-gradient(135deg,#0b1020,#141e3f);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--text)}
+    .wrap{max-width:980px;margin:28px auto;padding:0 16px}
+    h1{margin:0 0 14px;font-size:28px} h2{margin:18px 0 8px;font-size:18px;color:#cfe0ff}
+    .card{background:#121a33;border:1px solid #1f2a55;border-radius:16px;padding:16px;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+    .grid{display:grid;gap:14px}@media(min-width:860px){.grid{grid-template-columns:1.1fr .9fr}}
+    label{display:block;font-size:12px;color:#9fb0e8;text-transform:uppercase;letter-spacing:.08em;margin:.2rem 0}
+    input,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #2a3f8a;background:#0d1430;color:#e9edff;outline:none}
+    textarea{min-height:70px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+    .chip{background:#0f1a44;border:1px dashed #3952a3;color:#dbe6ff;padding:6px 10px;border-radius:999px;cursor:grab;user-select:none}
+    .drop{min-height:42px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px;border-radius:10px;border:1.5px dashed #3952a3;background:#0b1335;margin-top:4px}
+    .pill{background:#0d1840;border:1px solid #2a3f8a;border-radius:999px;padding:4px 10px}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid #2a3f8a;background:#13235a;color:#e8efff;font-weight:600;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,#2c6cff,#6aa6ff);border-color:#2c6cff;color:#fff}
+    .btn.good{background:linear-gradient(135deg,#1fb97a,#38d39f);border-color:#1fb97a;color:#07291f}
+    .out{background:#0a112b;border:1px solid #1c285a;border-radius:12px;padding:12px;word-break:break-all}
+    a.link{color:#b7d3ff}
+    .tiny{font-size:12px;color:#9fb0e8}
+  </style>
+  <link rel="prefetch" href="/HTML/header.html" as="fetch" />
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+
+</head>
+<body>
+<div class="wrap">
+  <h1>Agenda Link Builder <span class="pill">POST → Make</span></h1>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Webhook & basis</h2>
+      <div class="row">
+        <div>
+          <label>Make Webhook URL (Custom webhook)</label>
+          <input id="webhook" value="https://hook.eu2.make.com/ygyqlxhtmf9gh4c72j66hqsbecancbye" />
+        </div>
+        <div>
+          <label>Token</label>
+          <input id="token" value="MnGYEWNpU9Uzmx7rSEBhbtjO90ck" />
+        </div>
+      </div>
+
+      <h2>Agenda</h2>
+      <div class="chips">
+        <div class="chip" draggable="true" data-target="calendarId" data-value="werk">werk</div>
+        <div class="chip" draggable="true" data-target="calendarId" data-value="prive">prive</div>
+        <div class="chip" draggable="true" data-target="calendarId" data-value="kids">kids</div>
+        <div class="chip" draggable="true" data-target="calendarId" data-value="femke">femke</div>
+        <div class="chip" draggable="true" data-target="calendarId" data-value="gezamenlijk">gezamenlijk</div>
+        <div class="chip" draggable="true" data-target="calendarId" data-value="thorben">thorben</div>
+      </div>
+      <div id="drop-cal" class="drop" data-target="calendarId">Sleep agenda hier of typ hieronder</div>
+      <input id="calendarId" placeholder="alias of volledige calendarId (default: prive)" />
+
+      <h2>Label + Titel</h2>
+      <div class="chips">
+        <div class="chip" draggable="true" data-target="label" data-value="Focus">Focus</div>
+        <div class="chip" draggable="true" data-target="label" data-value="Sport">Sport</div>
+        <div class="chip" draggable="true" data-target="label" data-value="Fitness">Fitness</div>
+        <div class="chip" draggable="true" data-target="label" data-value="Zwemles">Zwemles</div>
+      </div>
+      <div id="drop-label" class="drop" data-target="label">Sleep label hier (optioneel)</div>
+      <input id="label" placeholder="bv. Focus / Sport (optioneel)" />
+
+      <div class="chips" style="margin-top:10px">
+        <div class="chip" draggable="true" data-target="title" data-value="Pagers herstellen">Pagers herstellen</div>
+        <div class="chip" draggable="true" data-target="title" data-value="Loopband">Loopband</div>
+      </div>
+      <div id="drop-title" class="drop" data-target="title">Sleep titel hier of typ hieronder</div>
+      <input id="title" placeholder="bv. script schrijven" />
+
+      <h2>Datum & tijd</h2>
+      <div class="row">
+        <div>
+          <label>Datum</label>
+          <input id="date" type="date" />
+        </div>
+        <div>
+          <label>Tijdzone offset</label>
+          <input id="tz" placeholder="+02:00 (auto)" />
+          <div class="tiny">Auto: <span id="tzAuto"></span></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div>
+          <label>Start</label>
+          <input id="start" placeholder="11:30 of 11u30" />
+        </div>
+        <div>
+          <label>Einde</label>
+          <input id="end" placeholder="12:30 of 12u30 (of vul duur hieronder)" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div>
+          <label>Duur (uren)</label>
+          <input id="durH" type="number" min="0" step="1" placeholder="0" />
+        </div>
+        <div>
+          <label>Duur (minuten)</label>
+          <input id="durM" type="number" min="0" step="5" placeholder="0" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <div>
+          <label>Locatie (optioneel)</label>
+          <input id="location" placeholder="bv. kazerne / Basic‑Fit" />
+        </div>
+        <div>
+          <label>Beschrijving (optioneel)</label>
+          <input id="description" placeholder="bv. cardio / test" />
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="btn" id="btnPresetFocus">Preset: Focus (werk 13:00–15:00)</button>
+        <button class="btn" id="btnPresetFitness">Preset: Fitness (prive 09:00 +1u)</button>
+        <button class="btn primary" id="btnBuild">Toon payload & testlink</button>
+        <button class="btn good" id="btnSend">Verstuur (POST → Make)</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Resultaat</h2>
+      <div><label>JSON payload</label><div id="resultJson" class="out">—</div></div>
+      <div style="margin-top:10px"><label>Fallback GET‑link (debug)</label><div id="resultUrl" class="out">—</div></div>
+      <div style="margin-top:10px"><label>Response</label><div id="resp" class="out">—</div></div>
+      <p class="tiny" style="margin-top:10px">Volgorde GET‑params (fallback): token → calendarId → title → start → end → tz → description → location</p>
+    </section>
+  </div>
+</div>
+
+<script>
+  // helpers
+  const $ = s => document.querySelector(s);
+  const enc = s => encodeURIComponent(String(s||"").trim());
+  const pad = n => String(n).padStart(2,'0');
+  const normTime = t => String(t||"").replace(/^(\d{1,2})u(\d{2})$/, '$1:$2'); // 11u30 -> 11:30
+  const tzOffset = () => {
+    const m = -new Date().getTimezoneOffset(); const sign = m>=0?'+':'-'; const abs = Math.abs(m);
+    return `${sign}${pad(Math.floor(abs/60))}:${pad(abs%60)}`;
+  };
+  function toLocalISO(dateStr, timeStr, tz){
+    if(!dateStr || !timeStr) return "";
+    timeStr = normTime(timeStr);
+    const [Y,M,D] = dateStr.split('-').map(Number);
+    const [h,m] = timeStr.split(':').map(Number);
+    const off = tz || tzOffset();
+    return `${Y}-${pad(M)}-${pad(D)}T${pad(h)}:${pad(m)}:00${off}`;
+  }
+  function today(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}` }
+
+  // drag & drop
+  function enableDnd(){
+    document.querySelectorAll('.chip').forEach(ch=>{
+      ch.addEventListener('dragstart', e=>{
+        e.dataTransfer.setData('text/plain', JSON.stringify({target: ch.dataset.target, value: ch.dataset.value}));
+      });
+    });
+    document.querySelectorAll('.drop').forEach(zone=>{
+      zone.addEventListener('dragover', e=>{e.preventDefault();});
+      zone.addEventListener('drop', e=>{
+        e.preventDefault();
+        try{
+          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+          const input = document.getElementById(data.target);
+          input.value = data.value;
+          zone.innerHTML = `<span class="pill">${data.value}</span>`;
+        }catch(_){}
+      });
+    });
+  }
+
+  // build title (Label - Titel)
+  function buildTitle(){
+    const label = ($('#label').value||"").trim();
+    const title = ($('#title').value||"").trim();
+    if(label && title) return `${label} - ${title}`;
+    return label || title;
+  }
+
+  function buildPayload(){
+    const token = $('#token').value.trim();
+    const cal = ($('#calendarId').value||'prive').trim();
+    const labelTitle = buildTitle();
+    const date = $('#date').value;
+    const tz = ($('#tz').value||tzOffset());
+    const start = $('#start').value;
+    const end = $('#end').value;
+    const durH = Number($('#durH').value||0);
+    const durM = Number($('#durM').value||0);
+    const desc = $('#description').value;
+    const loc = $('#location').value;
+
+    if(!token) throw new Error('Token is leeg');
+    if(!labelTitle) throw new Error('Titel is leeg');
+    if(!date) throw new Error('Datum ontbreekt');
+    if(!start) throw new Error('Starttijd ontbreekt');
+
+    const payload = {
+      token,
+      calendarId: cal,
+      title: labelTitle,
+      start: toLocalISO(date, start, tz),
+      end: "",
+      description: desc,
+      location: loc
+    };
+
+    if(end){
+      payload.end = toLocalISO(date, end, tz);
+    }else if(durH || durM){
+      const [h,m] = normTime(start).split(':').map(Number);
+      const mins = h*60 + m + durH*60 + durM;
+      const eh = Math.floor((mins/60)%24), em = mins%60;
+      payload.end = toLocalISO(date, `${pad(eh)}:${pad(em)}`, tz);
+    }else{
+      throw new Error('Eindtijd of duur ontbreekt');
+    }
+    return payload;
+  }
+
+  function buildGetUrlFromPayload(base, p){
+    const parts = [
+      `token=${enc(p.token)}`,
+      `calendarId=${enc(p.calendarId)}`,
+      `title=${enc(p.title)}`,
+      `start=${enc(p.start)}`,
+      `end=${enc(p.end)}`,
+      `tz=${enc('Europe/Brussels')}`
+    ];
+    if(p.description) parts.push(`description=${enc(p.description)}`);
+    if(p.location) parts.push(`location=${enc(p.location)}`);
+    return `${base}?${parts.join('&')}`;
+  }
+
+  async function postToMake(){
+    $('#resp').textContent = 'Verzenden…';
+    try{
+      const base = ($('#webhook').value||"").split('?')[0].trim();
+      if(!base) throw new Error('Webhook URL is leeg');
+      const payload = buildPayload();
+      const res = await fetch(base, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      $('#resp').textContent = `HTTP ${res.status}\n\n${text}`;
+    }catch(err){
+      $('#resp').textContent = 'Fout: ' + err.message;
+    }
+  }
+
+  // presets
+  function presetFocus(){ $('#calendarId').value='werk'; $('#label').value='Focus'; $('#title').value='Pagers herstellen'; $('#date').value=today(); $('#start').value='13:00'; $('#end').value='15:00'; $('#durH').value='0'; $('#durM').value='0'; $('#location').value='kazerne'; $('#description').value='onderhoud en testen';}
+  function presetFitness(){ $('#calendarId').value='prive'; $('#label').value='Sport'; $('#title').value='Fitness'; $('#date').value=today(); $('#start').value='09:00'; $('#end').value=''; $('#durH').value='1'; $('#durM').value='0'; $('#location').value='Basic-Fit'; $('#description').value='cardio';}
+
+  // UI events
+  window.addEventListener('DOMContentLoaded', ()=>{
+    $('#tzAuto').textContent = tzOffset();
+    enableDnd();
+    $('#btnPresetFocus').addEventListener('click', presetFocus);
+    $('#btnPresetFitness').addEventListener('click', presetFitness);
+
+    $('#btnBuild').addEventListener('click', ()=>{
+      try{
+        const base = ($('#webhook').value||"").split('?')[0].trim();
+        const payload = buildPayload();
+        $('#resultJson').textContent = JSON.stringify(payload, null, 2);
+        $('#resultUrl').textContent = buildGetUrlFromPayload(base, payload);
+      }catch(err){
+        $('#resultJson').textContent = '⚠️ ' + err.message;
+        $('#resultUrl').textContent = '—';
+      }
+    });
+
+    $('#btnSend').addEventListener('click', postToMake);
+  });
+</script>
+</body>
+</html>

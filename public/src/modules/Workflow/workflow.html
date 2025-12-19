@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workflow | JD Solutions</title>
+  <link rel="icon" href="../../../IMG/JD_Web_Solutions.ico">
+
+  <script>document.documentElement.setAttribute('data-theme','dark');</script>  <link rel="stylesheet" href="../../../CSS/main.css" />
+  <link rel="stylesheet" href="../../../CSS/components-menu.css" />
+  <link rel="stylesheet" href="../../../CSS/components-sidemenu.css" />
+  <link rel="stylesheet" href="./workflow.css" />
+  <script>
+    // 1. DIT ZORGT VOOR DE RODE BALK
+    window.APP_ENV = "DEV"; 
+
+    // Thema voorkeur
+    (function () {
+      try {
+        var pref = localStorage.getItem('theme_pref') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) { /* no-op */ }
+    })();
+  </script>
+</head>
+
+<body class="page-workflow">
+  
+  <div data-include="../../../partials/header.html"></div>
+
+  <div id="app" style="display:none;">
+    <div class="page">
+      <main class="content">
+        
+        <div class="wf-toolbar">
+            <div class="wf-toolbar-left">
+                <h1>Workflow</h1>
+                <input type="text" class="wf-search-input" placeholder="Zoeken..." id="searchInput">
+            </div>
+            
+            <div class="wf-toolbar-actions">
+    <div class="quick-filters">
+        <button id="btnQuickMail" class="wf-btn icon-only" title="Toon Mail">📧</button>
+        <button id="btnQuickTicket" class="wf-btn icon-only" title="Toon Tickets">🎫</button>
+        <button id="btnQuickDev" class="wf-btn icon-only" title="Toon Dev/GitHub">🐙</button>
+    </div>
+
+    <div class="wf-v-separator"></div>
+
+    <button id="btnFilterTags" class="wf-btn">🏷️ Filter</button>
+    <button id="btnOpenArchive" class="wf-btn">🗄️ Archief</button>
+    <button id="btnSettings" class="wf-btn">⚙️ Instellingen</button>
+    <button id="btnNewCard" class="wf-btn wf-btn-primary">＋ Nieuwe Kaart</button>
+</div>
+        </div>
+
+        <section id="workflow-board" class="workflow-board">
+          <p style="opacity: 0.6; padding:20px;">Laden...</p>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+ <div id="modal-card" class="modal-card" hidden style="max-width:800px; height:85vh; display:flex; flex-direction:column;">
+    <div class="modal-header">
+        <h3 id="modal-title">Kaart Details</h3>
+        <button class="modal-close" data-modal-close="modal-card">✕</button>
+    </div>
+    
+    <div class="modal-body" style="padding:0; display:flex; flex-direction:column; overflow:hidden;">
+        <div class="wf-tab-nav" style="padding:10px 15px; background:var(--card); border-bottom:1px solid var(--border);">
+            <button type="button" class="wf-tab-btn active" data-tab="details">📝 Info</button>
+            <button type="button" class="wf-tab-btn" data-tab="checklist">✅ Checklist <span id="cl-count" class="badge">0</span></button>
+            <button type="button" class="wf-tab-btn" data-tab="links">🔗 Links <span id="link-count" class="badge">0</span></button>
+            <button type="button" class="wf-tab-btn" data-tab="logs">💬 Logs</button>
+            <button type="button" class="wf-tab-btn" data-tab="actions">⚡ Acties</button>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; padding:20px;">
+            <form id="cardForm">
+                
+                <div id="tab-details" class="wf-tab-content active">
+                    <label>Titel</label>
+                    <input id="inpTitle" required placeholder="Titel van de taak..." style="font-weight:bold; font-size:1.1rem;">
+                    
+                    <div class="wf-form-row" style="margin-top:15px;">
+    <div>
+        <label>Deadline</label>
+        <input type="date" id="inpDate">
+    </div>
+    <div>
+        <label>Prioriteit (Max 1)</label>
+        <div id="prio-tags-list" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; padding:8px; border:1px solid var(--border); border-radius:8px; min-height:45px; align-items:center;"></div>
+    </div>
+</div>
+                    
+                    <div style="margin-top:5px;">
+                        <label>Labels & Tags (Meerdere mogelijk)</label>
+                        <div id="card-tags-list" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; padding:8px; border:1px solid var(--border); border-radius:8px; min-height:45px; align-items:center;"></div>
+                    </div>
+
+                    <label style="margin-top:15px;">Omschrijving</label>
+                    <textarea id="inpDesc" rows="8" placeholder="Beschrijving en details..."></textarea>
+                </div>
+
+                <div id="tab-checklist" class="wf-tab-content">
+                    <div style="display:flex; gap:10px; margin-bottom:15px; padding-bottom:15px; border-bottom:1px dashed var(--border);">
+                        <select id="selTemplate" style="flex:1;"><option value="">-- Kies een standaard lijst --</option></select>
+                        <button type="button" id="btnLoadTemplate" class="wf-btn small">📥 Laad Lijst</button>
+                    </div>
+                    <div id="checklist-container"></div>
+                    <div style="display:flex; gap:10px; margin-top:15px;">
+                        <input id="new-check-text" placeholder="Nieuw item..." style="flex:1;">
+                        <button type="button" id="btnAddCheckitem" class="wf-btn-primary small">＋ Toevoegen</button>
+                    </div>
+                </div>
+                <div id="tab-links" class="wf-tab-content">
+                    <div id="links-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    <div style="background:var(--bg); padding:10px; border-radius:8px; margin-top:15px; border:1px solid var(--border);">
+                        <label style="font-size:0.8rem;">Nieuwe Link</label>
+                        <div style="display:flex; gap:10px; margin-top:5px;">
+                            <input id="new-link-title" placeholder="Naam" style="flex:1;">
+                            <input id="new-link-url" placeholder="https://..." style="flex:2;">
+                            <button type="button" id="btnAddLink" class="wf-btn small">＋</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-logs" class="wf-tab-content">
+                    <div id="logs-container" style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;"></div>
+                    <div style="display:flex; gap:10px;">
+                        <input id="new-log-text" placeholder="Typ een notitie..." style="flex:1;">
+                        <button type="button" id="btnAddLog" class="wf-btn-primary small">Verstuur</button>
+                    </div>
+                </div>
+                <div id="tab-actions" class="wf-tab-content">
+                    <div style="background:var(--bg); border:1px solid var(--border); padding:20px; border-radius:12px;">
+                        <h4 style="margin:0 0 10px 0; color:var(--brand);">📅 Agenda Koppeling</h4>
+                        <button type="button" id="btnQuickPlan" class="wf-btn-primary" style="width:100%; justify-content:center;">⚡ Snel Plannen in Agenda</button>
+                    </div>
+                    <hr style="margin:25px 0; border-color:var(--border);">
+                    <button type="button" id="btnDeleteCard" class="danger" style="width:100%;">🗑️ Kaart Verwijderen</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+    <div class="modal-footer" style="background:var(--card); border-top:1px solid var(--border);">
+        <button class="ghost" data-modal-close="modal-card">Annuleren</button>
+        <button id="btnSaveCard" class="wf-btn-primary">💾 Opslaan & Sluiten</button>
+    </div>
+  </div>
+
+  <div id="modal-new-tag" class="modal-card" hidden style="max-width:400px; z-index:3200;">
+      <div class="modal-header"><h3>Tag Beheren</h3><button class="modal-close" data-modal-close="modal-new-tag">✕</button></div>
+      <div class="modal-body">
+          <label>Naam</label>
+          <input id="new-tag-name" placeholder="Naam van tag...">
+          
+          <label style="margin-top:10px;">Type</label>
+          <div style="display:flex; gap:15px;">
+              <label style="display:flex; gap:5px; align-items:center; cursor:pointer;">
+                  <input type="radio" name="tagType" value="priority"> Prioriteit (Max 1)
+              </label>
+              <label style="display:flex; gap:5px; align-items:center; cursor:pointer;">
+                  <input type="radio" name="tagType" value="standard" checked> Label (Meerdere)
+              </label>
+          </div>
+
+          <label style="margin-top:10px;">Kleur</label>
+          <div class="color-options" id="new-tag-colors"></div>
+          <input type="hidden" id="new-tag-color-val">
+      </div>
+      <div class="modal-footer">
+          <button class="ghost" data-modal-close="modal-new-tag">Annuleren</button>
+          <button id="btnSaveNewTag" class="wf-btn-primary">Opslaan</button>
+      </div>
+  </div>
+
+  <div id="modal-settings" class="modal-card" hidden style="max-width:700px;">
+    <div class="modal-header"><h3>Instellingen</h3><button class="modal-close" data-modal-close="modal-settings">✕</button></div>
+    <div class="modal-body">
+        <div class="wf-settings-tabs">
+            <button class="wf-tab-btn active" onclick="switchSettingsTab('tags')">Tags</button>
+            <button class="wf-tab-btn" onclick="switchSettingsTab('cols')">Kolommen</button>
+            <button class="wf-tab-btn" onclick="switchSettingsTab('lists')">Checklists</button>
+        </div>
+
+        <div id="set-tab-tags" class="wf-settings-content active">
+            <h4>Standaard Tags</h4><div id="list-tags-standard"></div>
+            <h4 style="margin-top:20px;">Eigen Tags</h4><div id="list-tags-custom"></div>
+            <button id="btnOpenNewTag" class="wf-btn-primary" style="margin-top:15px;">＋ Nieuwe Tag</button>
+        </div>
+
+        <div id="set-tab-cols" class="wf-settings-content">
+            <div id="col-list"></div>
+            <button id="btnAddCol" class="wf-btn-primary small" style="margin-top:10px;">＋ Kolom Toevoegen</button>
+        </div>
+
+        <div id="set-tab-lists" class="wf-settings-content">
+            <h4>Standaard Checklists</h4>
+            <div id="list-templates"></div>
+            
+            <button id="btnNewTemplateToggle" class="wf-btn-primary" style="margin-top:15px;">＋ Nieuwe Lijst Maken</button>
+            
+            <div id="template-editor" class="template-editor" style="display:none;">
+                <label>Naam Lijst</label>
+                <input id="tpl-name" placeholder="bv. Nieuwe Website">
+                <label style="margin-top:10px;">Items</label>
+                <div id="tpl-items-container"></div>
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                    <input id="tpl-new-item" placeholder="Item toevoegen...">
+                    <button id="btnTplAddItem" class="wf-btn small">＋</button>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px;">
+                    <button id="btnCancelTpl" class="ghost">Annuleren</button>
+                    <button id="btnSaveTpl" class="wf-btn-primary">Opslaan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer"><button class="ghost" data-modal-close="modal-settings">Sluiten</button></div>
+  </div>
+
+  <div id="modal-new-tag" class="modal-card" hidden style="max-width:400px; z-index:3200;">
+      <div class="modal-header"><h3>Nieuwe Tag</h3><button class="modal-close" data-modal-close="modal-new-tag">✕</button></div>
+      <div class="modal-body">
+          <label>Naam</label>
+          <input id="new-tag-name" placeholder="Naam van tag...">
+          
+          <label style="margin-top:10px;">Kleur</label>
+          <div class="color-options" id="new-tag-colors">
+              </div>
+          <input type="hidden" id="new-tag-color-val">
+      </div>
+      <div class="modal-footer">
+          <button class="ghost" data-modal-close="modal-new-tag">Annuleren</button>
+          <button id="btnSaveNewTag" class="wf-btn-primary">Opslaan</button>
+      </div>
+  </div>
+
+  <div id="modal-quick-plan" class="modal-card" hidden style="max-width:400px; z-index:3200;">
+      <div class="modal-header"><h3>Kies Tijdstip</h3><button class="modal-close" id="btnCloseQuick">✕</button></div>
+      <div class="modal-body">
+          <label>Datum</label>
+          <input type="date" id="qp-date">
+          <label>Starttijd</label>
+          <input type="time" id="qp-time" value="09:00">
+      </div>
+      <div class="modal-footer">
+          <button id="btnConfirmPlan" class="primary">🚀 Verstuur</button>
+      </div>
+  </div>
+
+  <div data-include="../../../partials/modals.html"></div>
+  <script src="../../../script/javascript/include-partials.js"></script>
+  <script type="module" src="../../../script/javascript/modal.js"></script>
+  <script type="module" src="../../../src/components/navigation.js"></script>
+  <script type="module" src="./workflow.js"></script>
+  <script>
+      function switchSettingsTab(tabName) {
+          document.querySelectorAll('#modal-settings .wf-tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('#modal-settings .wf-settings-content').forEach(c => c.classList.remove('active'));
+          
+          // Eenvoudige toggle logic
+          if(tabName === 'tags') {
+              document.querySelector('#modal-settings .wf-tab-btn:nth-child(1)').classList.add('active');
+              document.getElementById('set-tab-tags').classList.add('active');
+          } else {
+              document.querySelector('#modal-settings .wf-tab-btn:nth-child(2)').classList.add('active');
+              document.getElementById('set-tab-cols').classList.add('active');
+          }
+      }
+  </script>
+  <div id="modal-urgent" class="wf-urgent-overlay" hidden>
+      <div class="wf-urgent-card">
+          <div class="wf-urgent-header">
+              <span>⚠️ Aandacht vereist</span>
+          </div>
+          <p style="color:#cbd5e1; font-size:0.95rem;">De volgende taken vereisen je aandacht op basis van prioriteit of deadline:</p>
+          
+          <div id="urgent-list" class="wf-urgent-list">
+              </div>
+
+          <div class="wf-urgent-footer">
+              <label class="wf-urgent-check">
+                  <input type="checkbox" id="chk-urgent-today"> Niet meer tonen vandaag
+              </label>
+              <button id="btn-close-urgent" class="wf-btn-primary" style="justify-content:center; padding:10px;">Begrepen</button>
+          </div>
+      </div>
+  </div>
+  <div id="modal-filter" class="modal-card" hidden style="max-width:400px; z-index:3200;">
+      <div class="modal-header">
+          <h3>Filteren</h3>
+          <button class="modal-close" data-modal-close="modal-filter">✕</button>
+      </div>
+      <div class="modal-body">
+          <label>Op Prioriteit</label>
+          <div id="filter-prio-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+          
+          <label style="margin-top:15px;">Op Labels</label>
+          <div id="filter-tag-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+          <button id="btnClearFilters" class="ghost">Filters Wissen</button>
+          <button class="wf-btn-primary" data-modal-close="modal-filter">Toepassen</button>
+      </div>
+  </div>
+
+  <div id="modal-archive" class="modal-card" hidden style="max-width: 900px; height: 80vh; display:flex; flex-direction:column;">
+    <div class="modal-header">
+        <h3>🗄️ Archief (Afgewerkt)</h3>
+        <button class="modal-close" data-modal-close="modal-archive">✕</button>
+    </div>
+    <div class="modal-body" style="flex:1; overflow-y:auto; padding:0;">
+        <table class="wf-table" style="width:100%; border-collapse: collapse;">
+            <thead style="position:sticky; top:0; background:var(--bg); z-index:10; border-bottom:2px solid var(--border);">
+                <tr>
+                    <th style="padding:12px; text-align:left;">Titel</th>
+                    <th style="padding:12px; text-align:left;">Prio</th>
+                    <th style="padding:12px; text-align:left;">Labels</th>
+                    <th style="padding:12px; text-align:right;">Afgesloten op</th>
+                </tr>
+            </thead>
+            <tbody id="archive-table-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

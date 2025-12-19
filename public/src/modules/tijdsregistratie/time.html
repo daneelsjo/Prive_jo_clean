@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tijdsregistratie | JD Solutions</title>
+    <link rel="icon" href="../../../IMG/JD_Web_Solutions.ico">
+
+    <link rel="stylesheet" href="../../../CSS/main.css">
+    <link rel="stylesheet" href="../../../CSS/components-menu.css">
+    <link rel="stylesheet" href="../../../CSS/components-sidemenu.css">
+    <link rel="stylesheet" href="./time.css">
+    <script>
+    // Thema script mag blijven staan
+    (function () {
+      try {
+        var pref = localStorage.getItem('theme_pref') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) { /* no-op */ }
+    })();
+  </script>
+
+    <script>window.APP_ENV = "DEV";</script>
+</head>
+
+<body class="module-time">
+    <div data-include="../../../partials/header.html"></div>
+
+    <div id="app" style="display:none;">
+        <div class="page" id="timeRoot">
+            <main class="content">
+                <section class="card toolbar">
+                    <div class="toolbar-row">
+                        <label>Maand: <input id="monthPicker" type="month"></label>
+                        <button id="btnExportPdf" class="primary">📄 PDF Export</button>
+                        <div class="spacer"></div>
+                        <div class="quick-actions">
+                            <button class="ghost qa" data-type="sport">🏃 Sport</button>
+                            <button class="ghost qa" data-type="feestdag">🎉 Feestdag</button>
+                            <button class="ghost qa" data-type="recup">🔁 Recup</button>
+                            <button class="ghost qa" data-type="verlof">🌴 Verlof</button>
+                            <button class="ghost qa" data-type="oefening">🧯 Oefening</button>
+                            <button class="ghost qa" data-type="interventie">🚒 Interventie</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="table-wrap">
+                        <table id="timeTable" class="time-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:30px;"></th>
+                                    <th>Start</th><th>Pauze Start</th><th>Pauze Eind</th><th>Eind</th><th>Uur</th><th>Opmerking</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+            <aside class="rightcol"></aside>
+        </div>
+    </div>
+
+    <div id="modal-time" class="modal-card" hidden>
+        <div class="modal-header"><h3>Tijdsregistratie</h3><button class="modal-close" data-modal-close="modal-time">✕</button></div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <label class="fld fld-date">Datum <input id="tr-date" type="date"></label>
+                <label class="fld fld-type">Type 
+                    <select id="tr-type">
+                        <option value="standard">Standaard</option>
+                        <option value="sport">Sport</option>
+                        <option value="feestdag">Feestdag</option>
+                        <option value="verlof">Verlof</option>
+                        <option value="recup">Recup</option>
+                        <option value="interventie">Interventie</option>
+                    </select>
+                </label>
+                <label class="fld fld-start">Start <input id="tr-start" type="time"></label>
+                <label class="fld fld-beginbreak">Start pauze <input id="tr-beginbreak" type="time"></label>
+                <label class="fld fld-endbreak">Einde pauze <input id="tr-endbreak" type="time"></label>
+                <label class="fld fld-end">Einde <input id="tr-end" type="time"></label>
+                <label class="fld fld-remark">Opmerking <textarea id="tr-remark"></textarea></label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="tr-save" class="primary">💾 Opslaan</button>
+            <button id="tr-delete" class="danger" style="display:none;">🗑️ Verwijderen</button>
+            <button class="ghost" data-modal-close="modal-time">Annuleren</button>
+        </div>
+    </div>
+
+    <div data-include="../../../partials/modals.html"></div>
+    <script src="../../../script/javascript/include-partials.js"></script>
+    <script type="module" src="../../../script/javascript/modal.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+    <script type="module" src="../../../src/components/navigation.js"></script>
+
+    <script type="module" src="./time.js"></script>
+</body>
+</html>

@@ -638,3 +638,44 @@ body.env-dev .brand::after {
   color: white !important;
   border: 1px solid #fff;
 }
+
+/* Zorg dat de submenu's standaard verborgen zijn */
+.mainnav .submenu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #ccc);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  min-width: 200px;
+}
+
+/* En zichtbaar als de parent de class 'open' heeft */
+.mainnav li.open > .submenu {
+  display: block;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+/* Optioneel: pijltje draaien als open */
+.mainnav li.has-submenu > a::after {
+  content: " ▼";
+  font-size: 0.7em;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+.mainnav li.has-submenu.open > a::after {
+  transform: rotate(180deg);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

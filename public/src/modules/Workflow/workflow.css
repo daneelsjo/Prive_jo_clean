@@ -1,0 +1,899 @@
+/* --- Layout & Base --- */
+body.page-workflow .page {
+  display: block !important; /* Reset grid van main.css indien van toepassing */
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 20px 40px !important; /* Royale padding aan zijkanten */
+  box-sizing: border-box;
+}
+
+body.page-workflow .content {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Zorg dat de kolommen de ruimte nemen */
+.workflow-board {
+  display: grid;
+  /* Gebruik minmax om te zorgen dat kolommen niet te smal worden op breed scherm */
+  grid-template-columns: repeat(4, minmax(280px, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+  /* Hoogte: scherm minus header/toolbar */
+  height: calc(100vh - 140px);
+  width: 100%;
+}
+
+/* ... rest van de CSS ... */
+/* --- Toolbar --- */
+.wf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Spreid titel en knoppen */
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+  width: 100%;
+}
+
+.wf-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.wf-toolbar h1 {
+  color: var(--fg);
+  font-size: 1.8rem;
+  margin: 0;
+  font-weight: 800;
+}
+
+.wf-search-input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  width: 300px; /* Iets breder zoekveld */
+  font-size: 0.95rem;
+  transition: width 0.2s;
+}
+.wf-search-input:focus {
+  width: 350px;
+  outline: 2px solid var(--brand, #3b82f6);
+  border-color: transparent;
+}
+
+.wf-toolbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.wf-btn {
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.wf-btn:hover {
+  background: var(--bg);
+  border-color: var(--brand, #3b82f6);
+}
+
+.wf-btn-primary {
+  background: var(--brand, #3b82f6);
+  color: #fff;
+  border: 1px solid var(--brand, #3b82f6);
+}
+.wf-btn-primary:hover {
+  filter: brightness(0.9);
+}
+
+/* --- Bord Grid --- */
+.workflow-board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  height: calc(100vh - 120px);
+}
+
+@media (max-width: 1200px) {
+  .workflow-board {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .workflow-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Kolom --- */
+.wf-column {
+  background: rgba(128, 128, 128, 0.05); /* Subtiele achtergrond */
+  border: 1px solid transparent;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 200px;
+}
+
+.wf-column-header {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--border);
+  background: transparent;
+  font-weight: 700;
+  color: var(--fg);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+.wf-count-badge {
+  background: var(--border);
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.wf-column-cards {
+  padding: 12px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wf-drop-target {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed var(--brand, #3b82f6);
+  border-radius: 8px;
+}
+
+/* --- Kaart --- */
+.wf-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: grab;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  color: var(--fg);
+}
+
+.wf-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--brand, #3b82f6);
+}
+
+.wf-card-title {
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.wf-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.wf-card-date {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* --- Tags Rendering --- */
+.wf-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wf-badge {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fff; /* Badges hebben kleur-bg, dus tekst wit */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Admin / Settings --- */
+.wf-settings-tabs {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.wf-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+
+.wf-tab-btn.active {
+  color: var(--brand, #3b82f6);
+  border-bottom-color: var(--brand, #3b82f6);
+}
+
+.wf-settings-content {
+  display: none;
+}
+.wf-settings-content.active {
+  display: block;
+}
+
+/* Tag Row */
+.tag-manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}
+.tag-preview {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: white;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Custom Toggle Switch */
+.wf-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.wf-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.wf-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--muted);
+  transition: 0.4s;
+  border-radius: 34px;
+}
+.wf-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+input:checked + .wf-slider {
+  background-color: var(--brand, #3b82f6);
+}
+input:checked + .wf-slider:before {
+  transform: translateX(20px);
+}
+
+/* Color Picker */
+.color-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.color-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.2s;
+}
+.color-circle:hover {
+  transform: scale(1.1);
+}
+.color-circle.selected {
+  border-color: var(--fg);
+  box-shadow: 0 0 0 2px var(--brand, #3b82f6);
+}
+
+/* Modal Inputs */
+.modal-body label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.modal-body input,
+.modal-body textarea,
+.modal-body select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 10px;
+  border-radius: 6px;
+}
+.del-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-left: 10px;
+  opacity: 0.6;
+  color: var(--fg);
+}
+.del-icon-btn:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+/* Progress Bar */
+.wf-progress {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.wf-progress-bar {
+  height: 100%;
+  background: #10b981;
+}
+
+.wf-tag-select-chip:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+/* --- VISUELE TAGS UPDATE --- */
+
+/* 1. Tags op de kaartjes (Dashboard) */
+.wf-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white; /* Tekst altijd wit */
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+/* 2. Tags in de Modal (Selectie knoppen) */
+.wf-tag-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 20px; /* Rond voor modal */
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  transition: all 0.15s ease;
+  opacity: 0.7;
+}
+
+.wf-tag-option:hover {
+  transform: translateY(-1px);
+  opacity: 1;
+}
+
+/* Wanneer geselecteerd in modal */
+.wf-tag-option.selected {
+  opacity: 1;
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* LINKS styling */
+.wf-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--fg);
+  transition: transform 0.1s;
+}
+.wf-link-item:hover {
+  transform: translateX(2px);
+  border-color: var(--brand);
+}
+.wf-link-item a {
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+  flex: 1;
+}
+.wf-link-item a:hover {
+  text-decoration: underline;
+}
+
+/* LOGS styling */
+.wf-log-item {
+  background: var(--bg);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--border);
+  font-size: 0.9rem;
+}
+.wf-log-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+.wf-log-content {
+  color: var(--fg);
+  line-height: 1.4;
+}
+
+/* Checklist styling verbetering */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.check-row input[type="text"] {
+  border: none;
+  background: transparent;
+  flex: 1;
+  color: var(--fg);
+}
+.check-row input[type="text"]:focus {
+  outline: none;
+  border-bottom: 1px solid var(--brand);
+}
+.check-row.done input[type="text"] {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+/* --- TAB LOGICA FIX --- */
+.wf-tab-content {
+  display: none !important; /* Forceer verbergen */
+}
+
+.wf-tab-content.active {
+  display: block !important; /* Forceer tonen indien actief */
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- CHECKLIST PROGRESS & TEMPLATES --- */
+
+/* Dashboard Kaart Progress Bar */
+.wf-progress-container {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.wf-progress-bar {
+  height: 100%;
+  background: #10b981; /* Mooi groen */
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.wf-progress-text {
+  font-size: 0.7rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+/* Template Beheer in Admin */
+.template-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: var(--bg);
+}
+
+.template-items-preview {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Template Editor (Mini formulier in admin) */
+.template-editor {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed var(--border);
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.temp-item-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+/* --- CHECKLIST MET SCHUIFERS --- */
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03); /* Heel licht vlakje */
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.check-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Het tekstveld (De fix voor onzichtbare tekst) */
+.check-row input[type="text"] {
+  border: none;
+  background: transparent;
+  flex: 1;
+  color: var(--fg); /* Zorgt voor witte tekst */
+  font-size: 0.95rem;
+  padding: 4px;
+}
+
+.check-row input[type="text"]:focus {
+  outline: none;
+  border-bottom: 1px solid var(--brand, #3b82f6);
+}
+
+/* Afgevinkt effect */
+.check-row.done input[type="text"] {
+  text-decoration: line-through;
+  opacity: 0.5;
+  color: var(--muted);
+}
+
+/* --- De Schuiver (Toggle Switch) --- */
+.cl-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.cl-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cl-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #475569; /* Uit kleur */
+  transition: 0.3s;
+  border-radius: 34px;
+}
+
+.cl-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+/* AAN stand (Groen) */
+.cl-switch input:checked + .cl-slider {
+  background-color: #10b981;
+}
+
+.cl-switch input:checked + .cl-slider:before {
+  transform: translateX(16px);
+}
+
+/* --- URGENTIE POPUP --- */
+.wf-urgent-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+  backdrop-filter: blur(4px);
+}
+
+.wf-urgent-card {
+  background: #1e293b; /* Donkerblauw */
+  border: 1px solid #334155;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  padding: 25px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.wf-urgent-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ef4444;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.wf-urgent-list {
+  max-height: 300px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.wf-urgent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid #334155;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+.wf-urgent-item:last-child {
+  border-bottom: none;
+}
+
+.wf-urgent-reason {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 10px;
+}
+.reason-critical {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+.reason-overdue {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+.reason-soon {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.wf-urgent-footer {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.wf-urgent-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* --- FILTER STYLES --- */
+.wf-btn.active-filter {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border-color: #f59e0b;
+}
+
+/* Hergebruik pill styles in filter modal */
+.filter-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  transition: all 0.2s;
+}
+
+.filter-chip.selected {
+  background: var(--brand);
+  color: white;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+/* Quick Filter Actieve Status */
+.wf-btn.active-quick-filter {
+  background-color: var(--brand); /* Of een specifieke kleur per knop */
+  color: white;
+  border-color: var(--brand);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Optioneel: Specifieke kleuren per bron als ze actief zijn */
+#btnQuickMail.active-quick-filter {
+  background-color: #8b5cf6;
+  border-color: #8b5cf6;
+} /* Paars */
+#btnQuickTicket.active-quick-filter {
+  background-color: #f97316;
+  border-color: #f97316;
+} /* Oranje */
+#btnQuickDev.active-quick-filter {
+  background-color: #10b981;
+  border-color: #10b981;
+} /* Groen */
+
+/* Archief Tabel */
+.wf-table th,
+.wf-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.wf-table tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+}
+
+/* Read Only Modus in Modal */
+.modal-card.read-only input,
+.modal-card.read-only textarea,
+.modal-card.read-only select,
+.modal-card.read-only button:not(.modal-close) {
+  pointer-events: none;
+  opacity: 0.7;
+  background-color: transparent;
+  border: none;
+}
+.modal-card.read-only .wf-actions-footer,
+.modal-card.read-only .del-icon-btn,
+.modal-card.read-only #btnSaveCard {
+  display: none !important;
+}
+
+/* --- TOOLBAR ALIGNMENT FIX --- */
+
+.wf-toolbar-actions {
+  display: flex;
+  align-items: center; /* Zorgt dat alles verticaal gecentreerd is */
+  gap: 10px; /* Ruimte tussen alle knoppen */
+}
+
+/* De container voor de 3 icoon-knoppen */
+.quick-filters {
+  display: flex;
+  gap: 5px; /* Iets minder ruimte tussen de icoontjes onderling */
+}
+
+/* Het verticale scheidingslijntje */
+.wf-v-separator {
+  width: 1px;
+  height: 24px;
+  background-color: var(--border);
+  margin: 0 5px; /* Extra lucht rondom het lijntje */
+}
+
+/* Zorg dat alle knoppen even hoog zijn */
+.wf-btn {
+  height: 36px; /* Vaste hoogte oogt strakker */
+  white-space: nowrap; /* Voorkom dat tekst op 2 regels komt */
+}
+
+/* Specifiek voor de icon-only knoppen (mooi vierkant/rond maken) */
+.wf-btn.icon-only {
+  padding: 0;
+  width: 36px;
+  justify-content: center;
+}
+
+/* --- FIX QUICK FILTER KNOPPEN --- */
+
+/* We overschrijven de standaard .icon-only stijl specifiek voor deze groep */
+.quick-filters .wf-btn.icon-only {
+  width: auto !important; /* Breedte niet meer vastzetten op 36px */
+  min-width: 70px; /* Zorg voor een mooie brede basis, past 2 cijfers in */
+  padding: 0 15px !important; /* Ruimte links en rechts */
+  border-radius: 99px; /* Pil-vorm behouden */
+  justify-content: center; /* Inhoud centreren */
+}
+
+/* Zorg dat het nummer niet tegen het icoon plakt */
+.quick-filters .wf-btn span {
+  margin-left: 6px; /* Ruimte tussen 📧 en het cijfer */
+  font-weight: 700; /* Cijfer lekker vet */
+}

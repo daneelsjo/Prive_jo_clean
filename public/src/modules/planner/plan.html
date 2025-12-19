@@ -24,17 +24,16 @@
   <script>document.documentElement.setAttribute('data-theme','dark');</script>
 
   <!-- Gedeelde CSS -->
-  <link rel="stylesheet" href="../CSS/main.css" />
-  <link rel="stylesheet" href="../CSS/components-menu.css" />
-  <link rel="stylesheet" href="../CSS/components-sidemenu.css" />
-  <!-- Pagina CSS -->
-  <link rel="stylesheet" href="../CSS/page-planner.css" />
+  <link rel="stylesheet" href="../../../CSS/main.css" />
+<link rel="stylesheet" href="../../../CSS/components-menu.css" />
+<link rel="stylesheet" href="../../../CSS/components-sidemenu.css" />
+<link rel="stylesheet" href="./planner.css" />
 </head>
 
 <body class="planner-page">
   <!-- AUTH -->
   <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
-  <div data-include="../partials/header.html"></div>
+  <div data-include="../../../partials/header.html"></div>
   <!-- APP -->
   <div id="app" style="display:none;">
     <div class="page">
@@ -95,7 +94,7 @@
   </div>
 
   <!-- Gedeelde modals via partials (algemene modals) -->
-  <div data-include="../partials/modals.html"></div>
+  <div data-include="../../../partials/header.html"></div>
 
  <!-- Backlog: nieuw/bewerken -->
 <div id="modal-backlog" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="bl-titlebar" hidden>
@@ -342,14 +341,12 @@
     <h2>Lijst geplande items</h2>
     <div id="print-root"></div>
   </template>
-<script src="../script/javascript/include-partials.js"></script>
-  <script src="../script/javascript/menu.js"></script>
-  
-  <script type="module" src="../script/javascript/main.js"></script>
-  <script type="module" src="../script/javascript/modal.js"></script>
-  <script type="module" src="../script/javascript/planner.js"></script>
-  <div id="evt-tip" aria-hidden="true"></div>
+<div data-include="../../../partials/modals.html"></div>
+<script src="../../../script/javascript/include-partials.js"></script>
 
+<script type="module" src="../../../script/javascript/modal.js"></script>
+<script type="module" src="../../../src/components/navigation.js"></script>
+<script type="module" src="./planner.js"></script>
 </body>
 
 </html>

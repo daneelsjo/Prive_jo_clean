@@ -2,7 +2,7 @@
 import {
     getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc, deleteDoc,
     query, where
-} from "./firebase-config.js";
+} from "../../../script/javascript/firebase-config.js";
 
 // Haal globals op via window.App (ingesteld in main.js)
 const db = window.App?.db || getFirestore();

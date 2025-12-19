@@ -1,91 +1,105 @@
-/* components-sidemenu.css — robuuste drawer */
+/* components-sidemenu.css — OPGESCHOOND */
 
-/* backdrop */
+/* 1. De Backdrop (donkere achtergrond) */
 #sidemenu-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, .45);
-    z-index: 1999;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1999;
+  display: none; /* Standaard verborgen */
+  backdrop-filter: blur(2px);
 }
 
-#sidemenu-backdrop[hidden] {
-    display: none;
+/* Zichtbaar maken via attribuut of style */
+#sidemenu-backdrop[hidden="false"],
+#sidemenu-backdrop[style*="block"] {
+  display: block !important;
 }
 
-/* drawer basis */
+/* 2. De Sidebar Basis (Gebruik ID voor sterke specificiteit) */
 #sidemenu {
-    --drawer-w: 300px;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: var(--drawer-w);
-    background: var(--card, #fff);
-    color: var(--fg, #111);
-    border-right: 1px solid var(--border, #e5e7eb);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
-    z-index: 2000;
-    overflow: auto;
-    will-change: transform;
-    transform: translateX(-105%);
-    /* dicht */
-    transition: transform .25s ease;
-    /* animatie */
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 300px;
+  background: var(--card, #ffffff);
+  z-index: 2000;
+
+  /* Standaard verborgen naar links */
+  transform: translateX(-105%);
+  will-change: transform;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  border-right: 1px solid var(--border, #e5e7eb);
 }
 
+/* Dark mode correctie */
 :root[data-theme="dark"] #sidemenu {
-    background: #0f172a;
-    color: #e5e7eb;
-    border-color: rgba(255, 255, 255, .12);
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* open state */
+/* 3. De OPEN staat (Gebruik OOK ID selector!) */
 #sidemenu[data-state="open"] {
-    transform: translateX(0);
+  transform: translateX(0) !important;
 }
 
-/* inhoud */
-.sidemenu {
-    padding: 1rem;
-}
-
+/* 4. Inhoud styling */
 .sidemenu-section {
-    margin-bottom: .75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border, #eee);
 }
 
 .sidemenu-section h4 {
-    margin: .75rem 0 .35rem;
-    font-weight: 700;
-    cursor: pointer;
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--muted, #888);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Pijltje voor accordeon */
+.sidemenu-section h4::after {
+  content: "▼";
+  font-size: 0.7em;
+  transition: transform 0.2s;
+}
+
+/* Als sectie open is, pijltje draaien */
+.sidemenu-section.open h4::after {
+  transform: rotate(180deg);
 }
 
 .sidemenu-section ul {
-    list-style: none;
-    margin: 0;
-    padding-left: 0;
-    display: grid;
-    gap: .25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: none; /* Standaard dicht */
+  gap: 4px;
+}
+
+/* Als sectie open is, toon lijst */
+.sidemenu-section.open ul {
+  display: grid;
 }
 
 .sidemenu-section a {
-    color: inherit;
-    text-decoration: none;
-    padding: .35rem .5rem;
-    border-radius: 8px;
-    display: block;
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: var(--fg, #333);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: background 0.1s;
 }
 
 .sidemenu-section a:hover {
-    background: rgba(2, 132, 199, .12);
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--brand, #2563eb);
 }
-
-/* Accordion-gedrag: standaard dicht, open via .open */
-.sidemenu-section ul {
-    display: none;
-}
-
-.sidemenu-section.open ul {
-    display: grid;
-}
-
-/* je had al gap-styling; grid is prima */

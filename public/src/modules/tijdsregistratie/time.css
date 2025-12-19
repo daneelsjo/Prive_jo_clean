@@ -1,0 +1,361 @@
+/* ===== TIJDSPAGINA (clean) ===== */
+
+/* Layout */
+.module-time .page {
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  padding: 12px;
+}
+
+@media (max-width: 1200px) {
+  .module-time .page {
+    grid-template-columns: 1fr;
+  }
+
+  .module-time .rightcol {
+    order: 2;
+  }
+}
+
+.module-time .content,
+.module-time .table-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.toolbar .toolbar-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.toolbar .quick-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.muted {
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+/* Tabel */
+.module-time .time-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.module-time .time-table th,
+.module-time .time-table td {
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+:root[data-theme="dark"] .module-time .time-table th,
+:root[data-theme="dark"] .module-time .time-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.module-time .time-table tr:hover {
+  background: rgba(2, 132, 199, 0.08);
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] .module-time .time-table tr:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Datumkop + acties */
+.module-time .date-header {
+  background: transparent;
+  font-weight: 700;
+}
+
+.module-time .date-header td {
+  padding: 0.6rem 0.7rem;
+  background: transparent;
+}
+
+.module-time .datebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.module-time .datebar .left {
+  font-weight: 800;
+}
+
+.module-time .datebar .right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.module-time .icon-xs {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--card);
+  color: var(--fg);
+}
+
+.module-time .badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="dark"] .module-time .badge {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Week-totalen */
+.module-time .week-total {
+  background: transparent;
+  font-weight: 800;
+}
+
+.module-time .week-total td {
+  text-align: center;
+  font-weight: 800;
+  padding-top: 0.8rem;
+}
+
+.module-time .week-total .diff.pos {
+  color: #065f46;
+}
+
+.module-time .week-total .diff.neg {
+  color: #991b1b;
+}
+
+:root[data-theme="dark"] .module-time .week-total .diff.pos {
+  color: #34d399;
+}
+
+:root[data-theme="dark"] .module-time .week-total .diff.neg {
+  color: #f87171;
+}
+
+/* Chips naast maandselectie (glijtijd, overuren, recup, verlof, opt-out) */
+.module-time .month-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.5rem 0 0 0.5rem;
+}
+
+.module-time .pill {
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-weight: 600;
+}
+
+.module-time .pill.pos {
+  color: #065f46;
+  background: #ecfdf5;
+}
+
+.module-time .pill.neg {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.module-time .pill.info {
+  color: #1e3a8a;
+  background: #dbeafe;
+}
+
+.module-time .pill.verlof {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.module-time .pill.recup {
+  color: #b45309;
+  background: #ffedd5;
+}
+
+.module-time .pill.warn {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+/* opt-out overschrijding */
+:root[data-theme="dark"] .module-time .pill.pos {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+:root[data-theme="dark"] .module-time .pill.neg {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+:root[data-theme="dark"] .module-time .pill.info {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+:root[data-theme="dark"] .module-time .pill.verlof {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+:root[data-theme="dark"] .module-time .pill.recup {
+  color: #fdba74;
+  background: rgba(251, 146, 60, 0.12);
+}
+
+:root[data-theme="dark"] .module-time .pill.warn {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+/* Typekleuren (thema-variabelen) */
+:root {
+  --type-feestdag-bg: #f3f4f6;
+  /* licht grijs */
+  --type-sport-bg: #fef9c3;
+  /* geel */
+  --type-recup-bg: #ffedd5;
+  /* oranje licht */
+  --type-verlof-bg: #fee2e2;
+  /* licht rood */
+  --type-oefening-bg: #dcfce7;
+  /* licht groen */
+  --type-andere-bg: #dbeafe;
+  /* licht blauw */
+  --type-interventie-bg: #ede9fe;
+  /* paars tintje */
+}
+
+:root[data-theme="dark"] {
+  --type-feestdag-bg: rgba(255, 255, 255, 0.06);
+  --type-sport-bg: rgba(250, 204, 21, 0.18);
+  --type-recup-bg: rgba(251, 146, 60, 0.18);
+  --type-verlof-bg: rgba(239, 68, 68, 0.18);
+  --type-oefening-bg: rgba(34, 197, 94, 0.18);
+  --type-andere-bg: rgba(59, 130, 246, 0.18);
+  --type-interventie-bg: rgba(139, 92, 246, 0.18);
+}
+
+.module-time tr.type-feestdag {
+  background: var(--type-feestdag-bg);
+  color: var(--fg);
+}
+
+.module-time tr.type-sport {
+  background: var(--type-sport-bg);
+  color: var(--fg);
+}
+
+.module-time tr.type-recup {
+  background: var(--type-recup-bg);
+  color: var(--fg);
+}
+
+.module-time tr.type-verlof {
+  background: var(--type-verlof-bg);
+  color: var(--fg);
+}
+
+.module-time tr.type-oefening {
+  background: var(--type-oefening-bg);
+  color: var(--fg);
+}
+
+.module-time tr.type-andere {
+  background: var(--type-andere-bg);
+  color: var(--fg);
+}
+
+.module-time tr.type-interventie {
+  background: var(--type-interventie-bg);
+  color: var(--fg);
+}
+
+/* Modal layout */
+#modal-time input,
+#modal-time select,
+#modal-time textarea {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--fg);
+}
+
+#modal-time textarea {
+  min-height: 110px;
+}
+
+#modal-time label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+/* Grid (zoals notes/tasks) */
+#modal-time .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  grid-template-areas:
+    "date  type"
+    "start end"
+    "beginbreak endbreak"
+    "remark remark";
+}
+
+#modal-time .fld-date {
+  grid-area: date;
+}
+
+#modal-time .fld-type {
+  grid-area: type;
+}
+
+#modal-time .fld-start {
+  grid-area: start;
+}
+
+#modal-time .fld-end {
+  grid-area: end;
+}
+
+#modal-time .fld-beginbreak {
+  grid-area: beginbreak;
+}
+
+#modal-time .fld-endbreak {
+  grid-area: endbreak;
+}
+
+/* Alias voor oude naamgeving (indien gebruikt): */
+#modal-time .fld-bend {
+  grid-area: endbreak;
+}
+
+#modal-time .fld-remark,
+#modal-time .fld-note {
+  grid-area: remark;
+}

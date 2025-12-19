@@ -9,7 +9,7 @@ import {
     // Firestore
     getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,
     query, where, orderBy
-} from "./firebase-config.js";
+} from "../../../script/javascript/firebase-config.js";
 
 /* ────────────────────────────────────────────────────────────────────────────
    Firebase

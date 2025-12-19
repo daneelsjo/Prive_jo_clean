@@ -1,0 +1,322 @@
+/* src/modules/agendabuilder/agendabuilder.css */
+
+/* --- LAYOUT --- */
+.module-agendabuilder .page {
+  /* OVERSCHRIJF MAIN.CSS */
+  width: 98% !important;
+  max-width: 1900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.module-agendabuilder .main-grid {
+  display: grid;
+  /* Sidebar vaste breedte, Formulier pakt de rest */
+  grid-template-columns: 1fr 400px;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .module-agendabuilder .main-grid {
+    grid-template-columns: 1fr;
+  }
+  .right-panel {
+    order: -1;
+  }
+}
+
+/* --- PANELEN --- */
+.module-agendabuilder .card {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #ccc);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.module-agendabuilder h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  color: var(--fg);
+  font-weight: 800;
+  margin-bottom: 24px;
+}
+
+.module-agendabuilder h3.section-label {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 30px 0 15px 0;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 8px;
+}
+
+/* --- FORMULIER --- */
+.module-agendabuilder label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+.module-agendabuilder input,
+.module-agendabuilder select,
+.module-agendabuilder textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-input, rgba(0, 0, 0, 0.02));
+  color: var(--fg);
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+.module-agendabuilder input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--card);
+}
+
+.module-agendabuilder .row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+/* Password Toggle */
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-group input {
+  padding-right: 45px;
+}
+.input-group .toggle-pw {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 45px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 1.2rem;
+}
+.input-group .toggle-pw:hover {
+  opacity: 1;
+}
+
+/* --- SIDEBAR & CHIPS --- */
+.right-panel {
+  position: sticky;
+  top: 20px;
+}
+.side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.full-width {
+  width: 100%;
+  justify-content: center;
+  padding: 12px;
+  font-size: 1rem;
+}
+
+.module-agendabuilder .chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.chip {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+.chip:active {
+  transform: translateY(0);
+}
+
+/* Agenda Knoppen */
+.cal-btn {
+  color: #fff;
+  border: none;
+  opacity: 0.4;
+  filter: grayscale(0.6);
+  transition: all 0.2s;
+  padding: 10px 20px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.cal-btn.active {
+  opacity: 1;
+  filter: grayscale(0);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Snelkoppelingen */
+.shortcut-btn {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.shortcut-btn:hover {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.04);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.shortcut-btn strong {
+  color: var(--fg);
+  font-size: 1.05rem;
+  display: block;
+  margin-bottom: 4px;
+}
+.shortcut-btn small {
+  opacity: 0.6;
+  font-size: 0.85rem;
+}
+
+/* --- CONFIG MODAL --- */
+.config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.config-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.01);
+}
+
+/* KLEUR BOLLETJE */
+input[type="color"].color-swatch {
+  -webkit-appearance: none;
+  border: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+}
+input[type="color"].color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type="color"].color-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+/* SHORTCUT EDIT GRID */
+.config-item.shortcut-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+.shortcut-details {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.config-item input,
+.config-item select {
+  padding: 8px 12px;
+  height: 40px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.del-btn {
+  margin-left: auto;
+  color: #ef4444;
+  background: transparent;
+  border: 1px solid #ef4444;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.del-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Payload Debug */
+.payload-area {
+  margin-top: 30px;
+  border-top: 1px dashed var(--border);
+  padding-top: 20px;
+  display: none;
+}
+.payload-area.open {
+  display: block;
+}
+.out {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}

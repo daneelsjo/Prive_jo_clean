@@ -1,97 +1,121 @@
 <!DOCTYPE html>
 <html lang="nl">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Landingspagina Jo</title>
-  <link rel="icon" href="IMG/JD_Web_Solutions.ico">
-
-  <script>
-    // Zet het thema zo vroeg mogelijk (voordat CSS laadt)
-    (function () {
-      try {
-        var pref = localStorage.getItem('theme_pref') || 'system';
-        var final = pref === 'system'
-          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : pref;
-        document.documentElement.setAttribute('data-theme', final);
-      } catch (e) { /* no-op */ }
-    })();
-  </script>
- 
-
-  <link rel="stylesheet" href="CSS/main.css" />
-  <link rel="stylesheet" href="CSS/components-menu.css" />
-  <link rel="stylesheet" href="CSS/components-sidemenu.css" />
-  <link rel="stylesheet" href="CSS/page-index.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | JD Solutions</title>
+    <link rel="icon" href="IMG/JD_Web_Solutions.ico">
+    
+    <link rel="stylesheet" href="CSS/page-landing.css" />
 </head>
+<body class="page-landing">
 
-<body class="page-index">
-   <script>
-  // Dit regelt of de balk rood wordt!
-  // Zet op "PROD" als je live gaat.
-  window.APP_ENV = "DEV"; 
-</script>
-  <!-- AUTH -->
-  <div id="auth"><button id="login-btn">🔐 Inloggen met Google</button></div>
-
-  <!-- gedeelde header -->
-  <div data-include="partials/header.html"></div>
-
-  <!-- APP -->
-  <div id="app" style="display:none;">
-    <!-- PAGE -->
-    <div class="page">
-      <main class="content">
-        <!-- Werk/Privé toggle -->
-        <div class="mode-toggle">
-          <input type="checkbox" id="modeSwitch" aria-label="Schakel tussen werk en privé" />
-          <label for="modeSwitch" class="switch icon-only">
-            <span class="knob"></span>
-            <span class="icon icon-work" title="Werk">🧰</span>
-            <span class="icon icon-prive" title="Privé">🏠</span>
-          </label>
+    <div class="landing-wrapper">
+        
+        <div id="login-view" style="display:none;">
+            <div style="margin-bottom: 2rem;">
+                <img src="IMG/JD_Web_Solutions.jpg" alt="Logo" style="width: 80px; border-radius: 12px;">
+            </div>
+            <h1>Welkom terug</h1>
+            <p style="color: #94a3b8; margin-bottom: 2rem;">Meld je aan om toegang te krijgen tot het portaal.</p>
+            
+            <button id="btn-login-google" class="btn-login-large">
+                <span style="font-size: 1.2rem;">G</span> Inloggen met Google
+            </button>
         </div>
 
-        <div class="workspace">
-          <div id="postits" class="postits-row"></div>
+        <div id="dashboard-view" style="display:none;">
+            
+            <div class="top-bar">
+                <div class="user-pill">
+                    <div id="user-avatar" class="user-avatar">JD</div>
+                    <span id="user-name" class="user-name">Laden...</span>
+                    <button id="btn-logout" class="btn-logout">Uitloggen</button>
+                </div>
+            </div>
+
+            <h1 class="hero-title">JD SOLUTIONS</h1>
+
+            <div class="dashboard-grid">
+                
+                <a href="src/modules/sticknotes/sticknotes.html" class="nav-card">
+                    <h3>Sticknotes</h3>
+                    <span>Takenbeheer, notities en werk/privé overzicht.</span>
+                </a>
+
+                <a href="src/modules/planner/plan.html" class="nav-card">
+                    <h3>Planner</h3>
+                    <span>School- en weekplanning beheren.</span>
+                </a>
+
+                <a href="src/modules/time/tijd.html" class="nav-card">
+                    <h3>Tijdsregistratie</h3>
+                    <span>Urenregistratie, overuren en verlof berekening.</span>
+                </a>
+
+                <a href="src/modules/Workflow/workflow.html" class="nav-card">
+                    <h3>Workflow</h3>
+                    <span>Kanban-bord en projectopvolging.</span>
+                </a>
+
+                <a href="src/modules/agendabuilder/agendabuilder.html" class="nav-card">
+    <h3>Agenda Builder</h3>
+    <span>Genereer URL's voor Make.com automatisaties.</span>
+</a>
+
+                <a href="src/modules/settings/settings.html" class="nav-card">
+                    <h3>Instellingen</h3>
+                    <span>Applicatie voorkeuren en categoriebeheer.</span>
+                </a>
+
+            </div>
         </div>
-      </main>
 
-      <aside class="rightcol">
-        <div class="alltasks-container card">
-          <div class="alltasks-header">
-            <button id="toggleAllTasks" class="primary">📁 ALLE TAKEN</button>
-
-          </div>
-        </div>
-
-        <button id="newTaskBtn" class="primary">＋ NIEUW</button>
-
-        <!-- Overige taken -->
-        <div id="uncategorized" class="card">
-          <h3>📌 Overige taken</h3>
-          <div id="uncategorized-list"></div>
-        </div>
-      </aside>
-
-      <!-- Brede tabel: DIRECT kind van .page (sibling van main & aside) -->
-      <input id="allTasksSearch" class="alltasks-search" type="search" placeholder="Zoek op naam, datum, prio, tekst…"
-        style="display:none;">
-      <section id="allTasksPanel" class="card" hidden>
-        <table id="allTasksTable"></table>
-      </section>
     </div>
 
+    <script type="module">
+        import { login, logout, watchUser } from "./src/services/auth.js";
+        import { initDevTools } from "./src/components/dev-tools.js";
 
-    <!-- Modals -->
-    <div data-include="partials/modals.html"></div>
-    <script type="module" src="script/javascript/modal.js"></script>
+        // Elementen selecteren
+        const loginView = document.getElementById("login-view");
+        const dashView = document.getElementById("dashboard-view");
+        
+        const loginBtn = document.getElementById("btn-login-google");
+        const logoutBtn = document.getElementById("btn-logout");
+        
+        const userNameEl = document.getElementById("user-name");
+        const userAvatarEl = document.getElementById("user-avatar");
 
-    <!-- Scripts -->
-    <script src="script/javascript/include-partials.js"></script> <script src="script/javascript/menu.js"></script> <script type="module" src="script/javascript/modal.js"></script> <script type="module" src="script/javascript/time.js"></script> <script type="module" src="script/javascript/main.js"></script>
-<script type="module" src="script/javascript/index.js"></script>
+        // Start Dev Tools
+        initDevTools();
+
+        // Knoppen koppelen
+        loginBtn.addEventListener("click", login);
+        logoutBtn.addEventListener("click", logout);
+
+        // Luisteren naar inlog status
+        watchUser((user) => {
+            if (user) {
+                loginView.style.display = "none";
+                dashView.style.display = "block";
+                
+                userNameEl.textContent = user.displayName || user.email;
+                if(user.photoURL) {
+                    userAvatarEl.innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
+                } else {
+                    userAvatarEl.textContent = (user.email[0] || "U").toUpperCase();
+                }
+
+                if(window.updateDevPanel) window.updateDevPanel(user);
+            } else {
+                loginView.style.display = "flex";
+                dashView.style.display = "none";
+                if(window.updateDevPanel) window.updateDevPanel(null);
+            }
+        });
+    </script>
+    
+    <script type="module" src="src/components/navigation.js"></script>
 </body>
-
 </html>

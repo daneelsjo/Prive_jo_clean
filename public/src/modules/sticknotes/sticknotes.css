@@ -1,7 +1,7 @@
 /* ==========================================================================
    INDEX PAGE LAYOUT
    ========================================================================== */
-.page-index .page {
+.module-sticknotes .page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   /* content + (optionele) rechterkolom */
@@ -11,201 +11,222 @@
   margin: 0 auto;
 }
 
-.page-index .content,
-.page-index .workspace {
+.module-sticknotes .content,
+.module-sticknotes .workspace {
   max-width: none;
 }
 
 /* Als de tabel open staat: maak de layout één kolom en verberg rightcol */
 
-
-@media (max-width:1200px) {
-  .page-index .page {
+@media (max-width: 1200px) {
+  .module-sticknotes .page {
     grid-template-columns: 1fr;
   }
 
-  .page-index .rightcol {
+  .module-sticknotes .rightcol {
     order: 2;
   }
 }
 
 /* ==========================================================================
-   POST-ITS
+   POST-ITS GRID FIX
    ========================================================================== */
-.page-index #postits.postits-row {
+.module-sticknotes #postits.postits-row {
   display: grid;
-  grid-auto-flow: column;
-  /* max 2 rijen, dan nieuwe kolom */
-  grid-template-rows: repeat(2, minmax(260px, auto));
-  grid-auto-columns: minmax(320px, 1fr);
+  /* Belangrijk: Vul van links naar rechts (niet van boven naar beneden) */
+  grid-auto-flow: row;
+
+  /* Start met 3 kolommen naast elkaar (max 3 zoals gevraagd) */
+  grid-template-columns: repeat(3, 1fr);
+
+  /* Minimale hoogte per kaartje behouden */
+  grid-auto-rows: minmax(260px, auto);
+
   gap: 16px;
   align-items: start;
-  justify-content: start;
   width: 100%;
 }
 
-.page-index .postit {
+/* --- RESPONSIVE GEDRAG --- */
+
+/* Als het scherm iets smaller wordt (bijv. laptop), ga naar 2 kolommen */
+/* Dit zorgt voor de "minimaal 2" eis zolang het past */
+@media (max-width: 1600px) {
+  .module-sticknotes #postits.postits-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Pas op mobiel of hele smalle schermen naar 1 kolom */
+@media (max-width: 768px) {
+  .module-sticknotes #postits.postits-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Stijl van de kaartjes zelf (deze mag blijven zoals hij was, ter referentie) */
+.module-sticknotes .postit {
   padding: 16px;
-  min-height: 260px;
+  height: 100%; /* Zorg dat ze de volledige hoogte van de grid-cel pakken */
   border-radius: 14px;
-  width: 100%;
-  height: 100%;
   color: #111;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
 }
 
-.page-index .postit .postit-head {
+.module-sticknotes .postit .postit-head {
   text-align: center;
   font-weight: 700;
-  padding-bottom: .25rem;
-  margin-bottom: .5rem;
-  border-bottom: 2px solid rgba(0, 0, 0, .15);
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.15);
 }
 
-:root[data-theme="dark"] .page-index .postit .postit-head {
-  border-bottom-color: rgba(255, 255, 255, .25);
+:root[data-theme="dark"] .module-sticknotes .postit .postit-head {
+  border-bottom-color: rgba(255, 255, 255, 0.25);
 }
 
 /* taken op een post-it */
-.page-index .task-row {
+.module-sticknotes .task-row {
   display: grid;
   grid-template-columns: 14px 1fr;
-  gap: .55rem;
+  gap: 0.55rem;
   align-items: start;
-  padding: .2rem 0;
+  padding: 0.2rem 0;
   border-radius: 8px;
   cursor: pointer;
 }
 
-.page-index .task-row:hover {
-  background: rgba(0, 0, 0, .05);
+.module-sticknotes .task-row:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
-:root[data-theme="dark"] .page-index .task-row:hover {
-  background: rgba(255, 255, 255, .06);
+:root[data-theme="dark"] .module-sticknotes .task-row:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.page-index .task-dot {
+.module-sticknotes .task-dot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
   background: var(--dot, #9ca3af);
-  margin-top: .35rem;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, .15);
+  margin-top: 0.35rem;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
 }
 
-:root[data-theme="dark"] .page-index .task-dot {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .20);
+:root[data-theme="dark"] .module-sticknotes .task-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-.page-index .task-texts {
+.module-sticknotes .task-texts {
   line-height: 1.25;
 }
 
-.page-index .task-title {
+.module-sticknotes .task-title {
   font-weight: 600;
 }
 
-.page-index .task-deadline {
-  font-size: .85rem;
-  opacity: .8;
-  margin-top: .15rem;
+.module-sticknotes .task-deadline {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-top: 0.15rem;
 }
 
-.page-index #uncategorized-list>.task-row {
-  background: rgba(0, 0, 0, .04);
-  padding: .3rem .4rem;
+.module-sticknotes #uncategorized-list > .task-row {
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.3rem 0.4rem;
   border-radius: 6px;
-  margin: .25rem 0;
+  margin: 0.25rem 0;
 }
 
 /* ==========================================================================
    ALLE TAKEN – PANEL & TABEL
    ========================================================================== */
 /* paneel over de volle breedte van de grid */
-.page-index #allTasksPanel {
+.module-sticknotes #allTasksPanel {
   grid-column: 1 / -1;
   width: 100%;
 }
 
-.page-index #allTasksTable {
+.module-sticknotes #allTasksTable {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.page-index #allTasksTable th,
-.page-index #allTasksTable td {
-  padding: .55rem .7rem;
+.module-sticknotes #allTasksTable th,
+.module-sticknotes #allTasksTable td {
+  padding: 0.55rem 0.7rem;
   border-bottom: 1px solid var(--border, #e5e7eb);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-:root[data-theme="dark"] .page-index #allTasksTable th,
-:root[data-theme="dark"] .page-index #allTasksTable td {
-  border-bottom-color: rgba(255, 255, 255, .14);
+:root[data-theme="dark"] .module-sticknotes #allTasksTable th,
+:root[data-theme="dark"] .module-sticknotes #allTasksTable td {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
 }
 
-.page-index #allTasksTable th {
+.module-sticknotes #allTasksTable th {
   text-align: left;
   font-weight: 700;
 }
 
-.page-index #allTasksTable .prio-cell {
+.module-sticknotes #allTasksTable .prio-cell {
   width: 64px;
 }
 
-.page-index #allTasksTable .group-row td {
-  padding: .8rem .6rem .45rem;
+.module-sticknotes #allTasksTable .group-row td {
+  padding: 0.8rem 0.6rem 0.45rem;
   font-weight: 800;
   background: transparent;
   border-bottom-color: transparent;
   text-align: center;
 }
 
-.page-index #allTasksTable .task-tr {
+.module-sticknotes #allTasksTable .task-tr {
   cursor: pointer;
 }
 
-.page-index #allTasksTable .task-tr:hover {
-  background: rgba(2, 132, 199, .08);
+.module-sticknotes #allTasksTable .task-tr:hover {
+  background: rgba(2, 132, 199, 0.08);
 }
 
-:root[data-theme="dark"] .page-index #allTasksTable .task-tr:hover {
-  background: rgba(255, 255, 255, .06);
+:root[data-theme="dark"] .module-sticknotes #allTasksTable .task-tr:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* prio-bolletje in de tabel */
-.page-index #allTasksTable .prio-dot {
+.module-sticknotes #allTasksTable .prio-dot {
   display: inline-block;
   width: 12px;
   height: 12px;
   border-radius: 999px;
   background: var(--dot, #9ca3af);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, .12);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12);
 }
 
-:root[data-theme="dark"] .page-index #allTasksTable .prio-dot {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .20);
+:root[data-theme="dark"] .module-sticknotes #allTasksTable .prio-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* zoekbalk */
-.page-index .alltasks-header {
+.module-sticknotes .alltasks-header {
   display: flex;
   align-items: center;
-  gap: .75rem;
-  margin-bottom: .5rem;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
   width: 100%;
 }
 
-.page-index .alltasks-search {
+.module-sticknotes .alltasks-search {
   flex: 1 1 420px;
   max-width: 620px;
-  padding: .55rem .7rem;
+  padding: 0.55rem 0.7rem;
   border: 1px solid var(--border);
-  border-radius: .6rem;
+  border-radius: 0.6rem;
   background: var(--card);
   color: var(--fg);
 }
@@ -213,38 +234,38 @@
 /* ==========================================================================
    MODAL & KNOPPEN (alleen essentials; rest staat in main.css)
    ========================================================================== */
-.page-index .modal .modal-card {
+.module-sticknotes .modal .modal-card {
   position: relative;
   border-radius: 16px;
   max-width: 760px;
   padding: 14px 16px 16px;
 }
 
-.page-index .modal .modal-head {
+.module-sticknotes .modal .modal-head {
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 6px;
 }
 
-.page-index .modal .modal-head h3 {
+.module-sticknotes .modal .modal-head h3 {
   margin: 0;
   font-weight: 700;
   text-align: center;
 }
 
-.page-index .modal .modal-body {
+.module-sticknotes .modal .modal-body {
   padding: 8px 6px 10px;
 }
 
-.page-index .modal .modal-foot {
+.module-sticknotes .modal .modal-foot {
   display: flex;
   justify-content: center;
   gap: 10px;
   padding: 8px 6px 6px;
 }
 
-.page-index #modal-task .form-grid {
+.module-sticknotes #modal-task .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-areas:
@@ -256,62 +277,65 @@
   gap: 12px;
 }
 
-.page-index #modal-task .fld-title {
+.module-sticknotes #modal-task .fld-title {
   grid-area: title;
 }
 
-.page-index #modal-task .fld-start {
+.module-sticknotes #modal-task .fld-start {
   grid-area: start;
 }
 
-.page-index #modal-task .fld-end {
+.module-sticknotes #modal-task .fld-end {
   grid-area: end;
 }
 
-.page-index #modal-task .fld-prio {
+.module-sticknotes #modal-task .fld-prio {
   grid-area: prio;
 }
 
-.page-index #modal-task .fld-cat {
+.module-sticknotes #modal-task .fld-cat {
   grid-area: cat;
 }
 
-.page-index #modal-task .fld-desc {
+.module-sticknotes #modal-task .fld-desc {
   grid-area: desc;
 }
 
-.page-index #modal-task .fld-doc {
+.module-sticknotes #modal-task .fld-doc {
   grid-area: doc;
 }
 
-.page-index #modal-task input,
-.page-index #modal-task select,
-.page-index #modal-task textarea {
+.module-sticknotes #modal-task input,
+.module-sticknotes #modal-task select,
+.module-sticknotes #modal-task textarea {
   width: 100%;
-  padding: .55rem .65rem;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 10px;
   background: var(--card, #fff);
   color: var(--fg, #111);
 }
 
-.page-index #modal-task textarea {
+.module-sticknotes #modal-task textarea {
   min-height: 110px;
 }
 
-.page-index #modal-task .input-with-action {
+.module-sticknotes #modal-task .input-with-action {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
 /* donkere modus iconen */
-:root[data-theme="dark"] .page-index #modal-task input[type="date"]::-webkit-calendar-picker-indicator {
+:root[data-theme="dark"]
+  .module-sticknotes
+  #modal-task
+  input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) brightness(1.4);
-  opacity: .9;
+  opacity: 0.9;
 }
 
-.page-index #modal-task select {
+.module-sticknotes #modal-task select {
   appearance: none;
   padding-right: 28px;
   background-position: right 10px center;
@@ -320,17 +344,17 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2357636b' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
 }
 
-:root[data-theme="dark"] .page-index #modal-task select {
-  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23e5e7eb' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E\");
+:root[data-theme="dark"] .module-sticknotes #modal-task select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23e5e7eb' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
 }
 
 /* knoppen in modal (primary / accent / danger / ghost) */
 :root {
   --btn-radius: 12px;
-  --btn-pad-y: .58rem;
+  --btn-pad-y: 0.58rem;
   --btn-pad-x: 1.05rem;
   --btn-font: 600;
-  --btn-shadow: 0 6px 14px rgba(0, 0, 0, .12);
+  --btn-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .modal-footer button {
@@ -338,13 +362,14 @@
   border-radius: var(--btn-radius);
   padding: var(--btn-pad-y) var(--btn-pad-x);
   font-weight: var(--btn-font);
-  letter-spacing: .2px;
+  letter-spacing: 0.2px;
   cursor: pointer;
-  transition: transform .06s, box-shadow .12s, background-color .12s, color .12s, border-color .12s;
+  transition: transform 0.06s, box-shadow 0.12s, background-color 0.12s,
+    color 0.12s, border-color 0.12s;
   box-shadow: var(--btn-shadow);
   display: inline-flex;
   align-items: center;
-  gap: .5rem;
+  gap: 0.5rem;
 }
 
 .modal-footer button:hover {
@@ -406,15 +431,15 @@
 }
 
 :root[data-theme="dark"] .modal-footer .ghost {
-  border-color: rgba(255, 255, 255, .22);
+  border-color: rgba(255, 255, 255, 0.22);
   color: #e5e7eb;
 }
 
 .modal-footer .ghost:hover {
-  background: rgba(2, 132, 199, .10);
+  background: rgba(2, 132, 199, 0.1);
 }
 
 .modal-footer button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, .24), var(--btn-shadow);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.24), var(--btn-shadow);
 }
