@@ -1274,7 +1274,7 @@ function setupUI() {
 
     const payload = {
         token: apiSettings.token, calendarId: "werk", title: "Focus - " + $('inpTitle').value,
-        start: startIso, end: endIso, description: $('inpDesc').value, location: "Kantoor", tz: "Europe/Brussels"
+        start: startIso, end: endIso, description: "Zie workflow", location: "Kantoor", tz: "Europe/Brussels"
     };
 
     try {
