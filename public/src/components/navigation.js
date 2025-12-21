@@ -3,7 +3,8 @@
 console.log("🚦 Navigation.js bestand geladen");
 
 // --- STATE ---
-let listenersInitialized = false; // Voorkomt dubbele klik-events
+let listenersInitialized = false; 
+let issueModalInitialized = false;
 
 const REPORT_ISSUE_URL = "https://us-central1-prive-jo.cloudfunctions.net/reportIssue";
 
@@ -203,6 +204,10 @@ async function sendIssueToBackend(payload) {
 }
 
 function initIssueReportModal() {
+    // BEVEILIGING: Stop als we dit al gedaan hebben
+    if (issueModalInitialized) return; 
+    issueModalInitialized = true;
+
     // 1. Luister naar openen
     document.addEventListener("click", (e) => {
         if(e.target.closest("#report-issue-btn") && window.Modal) {
@@ -212,11 +217,16 @@ function initIssueReportModal() {
         }
     });
 
-    // 2. Luister naar VERSTUREN (Deze ontbrak!)
-    // We gebruiken delegation op document level voor het geval de modal pas later in de DOM komt
+    // 2. Luister naar VERSTUREN
     document.addEventListener("click", async (e) => {
         if(e.target && e.target.id === "report-submit") {
             const btn = e.target;
+            // ... (rest van je verzend logica) ...
+            
+            // TIP: Voeg hier e.stopImmediatePropagation() toe voor extra veiligheid
+            e.preventDefault();
+            e.stopImmediatePropagation(); 
+
             const titleEl = document.getElementById("report-title");
             const descEl = document.getElementById("report-description");
             const typeEl = document.getElementById("report-type");

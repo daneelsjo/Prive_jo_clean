@@ -118,11 +118,18 @@ function checkUrgentItems() {
     const todayStr = new Date().toISOString().split('T')[0];
     if (localStorage.getItem(`wf_urgent_dismissed_${currentUser.uid}`) === todayStr) return;
 
+    // 2. Zoek de ID van de 'Afgewerkt' kolom om deze uit te sluiten
+    const doneColumn = columns.find(c => c.title.toLowerCase() === "afgewerkt");
+    const doneColId = doneColumn ? doneColumn.id : null;
+
     const urgentItems = [];
     const today = new Date(); 
     today.setHours(0,0,0,0);
 
     cards.forEach(card => {
+        // BELANGRIJK: Als kaart in 'Afgewerkt' staat -> Overslaan!
+        if (doneColId && card.columnId === doneColId) return;
+
         // Tag Logic: Zoek namen bij ID's
         const cardTagNames = (card.tags || []).map(id => {
             const t = tags.find(tag => tag.id === id);
@@ -144,24 +151,29 @@ function checkUrgentItems() {
         let reason = null;
         let type = ""; // critical, overdue, soon
 
-        // Regel 1: Tag "Critical"
+        // Regel 1: Tag "Critical" (Altijd tonen, ongeacht datum)
         if (cardTagNames.includes("critical")) {
             reason = "CRITICAL Tag";
             type = "critical";
         }
         // Regel 2: Over tijd (Rood)
         else if (diffDays !== null && diffDays < 0) {
-            reason = "Vervallen";
+            reason = `Vervallen (${Math.abs(diffDays)} dagen)`;
             type = "overdue";
         }
-        // Regel 3: Tag "High" en <= 2 dagen
-        else if (cardTagNames.includes("high") && diffDays !== null && diffDays <= 2) {
-            reason = "High Priority (< 2d)";
+        // Regel 3: Tag "High" en <= 3 dagen (Aangepast)
+        else if (cardTagNames.includes("high") && diffDays !== null && diffDays <= 3) {
+            reason = "High Priority (< 3d)";
             type = "soon";
         }
-        // Regel 4: Tag "Normal" en <= 1 dag (Vandaag of Morgen)
-        else if (cardTagNames.includes("normal") && diffDays !== null && diffDays <= 1) {
-            reason = "Normal Priority (< 1d)";
+        // Regel 4: Tag "Normal" en <= 2 dagen (Aangepast)
+        else if (cardTagNames.includes("normal") && diffDays !== null && diffDays <= 2) {
+            reason = "Normal Priority (< 2d)";
+            type = "soon";
+        }
+        // Regel 5: Tag "Low" en <= 1 dag (Nieuw)
+        else if (cardTagNames.includes("low") && diffDays !== null && diffDays <= 1) {
+            reason = "Low Priority (< 1d)";
             type = "soon";
         }
 
