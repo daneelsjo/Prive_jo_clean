@@ -1288,27 +1288,80 @@ function setupUI() {
         else { document.querySelector('#modal-settings .wf-tab-btn:nth-child(3)').classList.add('active'); $('set-tab-lists').classList.add('active'); }
     };
     
-    async function sendToAgenda() {
+async function sendToAgenda() {
     if(!apiSettings.webhookUrl) return showToast("Geen API settings", "error");
-    const date = $('qp-date').value; const time = $('qp-time').value;
-    if(!date || !time) return showToast("Datum/tijd verplicht", "error");
+    
+    const date = $('qp-date').value; 
+    const time = $('qp-time').value;
+    const duration = $('qp-duration').value; // Formaat HH:MM (bv. 02:30)
+
+    if(!date || !time || !duration) return showToast("Datum, tijd en duur verplicht", "error");
     
     showToast("Verzenden...", "info");
+
+    // 1. Bereken Start Datumobject
     const startIso = `${date}T${time}:00`;
-    const sDate = new Date(startIso); sDate.setHours(sDate.getHours() + 2);
-    const offset = sDate.getTimezoneOffset() * 60000;
-    const endIso = (new Date(sDate - offset)).toISOString().slice(0, -1).split('.')[0];
+    const startDate = new Date(startIso);
+
+    // 2. Bereken Eind Datumobject (Start + Duur)
+    const [hours, minutes] = duration.split(':').map(Number);
+    const endDate = new Date(startDate);
+    endDate.setHours(endDate.getHours() + hours);
+    endDate.setMinutes(endDate.getMinutes() + minutes);
+
+    // 3. Formatteer naar ISO strings voor Google Calendar
+    // We gebruiken een simpele truc om lokale tijd te behouden in ISO formaat (zonder timezone conversie issues)
+    const formatLocalISO = (d) => {
+        const offset = d.getTimezoneOffset() * 60000;
+        return (new Date(d - offset)).toISOString().slice(0, -1).split('.')[0]; // Verwijdert 'Z' en ms
+    };
+
+    const finalStart = formatLocalISO(startDate);
+    const finalEnd = formatLocalISO(endDate);
 
     const payload = {
-        token: apiSettings.token, calendarId: "werk", title: "Focus - " + $('inpTitle').value,
-        start: startIso, end: endIso, description: "Zie workflow", location: "Kantoor", tz: "Europe/Brussels"
+        token: apiSettings.token, 
+        calendarId: "werk", // Pas aan indien nodig
+        title: "Focus - " + $('inpTitle').value,
+        start: finalStart, 
+        end: finalEnd, 
+        description: "Zie workflow kaart", 
+        location: "Kantoor", 
+        tz: "Europe/Brussels"
     };
 
     try {
-        const res = await fetch(apiSettings.webhookUrl, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if(res.ok) { showToast("Ingepland!", "success"); $('modal-quick-plan').hidden=true; }
-        else showToast("Fout", "error");
-    } catch(e) { showToast("Netwerkfout", "error"); }
+        const res = await fetch(apiSettings.webhookUrl, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(payload) 
+        });
+
+        if(res.ok) { 
+            showToast("Ingepland!", "success"); 
+            $('modal-quick-plan').hidden = true;
+
+            // 4. Log toevoegen aan de kaart
+            const logMsg = `📅 Ingepland in agenda op ${date} om ${time} (${hours}u${minutes}m)`;
+            currentLogs.push({
+                content: logMsg, 
+                timestamp: new Date().toISOString()
+            });
+            renderLogs(); // Update de UI direct
+            
+            // We moeten het kaartje wel even opslaan om de log vast te leggen
+            // Omdat we in een modal zitten die nog open staat, kunnen we wachten tot de gebruiker op "Opslaan" drukt,
+            // OF we kunnen hier al een background save doen. 
+            // Gezien de structuur is wachten op "Opslaan & Sluiten" het veiligst om conflicten te voorkomen.
+            showToast("Vergeet niet op 'Opslaan' te klikken om de log te bewaren.", "info");
+
+        } else {
+            showToast("Fout bij agenda server", "error");
+        }
+    } catch(e) { 
+        console.error(e);
+        showToast("Netwerkfout", "error"); 
+    }
 }
 }
 

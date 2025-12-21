@@ -247,8 +247,17 @@
       <div class="modal-body">
           <label>Datum</label>
           <input type="date" id="qp-date">
-          <label>Starttijd</label>
-          <input type="time" id="qp-time" value="09:00">
+          
+          <div style="display:flex; gap:15px; margin-top:10px;">
+              <div style="flex:1;">
+                  <label>Starttijd</label>
+                  <input type="time" id="qp-time" value="09:00">
+              </div>
+              <div style="flex:1;">
+                  <label>Duur (uren:min)</label>
+                  <input type="time" id="qp-duration" value="02:00">
+              </div>
+          </div>
       </div>
       <div class="modal-footer">
           <button id="btnConfirmPlan" class="primary">🚀 Verstuur</button>
