@@ -919,8 +919,7 @@ const PALETTE = [
 
   /* ── UI wiring ── */
   bind("#login-btn", "click", () => signInWithPopup(auth, provider));
-  bind("#prevWeek", "click", () => { weekStart = addDays(weekStart,-7); renderView(); if(currentUser) refreshPlans(); });
-  bind("#nextWeek", "click", () => { weekStart = addDays(weekStart, 7); renderView(); if(currentUser) refreshPlans(); });
+
   
   // Type kiezen in backlog-modal (werkt met segmented .seg knoppen)
 document.addEventListener('click', (e)=>{
@@ -1244,24 +1243,44 @@ if (!currentUser) { alert("Log eerst in om items te bewaren."); return; }
 openBacklogModalNew();
 });
 
+bind("#printList", "click", () => {
+    // 1. CORRECTE ID'S GEBRUIKEN (printFrom / printTo)
+    const sEl = document.getElementById("printFrom");
+    const eEl = document.getElementById("printTo");
 
-  bind("#printList", "click", () => {
-    const sEl = document.getElementById("printStart");
-    const eEl = document.getElementById("printEnd");
-    const s = sEl?.value ? new Date(sEl.value) : addDays(new Date(), -7);
-    const e = eEl?.value ? new Date(eEl.value) : addDays(new Date(), 7);
+    // Helper om dd/mm/yyyy correct om te zetten naar een datum
+    const parseNLDate = (str) => {
+      if (!str) return null;
+      // Als input type="date" is (yyyy-mm-dd)
+      if (str.includes('-')) return new Date(str); 
+      // Als input type="text" is (dd/mm/yyyy)
+      const parts = str.split('/');
+      if (parts.length === 3) return new Date(parts[2], parts[1]-1, parts[0]);
+      return new Date(str);
+    };
 
+    // 2. DATUMS INLEZEN OF STANDAARD PAKKEN
+    const s = parseNLDate(sEl?.value) || addDays(new Date(), -7);
+    const e = parseNLDate(eEl?.value) || addDays(new Date(), 7);
+
+    // Filter de plannen
     const list = plans
-      .filter(p=> p.start>=s && p.start< addDays(e,1))
+      .filter(p=> p.start >= s && p.start < addDays(e, 1)) // +1 dag zodat einddatum inclusief is
       .slice()
       .sort((a,b)=> a.start - b.start);
 
+    // HTML voor printvenster opbouwen
     const tpl = document.getElementById('print-template');
     const win = window.open('', '_blank');
+    // ... rest van de print functie blijft hetzelfde ...
     win.document.write('<!DOCTYPE html><html><head><title>Afdruk – Lijst</title></head><body></body></html>');
 
     const frag = tpl.content.cloneNode(true);
     const root = frag.getElementById('print-root');
+
+    if (list.length === 0) {
+      root.innerHTML = '<p>Geen items gevonden in deze periode.</p>';
+    }
 
     let curDayKey = '';
     list.forEach(p=>{
@@ -1274,18 +1293,17 @@ openBacklogModalNew();
         root.appendChild(h);
       }
       const li = win.document.createElement('div'); li.className='item';
-const symb = p.symbol || sym(p.type);
-const typeLabel = (p.type||'').toUpperCase();
-const start = toDate(p.start);
-const end   = addMinutes(start, Math.round((p.durationHours||1)*60));
-const dueSrc = p.dueDate || backlog.find(b => b.id === p.itemId)?.dueDate || null;
-const dueStr = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
-const noteStr = p.note && String(p.note).trim() ? ` • opm: ${p.note}` : '';
+      const symb = p.symbol || sym(p.type);
+      const typeLabel = (p.type||'').toUpperCase();
+      const start = toDate(p.start);
+      const end   = addMinutes(start, Math.round((p.durationHours||1)*60));
+      const dueSrc = p.dueDate || backlog.find(b => b.id === p.itemId)?.dueDate || null;
+      const dueStr = dueSrc ? toDate(dueSrc).toLocaleDateString('nl-BE') : '—';
+      const noteStr = p.note && String(p.note).trim() ? ` • opm: ${p.note}` : '';
 
-li.textContent =
-  `${symb} [${typeLabel}] ${fmtTime(start)}–${fmtTime(end)} • `
-+ `${p.title} – ${p.subjectName} • tegen ${dueStr}${noteStr}`;
-
+      li.textContent =
+        `${symb} [${typeLabel}] ${fmtTime(start)}–${fmtTime(end)} • `
+      + `${p.title} – ${p.subjectName} • tegen ${dueStr}${noteStr}`;
 
       root.appendChild(li);
     });
@@ -1293,8 +1311,9 @@ li.textContent =
     win.document.body.appendChild(frag);
     win.document.close();
     win.focus();
+    // Automatisch printdialoog openen (optioneel)
+    // win.print(); 
   });
-
   /* ── Eerste render: grid altijd zichtbaar ── */
 renderView();
 
