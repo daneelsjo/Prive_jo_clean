@@ -439,47 +439,42 @@ async function handleDrop(e, colId) {
     const cardId = e.dataTransfer.getData("text/plain");
     
     if(cardId) {
-        // Zoek de doel-kolom op om te checken of het "Afgewerkt" is
+        // Zoek de doel-kolom
         const targetCol = columns.find(c => c.id === colId);
         
-        // Het object met updates dat we naar Firestore sturen
+        // Update object voor Firestore
         const updateData = { columnId: colId };
 
+        // Logica voor 'Afgewerkt' kolom (Archivering)
         if (targetCol && targetCol.title.toLowerCase() === "afgewerkt") {
-            // A. Verplaatst NAAR Afgewerkt
-            
-            // 1. Timestamp voor het Archief (sortering)
             updateData.finishedAt = serverTimestamp(); 
-            
-            // 2. Datum voor de TTL (Auto-delete) -> Vandaag + 1 Jaar
             const deleteDate = new Date();
             deleteDate.setFullYear(deleteDate.getFullYear() + 1);
             updateData.deleteAt = deleteDate; 
-            
         } else {
-            // B. Verplaatst UIT Afgewerkt (terug naar backlog/progress)
-            
-            // Reset de datums, anders wordt hij straks per ongeluk verwijderd of getoond in archief
+            // Reset als hij terug uit archief komt
             updateData.finishedAt = null; 
             updateData.deleteAt = null;
         }
 
-        // Update uitvoeren in database
+        // Update uitvoeren
         try {
             await updateDoc(doc(db, "workflowCards", cardId), updateData);
-
-if(apiSettings.webhookUrl) {
-                // We sturen dit 'fire & forget' (we wachten niet op antwoord)
+            
+            // --- HIER STUREN WE HET SEINTJE NAAR MAKE (Scenario 2) ---
+            if(apiSettings.webhookUrl) {
                 fetch(apiSettings.webhookUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        trigger: "cardMoved",      // Dit is onze filter sleutel
-                        ticketId: cardId,          // Het ID van het ticket
-                        columnId: colId            // Waar hij nu staat
+                        trigger: "cardMoved",      // Dit is de sleutel voor de filter
+                        ticketId: cardId,          // Document ID (is Ticket ID)
+                        columnId: colId            // Nieuwe kolom
                     })
                 }).catch(err => console.warn("Webhook fail", err));
             }
+            // ---------------------------------------------------------
+
         } catch (error) {
             console.error("Fout bij verplaatsen kaart:", error);
             showToast("Kon kaart niet verplaatsen", "error");
