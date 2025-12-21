@@ -204,10 +204,13 @@ async function sendIssueToBackend(payload) {
 }
 
 function initIssueReportModal() {
+<<<<<<< HEAD
+=======
     // BEVEILIGING: Stop als we dit al gedaan hebben
     if (issueModalInitialized) return; 
     issueModalInitialized = true;
 
+>>>>>>> 66fd8457c599d9dd8f933687562c2de92f781c40
     // 1. Luister naar openen
     document.addEventListener("click", (e) => {
         if(e.target.closest("#report-issue-btn") && window.Modal) {
@@ -217,6 +220,13 @@ function initIssueReportModal() {
         }
     });
 
+<<<<<<< HEAD
+    // 2. Luister naar VERSTUREN (Deze ontbrak!)
+    // We gebruiken delegation op document level voor het geval de modal pas later in de DOM komt
+    document.addEventListener("click", async (e) => {
+        if(e.target && e.target.id === "report-submit") {
+            const btn = e.target;
+=======
     // 2. Luister naar VERSTUREN
     document.addEventListener("click", async (e) => {
         if(e.target && e.target.id === "report-submit") {
@@ -227,6 +237,7 @@ function initIssueReportModal() {
             e.preventDefault();
             e.stopImmediatePropagation(); 
 
+>>>>>>> 66fd8457c599d9dd8f933687562c2de92f781c40
             const titleEl = document.getElementById("report-title");
             const descEl = document.getElementById("report-description");
             const typeEl = document.getElementById("report-type");

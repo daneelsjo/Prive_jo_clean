@@ -467,6 +467,19 @@ async function handleDrop(e, colId) {
         // Update uitvoeren in database
         try {
             await updateDoc(doc(db, "workflowCards", cardId), updateData);
+
+if(apiSettings.webhookUrl) {
+                // We sturen dit 'fire & forget' (we wachten niet op antwoord)
+                fetch(apiSettings.webhookUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        trigger: "cardMoved",      // Dit is onze filter sleutel
+                        ticketId: cardId,          // Het ID van het ticket
+                        columnId: colId            // Waar hij nu staat
+                    })
+                }).catch(err => console.warn("Webhook fail", err));
+            }
         } catch (error) {
             console.error("Fout bij verplaatsen kaart:", error);
             showToast("Kon kaart niet verplaatsen", "error");
