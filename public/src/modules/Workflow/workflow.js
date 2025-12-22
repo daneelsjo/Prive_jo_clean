@@ -232,7 +232,169 @@ function getPriorityWeight(prioId) {
 }
 
 // --- RENDERING BOARD ---
-renderBoard
+function renderBoard() {
+    const board = $('workflow-board');
+    board.innerHTML = "";
+    
+    // --- HELPER: Is een kaart nieuwer dan 24u? ---
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    
+    const isNew = (card) => {
+        if(!card.createdAt) return false;
+        const d = card.createdAt.toDate ? card.createdAt.toDate() : new Date(card.createdAt);
+        return d > oneDayAgo;
+    };
+
+    // --- 1. TELLERS & TOOLBAR UPDATES ---
+    
+    // Zoek de 'Afgewerkt' kolom ID (om deze niet mee te tellen in badges)
+    const doneColumn = columns.find(c => c.title.toLowerCase() === "afgewerkt");
+    const doneColId = doneColumn ? doneColumn.id : null;
+
+    // A. Update de "Nieuw" Teller (Belletje)
+    // We tellen alleen kaarten die NIET in afgewerkt staan
+    const newCardsCount = cards.filter(c => isNew(c) && c.columnId !== doneColId).length;
+    
+    const btnNew = $('btnShowNew');
+    const badgeNew = $('badge-new-count');
+    
+    if(btnNew && badgeNew) {
+        badgeNew.textContent = newCardsCount;
+        
+        // Toon knop alleen als er nieuwe items zijn OF als de filter actief is
+        if (newCardsCount > 0 || activeFilters.showNewOnly) {
+            btnNew.style.display = "inline-flex";
+        } else {
+            btnNew.style.display = "none";
+        }
+
+        // Active state styling
+        if (activeFilters.showNewOnly) {
+            btnNew.classList.add('active-quick-filter');
+        } else {
+            btnNew.classList.remove('active-quick-filter');
+        }
+    }
+
+    // B. Update Quick Filter Buttons (Mail, Ticket, GitHub)
+    const updateQuickBtn = (btnId, tagName, icon) => {
+        const btn = $(btnId);
+        const tag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+        
+        if (btn && tag) {
+            if (activeFilters.tags.includes(tag.id)) {
+                btn.classList.add('active-quick-filter');
+            } else {
+                btn.classList.remove('active-quick-filter');
+            }
+
+            const count = cards.filter(c => {
+                const hasTag = (c.tags || []).includes(tag.id);
+                return hasTag && c.columnId !== doneColId;
+            }).length;
+
+            if (count > 0) {
+                btn.innerHTML = `${icon} <span style="font-size:0.8em; font-weight:bold; margin-left:4px;">${count}</span>`;
+            } else {
+                btn.innerHTML = icon;
+                btn.style.opacity = "0.7"; 
+            }
+            btn.style.opacity = "1";
+        }
+    };
+    
+    updateQuickBtn('btnQuickMail', 'Mail', '📧');
+    updateQuickBtn('btnQuickTicket', 'Ticketing', '🎫');
+    updateQuickBtn('btnQuickDev', 'WEB - GITHUB', '🐙'); 
+
+    // C. Update Algemene Filter Knop Tekst
+    const hasFilters = activeFilters.priorities.length > 0 || activeFilters.tags.length > 0;
+    const btnFilter = $('btnFilterTags');
+    if(btnFilter) {
+        if(hasFilters) {
+            btnFilter.classList.add('active-filter');
+            btnFilter.innerHTML = `🏷️ Filter (${activeFilters.priorities.length + activeFilters.tags.length})`;
+        } else {
+            btnFilter.classList.remove('active-filter');
+            btnFilter.innerHTML = `🏷️ Filter`;
+        }
+    }
+
+    // --- 2. KOLOMMEN RENDEREN ---
+    columns.sort((a,b) => a.order - b.order);
+    
+    columns.forEach(col => {
+        const colEl = document.createElement("div");
+        colEl.className = "wf-column";
+        
+        // Basis set kaarten voor deze kolom
+        let colCards = cards.filter(c => c.columnId === col.id);
+
+        // Speciaal: 14 Dagen Filter voor 'Afgewerkt' kolom (Performance/Opruiming)
+        if (col.title.toLowerCase() === "afgewerkt") {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 14); 
+
+            colCards = colCards.filter(card => {
+                if (!card.finishedAt) return true; 
+                const fDate = card.finishedAt.toDate ? card.finishedAt.toDate() : new Date(card.finishedAt);
+                return fDate >= cutoffDate; 
+            });
+        }
+        
+        // A. Zoekbalk Filter
+        colCards = colCards.filter(c => shouldShowCard(c));
+        
+        // B. Actieve Filters (Prioriteit & Tags)
+        if (hasFilters) {
+            colCards = colCards.filter(c => {
+                if (activeFilters.priorities.length > 0) {
+                    if (!c.priorityId) return false;
+                    if (!activeFilters.priorities.includes(c.priorityId)) return false;
+                }
+                if (activeFilters.tags.length > 0) {
+                    if (!c.tags || c.tags.length === 0) return false;
+                    const hasMatch = c.tags.some(tagId => activeFilters.tags.includes(tagId));
+                    if (!hasMatch) return false;
+                }
+                return true;
+            });
+        }
+
+        // C. NIEUW FILTER: "Toon alleen nieuwe"
+        if (activeFilters.showNewOnly) {
+            colCards = colCards.filter(c => isNew(c));
+        }
+
+        // D. Sorteren op Prioriteit
+        colCards.sort((a,b) => {
+            const weightA = getPriorityWeight(a.priorityId);
+            const weightB = getPriorityWeight(b.priorityId);
+            return weightA - weightB;
+        });
+
+        // HTML Opbouw
+        const count = colCards.length;
+        colEl.innerHTML = `<div class="wf-column-header"><span>${col.title}</span><span class="wf-count-badge">${count}</span></div>`;
+        
+        const cardsCont = document.createElement("div");
+        cardsCont.className = "wf-column-cards";
+        
+        colCards.forEach(card => { 
+            cardsCont.appendChild(createCardEl(card)); 
+        });
+        
+        // Drag & Drop events
+        cardsCont.addEventListener("dragover", e => { e.preventDefault(); cardsCont.classList.add("wf-drop-target"); });
+        cardsCont.addEventListener("dragleave", () => cardsCont.classList.remove("wf-drop-target"));
+        cardsCont.addEventListener("drop", e => handleDrop(e, col.id));
+        
+        colEl.appendChild(cardsCont);
+        board.appendChild(colEl);
+    });
+}
+
 function shouldShowCard(card) {
     const term = $('searchInput').value.toLowerCase();
     if(!term) return true;
