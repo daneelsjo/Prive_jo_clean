@@ -144,7 +144,7 @@ function renderQuickLinks() {
     const prefix = getPathPrefix();
     const definitions = [
         { icon: "📝", title: "Sticknotes", href: "src/modules/sticknotes/sticknotes.html" },
-        { icon: "⏱️", title: "Tijd",       href: "src/modules/time/time.html" },
+        { icon: "⏱️", title: "Tijd",       href: "src/modules/tijdsregistratie/time.html" },
         { icon: "⚙️",  title: "Settings",   href: "src/modules/settings/settings.html" },
         { icon: "🗓️", title: "Planner",    href: "src/modules/planner/plan.html" },
         { icon: "📬", title: "Agenda",     href: "src/modules/agendabuilder/agendabuilder.html" },
