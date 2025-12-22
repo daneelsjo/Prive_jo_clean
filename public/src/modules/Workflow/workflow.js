@@ -428,6 +428,7 @@ function createCardEl(card) {
     el.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", card.id); el.style.opacity = "0.5"; });
     el.addEventListener("click", () => openCardModal(card));
     return el;
+    el.addEventListener("contextmenu", (e) => showContextMenu(e, card));
 }
 
 async function handleDrop(e, colId) {
@@ -439,8 +440,19 @@ async function handleDrop(e, colId) {
     const cardId = e.dataTransfer.getData("text/plain");
     
     if(cardId) {
-        // Zoek de doel-kolom
+        // 1. Zoek de doel-kolom
         const targetCol = columns.find(c => c.id === colId);
+
+        // --- CHECK: IS DIT WEL EEN TICKET? ---
+        // We zoeken het kaartje in het lokale geheugen
+        const currentCard = cards.find(c => c.id === cardId);
+        
+        // We zoeken de ID van de tag "TICKETING" (ongeacht hoofdletters)
+        const ticketTag = tags.find(t => t.name.toUpperCase() === "TICKETING");
+        
+        // Is het een ticket? (Kaart bestaat + Tag bestaat + Kaart heeft die tag ID)
+        const isTicket = currentCard && ticketTag && (currentCard.tags || []).includes(ticketTag.id);
+        // -------------------------------------
         
         // Update object voor Firestore
         const updateData = { columnId: colId };
@@ -462,16 +474,20 @@ async function handleDrop(e, colId) {
             await updateDoc(doc(db, "workflowCards", cardId), updateData);
             
             // --- HIER STUREN WE HET SEINTJE NAAR MAKE (Scenario 2) ---
-            if(apiSettings.webhookUrl) {
+            // We sturen dit ALLEEN als er een URL is EN als het kaartje de juiste tag heeft!
+            if(apiSettings.webhookUrl && isTicket) {
+                console.log("📨 Webhook verstuurd voor ticket update:", cardId);
                 fetch(apiSettings.webhookUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        trigger: "cardMoved",      // Dit is de sleutel voor de filter
-                        ticketId: cardId,          // Document ID (is Ticket ID)
-                        columnId: colId            // Nieuwe kolom
+                        trigger: "cardMoved",      
+                        ticketId: cardId,          
+                        columnId: colId            
                     })
                 }).catch(err => console.warn("Webhook fail", err));
+            } else if (!isTicket) {
+                console.log("🔕 Webhook overgeslagen: kaart is geen ticket.");
             }
             // ---------------------------------------------------------
 
@@ -1287,6 +1303,101 @@ function setupUI() {
         else if(tabName==='cols') { document.querySelector('#modal-settings .wf-tab-btn:nth-child(2)').classList.add('active'); $('set-tab-cols').classList.add('active'); }
         else { document.querySelector('#modal-settings .wf-tab-btn:nth-child(3)').classList.add('active'); $('set-tab-lists').classList.add('active'); }
     };
+
+    // --- CONTEXT MENU LOGICA ---
+
+function showContextMenu(e, card) {
+    e.preventDefault(); // Voorkom standaard browser menu
+    
+    // Verwijder eventueel bestaand menu
+    closeContextMenu();
+
+    // Maak het menu element
+    const menu = document.createElement("div");
+    menu.className = "wf-context-menu";
+    menu.id = "active-context-menu";
+    
+    // Positioneer het menu bij de muis
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+
+    // --- MENU ITEMS ---
+
+    // 1. Snel Plannen
+    menu.appendChild(createMenuItem("📅 Inplannen", () => {
+        // We openen de kaart modal data eerst even 'fake' zodat de planningsfunctie weet over welke kaart het gaat
+        // Of netter: we passen de quickPlan functie aan dat hij een kaart object accepteert.
+        // Voor nu: simpele hack -> Zet waardes in hidden fields of open modal
+        openCardModal(card); 
+        setTimeout(() => $('btnQuickPlan').click(), 100); // Hacky maar werkt: opent modal en klikt meteen op plan knop
+    }));
+
+    // 2. Link Toevoegen (Via prompt)
+    menu.appendChild(createMenuItem("🔗 Link toevoegen", async () => {
+        const url = prompt("URL van de link:");
+        if(!url) return;
+        const title = prompt("Titel van de link (optioneel):") || "Link";
+        
+        const newLinks = [...(card.links || []), { title, url }];
+        
+        try {
+            await updateDoc(doc(db, "workflowCards", card.id), { links: newLinks });
+            showToast("Link toegevoegd", "success");
+        } catch(err) { console.error(err); showToast("Fout bij opslaan", "error"); }
+    }));
+
+    // 3. Log Toevoegen (Via prompt)
+    menu.appendChild(createMenuItem("💬 Log toevoegen", async () => {
+        const text = prompt("Notitie toevoegen:");
+        if(!text) return;
+
+        const newLogs = [...(card.logs || []), { 
+            content: text, 
+            timestamp: new Date().toISOString() 
+        }];
+
+        try {
+            await updateDoc(doc(db, "workflowCards", card.id), { logs: newLogs });
+            showToast("Log toegevoegd", "success");
+        } catch(err) { console.error(err); showToast("Fout bij opslaan", "error"); }
+    }));
+
+    // Scheidingslijn
+    const div = document.createElement("div"); div.className = "wf-context-divider";
+    menu.appendChild(div);
+
+    // 4. Verwijderen
+    const delItem = createMenuItem("🗑️ Verwijderen", async () => {
+        if(confirm(`"${card.title}" verwijderen?`)) {
+            await deleteDoc(doc(db, "workflowCards", card.id));
+        }
+    });
+    delItem.style.color = "#ef4444";
+    menu.appendChild(delItem);
+
+    document.body.appendChild(menu);
+
+    // Klik buiten menu om te sluiten
+    setTimeout(() => {
+        document.addEventListener("click", closeContextMenu, { once: true });
+    }, 10);
+}
+
+function createMenuItem(text, onClick) {
+    const item = document.createElement("div");
+    item.className = "wf-context-item";
+    item.textContent = text;
+    item.onclick = () => {
+        onClick();
+        closeContextMenu();
+    };
+    return item;
+}
+
+function closeContextMenu() {
+    const existing = document.getElementById("active-context-menu");
+    if(existing) existing.remove();
+}
     
 async function sendToAgenda() {
     if(!apiSettings.webhookUrl) return showToast("Geen API settings", "error");
