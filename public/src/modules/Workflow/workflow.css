@@ -934,3 +934,36 @@ input:checked + .wf-slider:before {
   background: var(--border);
   margin: 4px 0;
 }
+
+/* --- NIEUW LABEL STYLING --- */
+.wf-new-badge {
+  background-color: #ef4444; /* Rood */
+  color: white;
+  font-size: 0.6rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 800;
+  margin-right: 6px;
+  vertical-align: middle;
+  display: inline-block;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Stijl voor als de filter actief is */
+#btnShowNew.active-quick-filter {
+  background-color: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}

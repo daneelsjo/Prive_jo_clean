@@ -21,7 +21,8 @@ let tags = [];
 let checklistTemplates = []; 
 let activeFilters = {
     priorities: [], // IDs van prioriteit tags
-    tags: []        // IDs van standaard tags
+    tags: []  ,      // IDs van standaard tags
+    showNewOnly: false // Voor nieuwe taken (24u)
 };
 
 // Temp state voor modals
@@ -231,140 +232,7 @@ function getPriorityWeight(prioId) {
 }
 
 // --- RENDERING BOARD ---
-function renderBoard() {
-    const board = $('workflow-board');
-    board.innerHTML = "";
-    
-    // 1. Zoek de ID van de 'Afgewerkt' kolom (om deze kaartjes niet mee te tellen bij quick filters)
-    // Pas de string "afgewerkt" aan als je kolom anders heet in je database
-    const doneColumn = columns.find(c => c.title.toLowerCase() === "afgewerkt");
-    const doneColId = doneColumn ? doneColumn.id : null;
-
-    // --- A. Update Quick Filter Buttons (Status & Tellers) ---
-    const updateQuickBtn = (btnId, tagName, icon) => {
-        const btn = $(btnId);
-        const tag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-        
-        if (btn && tag) {
-            // Check of filter actief is
-            if (activeFilters.tags.includes(tag.id)) {
-                btn.classList.add('active-quick-filter');
-            } else {
-                btn.classList.remove('active-quick-filter');
-            }
-
-            // Tel de actieve taken (die deze tag hebben EN niet in 'Afgewerkt' staan)
-            const count = cards.filter(c => {
-                const hasTag = (c.tags || []).includes(tag.id);
-                const isNotDone = c.columnId !== doneColId;
-                return hasTag && isNotDone;
-            }).length;
-
-            // Update de tekst (Icoon + Teller)
-            if (count > 0) {
-                // Teller iets kleiner weergeven
-                btn.innerHTML = `${icon} <span style="font-size:0.8em; font-weight:bold; margin-left:4px;">${count}</span>`;
-            } else {
-                btn.innerHTML = icon; // Alleen icoon als er geen taken zijn
-                btn.style.opacity = "0.7"; 
-            }
-            btn.style.opacity = "1";
-        }
-    };
-    
-    // Update de 3 specifieke knoppen
-    updateQuickBtn('btnQuickMail', 'Mail', '📧');
-    updateQuickBtn('btnQuickTicket', 'Ticketing', '🎫');
-    updateQuickBtn('btnQuickDev', 'WEB - GITHUB', '🐙'); // Of 'GitHub' als je tag zo heet
-
-    // --- B. Update Algemene Filter Knop Tekst ---
-    const hasFilters = activeFilters.priorities.length > 0 || activeFilters.tags.length > 0;
-    const btnFilter = $('btnFilterTags');
-    if(btnFilter) {
-        if(hasFilters) {
-            btnFilter.classList.add('active-filter');
-            btnFilter.innerHTML = `🏷️ Filter (${activeFilters.priorities.length + activeFilters.tags.length})`;
-        } else {
-            btnFilter.classList.remove('active-filter');
-            btnFilter.innerHTML = `🏷️ Filter`;
-        }
-    }
-
-    // --- C. Kolommen Renderen ---
-    columns.sort((a,b) => a.order - b.order);
-    
-    columns.forEach(col => {
-        const colEl = document.createElement("div");
-        colEl.className = "wf-column";
-        
-        // 1. Basis set kaarten voor deze kolom
-        let colCards = cards.filter(c => c.columnId === col.id);
-
-        // 2. SPECIAAL: 14 Dagen Filter voor 'Afgewerkt' kolom
-        // Zodat het bord niet volloopt, maar ze wel in het Archief blijven
-        if (col.title.toLowerCase() === "afgewerkt") {
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - 14); // 14 dagen geleden
-
-            colCards = colCards.filter(card => {
-                // Kaartjes zonder datum (oude data) laten we staan, of filteren we ook weg (hier: laten staan)
-                if (!card.finishedAt) return true; 
-
-                // Firestore Timestamp omzetten naar JS Date
-                const fDate = card.finishedAt.toDate ? card.finishedAt.toDate() : new Date(card.finishedAt);
-                return fDate >= cutoffDate; // Toon alleen als datum recenter is dan cutoff
-            });
-        }
-        
-        // 3. Toepassen Zoekbalk Filter
-        colCards = colCards.filter(c => shouldShowCard(c));
-        
-        // 4. Toepassen Actieve Filters (Prioriteit & Tags)
-        if (hasFilters) {
-            colCards = colCards.filter(c => {
-                // Prio Filter
-                if (activeFilters.priorities.length > 0) {
-                    if (!c.priorityId) return false;
-                    if (!activeFilters.priorities.includes(c.priorityId)) return false;
-                }
-                // Tag Filter
-                if (activeFilters.tags.length > 0) {
-                    if (!c.tags || c.tags.length === 0) return false;
-                    const hasMatch = c.tags.some(tagId => activeFilters.tags.includes(tagId));
-                    if (!hasMatch) return false;
-                }
-                return true;
-            });
-        }
-
-        // 5. Sorteren op Prioriteit (Critical > High > Normal > Low > Geen)
-        colCards.sort((a,b) => {
-            const weightA = getPriorityWeight(a.priorityId);
-            const weightB = getPriorityWeight(b.priorityId);
-            return weightA - weightB;
-        });
-
-        // 6. HTML Opbouw
-        const count = colCards.length;
-        colEl.innerHTML = `<div class="wf-column-header"><span>${col.title}</span><span class="wf-count-badge">${count}</span></div>`;
-        
-        const cardsCont = document.createElement("div");
-        cardsCont.className = "wf-column-cards";
-        
-        colCards.forEach(card => { 
-            cardsCont.appendChild(createCardEl(card)); 
-        });
-        
-        // Drag & Drop events koppelen
-        cardsCont.addEventListener("dragover", e => { e.preventDefault(); cardsCont.classList.add("wf-drop-target"); });
-        cardsCont.addEventListener("dragleave", () => cardsCont.classList.remove("wf-drop-target"));
-        cardsCont.addEventListener("drop", e => handleDrop(e, col.id));
-        
-        colEl.appendChild(cardsCont);
-        board.appendChild(colEl);
-    });
-}
-
+renderBoard
 function shouldShowCard(card) {
     const term = $('searchInput').value.toLowerCase();
     if(!term) return true;
@@ -380,11 +248,10 @@ function createCardEl(card) {
     
     let tagsHtml = "";
 
-    // 1. RENDER PRIORITEIT (Indien aanwezig)
+    // 1. RENDER PRIORITEIT
     if (card.priorityId) {
         const prioObj = tags.find(t => t.id === card.priorityId);
         if (prioObj && prioObj.active !== false) {
-            // Iets groter of vetter eventueel, hier zelfde stijl
             tagsHtml += `<span class="wf-badge" style="background-color:${prioObj.color}; border:1px solid rgba(255,255,255,0.2);">${prioObj.name}</span>`;
         }
     }
@@ -397,18 +264,19 @@ function createCardEl(card) {
         }
     });
 
-    // Datum Logic
+    // 3. DATUM LOGIC
     let dateHtml = "";
     if (card.dueDate) {
         let d = card.dueDate.toDate ? card.dueDate.toDate() : new Date(card.dueDate);
         if (!isNaN(d.getTime())) {
             const isOverdue = d < new Date().setHours(0,0,0,0);
-            const day = String(d.getDate()).padStart(2,'0'); const month = String(d.getMonth()+1).padStart(2,'0');
+            const day = String(d.getDate()).padStart(2,'0'); 
+            const month = String(d.getMonth()+1).padStart(2,'0');
             dateHtml = `<span class="wf-card-date" style="${isOverdue?'color:#ef4444;font-weight:800;':''} margin-left:auto;">📅 ${day}/${month}</span>`;
         }
     }
 
-    // Progress Logic
+    // 4. PROGRESS LOGIC
     let progressHtml = "";
     if(card.checklist && card.checklist.length > 0) {
         const total = card.checklist.length;
@@ -417,18 +285,36 @@ function createCardEl(card) {
         progressHtml = `<div class="wf-progress-container"><div class="wf-progress-bar" style="width:${pct}%"></div></div>`;
     }
 
+    // 5. NIEUW LABEL LOGIC
+    let newBadgeHtml = "";
+    if (card.createdAt) {
+        const d = card.createdAt.toDate ? card.createdAt.toDate() : new Date(card.createdAt);
+        const oneDayAgo = new Date(new Date().getTime() - (24 * 60 * 60 * 1000));
+        // Als kaart jonger is dan 24u
+        if (d > oneDayAgo) {
+            newBadgeHtml = `<span class="wf-new-badge">NIEUW</span>`;
+        }
+    }
+
     el.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-            <div class="wf-card-title" style="margin:0;">${card.title}</div>
+            <div class="wf-card-title" style="margin:0;">
+                ${newBadgeHtml} ${card.title}
+            </div>
             ${dateHtml}
         </div>
         <div class="wf-tags" style="margin-top:0;">${tagsHtml}</div>
         ${progressHtml}
     `;
+
+    // Events
     el.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", card.id); el.style.opacity = "0.5"; });
     el.addEventListener("click", () => openCardModal(card));
-    return el;
+    
+    // RECHTERMUISKLIK MENU (Toegevoegd in vorige stap)
     el.addEventListener("contextmenu", (e) => showContextMenu(e, card));
+
+    return el;
 }
 
 async function handleDrop(e, colId) {
@@ -1100,6 +986,12 @@ function setupUI() {
     
     // Pas de naam 'Dev' aan naar 'GitHub' als je tag zo heet in je systeem!
     $('btnQuickDev').onclick = () => toggleQuickTag('WEB - GITHUB');
+    const btnNew = $('btnShowNew');
+    if(btnNew) {
+        btnNew.onclick = () => {
+            activeFilters.showNewOnly = !activeFilters.showNewOnly;
+            renderBoard();};
+    }
     
     $('btnClearFilters').onclick = () => { 
         activeFilters = { priorities:[], tags:[] }; 
