@@ -21,7 +21,8 @@ let tags = [];
 let checklistTemplates = []; 
 let activeFilters = {
     priorities: [], // IDs van prioriteit tags
-    tags: []        // IDs van standaard tags
+    tags: []  ,      // IDs van standaard tags
+    showNewOnly: false // Voor nieuwe taken (24u)
 };
 
 // Temp state voor modals
@@ -231,140 +232,7 @@ function getPriorityWeight(prioId) {
 }
 
 // --- RENDERING BOARD ---
-function renderBoard() {
-    const board = $('workflow-board');
-    board.innerHTML = "";
-    
-    // 1. Zoek de ID van de 'Afgewerkt' kolom (om deze kaartjes niet mee te tellen bij quick filters)
-    // Pas de string "afgewerkt" aan als je kolom anders heet in je database
-    const doneColumn = columns.find(c => c.title.toLowerCase() === "afgewerkt");
-    const doneColId = doneColumn ? doneColumn.id : null;
-
-    // --- A. Update Quick Filter Buttons (Status & Tellers) ---
-    const updateQuickBtn = (btnId, tagName, icon) => {
-        const btn = $(btnId);
-        const tag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-        
-        if (btn && tag) {
-            // Check of filter actief is
-            if (activeFilters.tags.includes(tag.id)) {
-                btn.classList.add('active-quick-filter');
-            } else {
-                btn.classList.remove('active-quick-filter');
-            }
-
-            // Tel de actieve taken (die deze tag hebben EN niet in 'Afgewerkt' staan)
-            const count = cards.filter(c => {
-                const hasTag = (c.tags || []).includes(tag.id);
-                const isNotDone = c.columnId !== doneColId;
-                return hasTag && isNotDone;
-            }).length;
-
-            // Update de tekst (Icoon + Teller)
-            if (count > 0) {
-                // Teller iets kleiner weergeven
-                btn.innerHTML = `${icon} <span style="font-size:0.8em; font-weight:bold; margin-left:4px;">${count}</span>`;
-            } else {
-                btn.innerHTML = icon; // Alleen icoon als er geen taken zijn
-                btn.style.opacity = "0.7"; 
-            }
-            btn.style.opacity = "1";
-        }
-    };
-    
-    // Update de 3 specifieke knoppen
-    updateQuickBtn('btnQuickMail', 'Mail', '📧');
-    updateQuickBtn('btnQuickTicket', 'Ticketing', '🎫');
-    updateQuickBtn('btnQuickDev', 'WEB - GITHUB', '🐙'); // Of 'GitHub' als je tag zo heet
-
-    // --- B. Update Algemene Filter Knop Tekst ---
-    const hasFilters = activeFilters.priorities.length > 0 || activeFilters.tags.length > 0;
-    const btnFilter = $('btnFilterTags');
-    if(btnFilter) {
-        if(hasFilters) {
-            btnFilter.classList.add('active-filter');
-            btnFilter.innerHTML = `🏷️ Filter (${activeFilters.priorities.length + activeFilters.tags.length})`;
-        } else {
-            btnFilter.classList.remove('active-filter');
-            btnFilter.innerHTML = `🏷️ Filter`;
-        }
-    }
-
-    // --- C. Kolommen Renderen ---
-    columns.sort((a,b) => a.order - b.order);
-    
-    columns.forEach(col => {
-        const colEl = document.createElement("div");
-        colEl.className = "wf-column";
-        
-        // 1. Basis set kaarten voor deze kolom
-        let colCards = cards.filter(c => c.columnId === col.id);
-
-        // 2. SPECIAAL: 14 Dagen Filter voor 'Afgewerkt' kolom
-        // Zodat het bord niet volloopt, maar ze wel in het Archief blijven
-        if (col.title.toLowerCase() === "afgewerkt") {
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - 14); // 14 dagen geleden
-
-            colCards = colCards.filter(card => {
-                // Kaartjes zonder datum (oude data) laten we staan, of filteren we ook weg (hier: laten staan)
-                if (!card.finishedAt) return true; 
-
-                // Firestore Timestamp omzetten naar JS Date
-                const fDate = card.finishedAt.toDate ? card.finishedAt.toDate() : new Date(card.finishedAt);
-                return fDate >= cutoffDate; // Toon alleen als datum recenter is dan cutoff
-            });
-        }
-        
-        // 3. Toepassen Zoekbalk Filter
-        colCards = colCards.filter(c => shouldShowCard(c));
-        
-        // 4. Toepassen Actieve Filters (Prioriteit & Tags)
-        if (hasFilters) {
-            colCards = colCards.filter(c => {
-                // Prio Filter
-                if (activeFilters.priorities.length > 0) {
-                    if (!c.priorityId) return false;
-                    if (!activeFilters.priorities.includes(c.priorityId)) return false;
-                }
-                // Tag Filter
-                if (activeFilters.tags.length > 0) {
-                    if (!c.tags || c.tags.length === 0) return false;
-                    const hasMatch = c.tags.some(tagId => activeFilters.tags.includes(tagId));
-                    if (!hasMatch) return false;
-                }
-                return true;
-            });
-        }
-
-        // 5. Sorteren op Prioriteit (Critical > High > Normal > Low > Geen)
-        colCards.sort((a,b) => {
-            const weightA = getPriorityWeight(a.priorityId);
-            const weightB = getPriorityWeight(b.priorityId);
-            return weightA - weightB;
-        });
-
-        // 6. HTML Opbouw
-        const count = colCards.length;
-        colEl.innerHTML = `<div class="wf-column-header"><span>${col.title}</span><span class="wf-count-badge">${count}</span></div>`;
-        
-        const cardsCont = document.createElement("div");
-        cardsCont.className = "wf-column-cards";
-        
-        colCards.forEach(card => { 
-            cardsCont.appendChild(createCardEl(card)); 
-        });
-        
-        // Drag & Drop events koppelen
-        cardsCont.addEventListener("dragover", e => { e.preventDefault(); cardsCont.classList.add("wf-drop-target"); });
-        cardsCont.addEventListener("dragleave", () => cardsCont.classList.remove("wf-drop-target"));
-        cardsCont.addEventListener("drop", e => handleDrop(e, col.id));
-        
-        colEl.appendChild(cardsCont);
-        board.appendChild(colEl);
-    });
-}
-
+renderBoard
 function shouldShowCard(card) {
     const term = $('searchInput').value.toLowerCase();
     if(!term) return true;
@@ -380,11 +248,10 @@ function createCardEl(card) {
     
     let tagsHtml = "";
 
-    // 1. RENDER PRIORITEIT (Indien aanwezig)
+    // 1. RENDER PRIORITEIT
     if (card.priorityId) {
         const prioObj = tags.find(t => t.id === card.priorityId);
         if (prioObj && prioObj.active !== false) {
-            // Iets groter of vetter eventueel, hier zelfde stijl
             tagsHtml += `<span class="wf-badge" style="background-color:${prioObj.color}; border:1px solid rgba(255,255,255,0.2);">${prioObj.name}</span>`;
         }
     }
@@ -397,18 +264,19 @@ function createCardEl(card) {
         }
     });
 
-    // Datum Logic
+    // 3. DATUM LOGIC
     let dateHtml = "";
     if (card.dueDate) {
         let d = card.dueDate.toDate ? card.dueDate.toDate() : new Date(card.dueDate);
         if (!isNaN(d.getTime())) {
             const isOverdue = d < new Date().setHours(0,0,0,0);
-            const day = String(d.getDate()).padStart(2,'0'); const month = String(d.getMonth()+1).padStart(2,'0');
+            const day = String(d.getDate()).padStart(2,'0'); 
+            const month = String(d.getMonth()+1).padStart(2,'0');
             dateHtml = `<span class="wf-card-date" style="${isOverdue?'color:#ef4444;font-weight:800;':''} margin-left:auto;">📅 ${day}/${month}</span>`;
         }
     }
 
-    // Progress Logic
+    // 4. PROGRESS LOGIC
     let progressHtml = "";
     if(card.checklist && card.checklist.length > 0) {
         const total = card.checklist.length;
@@ -417,16 +285,35 @@ function createCardEl(card) {
         progressHtml = `<div class="wf-progress-container"><div class="wf-progress-bar" style="width:${pct}%"></div></div>`;
     }
 
+    // 5. NIEUW LABEL LOGIC
+    let newBadgeHtml = "";
+    if (card.createdAt) {
+        const d = card.createdAt.toDate ? card.createdAt.toDate() : new Date(card.createdAt);
+        const oneDayAgo = new Date(new Date().getTime() - (24 * 60 * 60 * 1000));
+        // Als kaart jonger is dan 24u
+        if (d > oneDayAgo) {
+            newBadgeHtml = `<span class="wf-new-badge">NIEUW</span>`;
+        }
+    }
+
     el.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-            <div class="wf-card-title" style="margin:0;">${card.title}</div>
+            <div class="wf-card-title" style="margin:0;">
+                ${newBadgeHtml} ${card.title}
+            </div>
             ${dateHtml}
         </div>
         <div class="wf-tags" style="margin-top:0;">${tagsHtml}</div>
         ${progressHtml}
     `;
+
+    // Events
     el.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", card.id); el.style.opacity = "0.5"; });
     el.addEventListener("click", () => openCardModal(card));
+    
+    // RECHTERMUISKLIK MENU (Toegevoegd in vorige stap)
+    el.addEventListener("contextmenu", (e) => showContextMenu(e, card));
+
     return el;
 }
 
@@ -439,8 +326,19 @@ async function handleDrop(e, colId) {
     const cardId = e.dataTransfer.getData("text/plain");
     
     if(cardId) {
-        // Zoek de doel-kolom
+        // 1. Zoek de doel-kolom
         const targetCol = columns.find(c => c.id === colId);
+
+        // --- CHECK: IS DIT WEL EEN TICKET? ---
+        // We zoeken het kaartje in het lokale geheugen
+        const currentCard = cards.find(c => c.id === cardId);
+        
+        // We zoeken de ID van de tag "TICKETING" (ongeacht hoofdletters)
+        const ticketTag = tags.find(t => t.name.toUpperCase() === "TICKETING");
+        
+        // Is het een ticket? (Kaart bestaat + Tag bestaat + Kaart heeft die tag ID)
+        const isTicket = currentCard && ticketTag && (currentCard.tags || []).includes(ticketTag.id);
+        // -------------------------------------
         
         // Update object voor Firestore
         const updateData = { columnId: colId };
@@ -462,16 +360,20 @@ async function handleDrop(e, colId) {
             await updateDoc(doc(db, "workflowCards", cardId), updateData);
             
             // --- HIER STUREN WE HET SEINTJE NAAR MAKE (Scenario 2) ---
-            if(apiSettings.webhookUrl) {
+            // We sturen dit ALLEEN als er een URL is EN als het kaartje de juiste tag heeft!
+            if(apiSettings.webhookUrl && isTicket) {
+                console.log("📨 Webhook verstuurd voor ticket update:", cardId);
                 fetch(apiSettings.webhookUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        trigger: "cardMoved",      // Dit is de sleutel voor de filter
-                        ticketId: cardId,          // Document ID (is Ticket ID)
-                        columnId: colId            // Nieuwe kolom
+                        trigger: "cardMoved",      
+                        ticketId: cardId,          
+                        columnId: colId            
                     })
                 }).catch(err => console.warn("Webhook fail", err));
+            } else if (!isTicket) {
+                console.log("🔕 Webhook overgeslagen: kaart is geen ticket.");
             }
             // ---------------------------------------------------------
 
@@ -1084,6 +986,12 @@ function setupUI() {
     
     // Pas de naam 'Dev' aan naar 'GitHub' als je tag zo heet in je systeem!
     $('btnQuickDev').onclick = () => toggleQuickTag('WEB - GITHUB');
+    const btnNew = $('btnShowNew');
+    if(btnNew) {
+        btnNew.onclick = () => {
+            activeFilters.showNewOnly = !activeFilters.showNewOnly;
+            renderBoard();};
+    }
     
     $('btnClearFilters').onclick = () => { 
         activeFilters = { priorities:[], tags:[] }; 
@@ -1287,6 +1195,101 @@ function setupUI() {
         else if(tabName==='cols') { document.querySelector('#modal-settings .wf-tab-btn:nth-child(2)').classList.add('active'); $('set-tab-cols').classList.add('active'); }
         else { document.querySelector('#modal-settings .wf-tab-btn:nth-child(3)').classList.add('active'); $('set-tab-lists').classList.add('active'); }
     };
+
+    // --- CONTEXT MENU LOGICA ---
+
+function showContextMenu(e, card) {
+    e.preventDefault(); // Voorkom standaard browser menu
+    
+    // Verwijder eventueel bestaand menu
+    closeContextMenu();
+
+    // Maak het menu element
+    const menu = document.createElement("div");
+    menu.className = "wf-context-menu";
+    menu.id = "active-context-menu";
+    
+    // Positioneer het menu bij de muis
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+
+    // --- MENU ITEMS ---
+
+    // 1. Snel Plannen
+    menu.appendChild(createMenuItem("📅 Inplannen", () => {
+        // We openen de kaart modal data eerst even 'fake' zodat de planningsfunctie weet over welke kaart het gaat
+        // Of netter: we passen de quickPlan functie aan dat hij een kaart object accepteert.
+        // Voor nu: simpele hack -> Zet waardes in hidden fields of open modal
+        openCardModal(card); 
+        setTimeout(() => $('btnQuickPlan').click(), 100); // Hacky maar werkt: opent modal en klikt meteen op plan knop
+    }));
+
+    // 2. Link Toevoegen (Via prompt)
+    menu.appendChild(createMenuItem("🔗 Link toevoegen", async () => {
+        const url = prompt("URL van de link:");
+        if(!url) return;
+        const title = prompt("Titel van de link (optioneel):") || "Link";
+        
+        const newLinks = [...(card.links || []), { title, url }];
+        
+        try {
+            await updateDoc(doc(db, "workflowCards", card.id), { links: newLinks });
+            showToast("Link toegevoegd", "success");
+        } catch(err) { console.error(err); showToast("Fout bij opslaan", "error"); }
+    }));
+
+    // 3. Log Toevoegen (Via prompt)
+    menu.appendChild(createMenuItem("💬 Log toevoegen", async () => {
+        const text = prompt("Notitie toevoegen:");
+        if(!text) return;
+
+        const newLogs = [...(card.logs || []), { 
+            content: text, 
+            timestamp: new Date().toISOString() 
+        }];
+
+        try {
+            await updateDoc(doc(db, "workflowCards", card.id), { logs: newLogs });
+            showToast("Log toegevoegd", "success");
+        } catch(err) { console.error(err); showToast("Fout bij opslaan", "error"); }
+    }));
+
+    // Scheidingslijn
+    const div = document.createElement("div"); div.className = "wf-context-divider";
+    menu.appendChild(div);
+
+    // 4. Verwijderen
+    const delItem = createMenuItem("🗑️ Verwijderen", async () => {
+        if(confirm(`"${card.title}" verwijderen?`)) {
+            await deleteDoc(doc(db, "workflowCards", card.id));
+        }
+    });
+    delItem.style.color = "#ef4444";
+    menu.appendChild(delItem);
+
+    document.body.appendChild(menu);
+
+    // Klik buiten menu om te sluiten
+    setTimeout(() => {
+        document.addEventListener("click", closeContextMenu, { once: true });
+    }, 10);
+}
+
+function createMenuItem(text, onClick) {
+    const item = document.createElement("div");
+    item.className = "wf-context-item";
+    item.textContent = text;
+    item.onclick = () => {
+        onClick();
+        closeContextMenu();
+    };
+    return item;
+}
+
+function closeContextMenu() {
+    const existing = document.getElementById("active-context-menu");
+    if(existing) existing.remove();
+}
     
 async function sendToAgenda() {
     if(!apiSettings.webhookUrl) return showToast("Geen API settings", "error");

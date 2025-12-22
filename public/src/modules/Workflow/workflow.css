@@ -897,3 +897,73 @@ input:checked + .wf-slider:before {
   margin-left: 6px; /* Ruimte tussen 📧 en het cijfer */
   font-weight: 700; /* Cijfer lekker vet */
 }
+
+/* --- CONTEXT MENU --- */
+.wf-context-menu {
+  position: fixed;
+  z-index: 5000;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 6px 0;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.1s ease-out;
+}
+
+.wf-context-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--fg);
+  transition: background 0.1s;
+}
+
+.wf-context-item:hover {
+  background: var(--bg);
+  color: var(--brand);
+}
+
+.wf-context-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* --- NIEUW LABEL STYLING --- */
+.wf-new-badge {
+  background-color: #ef4444; /* Rood */
+  color: white;
+  font-size: 0.6rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 800;
+  margin-right: 6px;
+  vertical-align: middle;
+  display: inline-block;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Stijl voor als de filter actief is */
+#btnShowNew.active-quick-filter {
+  background-color: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
