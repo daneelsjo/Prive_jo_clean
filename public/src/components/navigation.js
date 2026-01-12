@@ -1,142 +1,293 @@
 // src/components/navigation.js
+import { db, collection, query, orderBy, onSnapshot } from "../services/db.js";
+import { getCurrentUser, watchUser } from "../services/auth.js";
 
-console.log("🚦 Navigation.js bestand geladen");
+console.log("🚦 Navigation.js met CMS geladen");
 
 // --- STATE ---
-let listenersInitialized = false; // Voorkomt dubbele klik-events
+let globalLinks = [];
+let listenersInitialized = false;
 
-const REPORT_ISSUE_URL = "https://us-central1-prive-jo.cloudfunctions.net/reportIssue";
+// HULPFUNCTIE: Zorgt dat links altijd werken (voegt https:// toe indien nodig)
+function ensureAbsoluteUrl(url) {
+    if (!url) return "#";
+    // Check of het al een geldig protocol, anchor of lokaal pad heeft
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("mailto:") || url.startsWith("#") || url.startsWith("/")) {
+        return url;
+    }
+    // Zo niet, plakken we er https:// voor
+    return "https://" + url;
+}
 
-/**
- * 1. PADEN FIXEN (DOM Modificatie)
- */
+// --- 1. START & DATA OPHALEN ---
+function initNavigation() {
+    watchUser((user) => {
+        if(user) {
+            // Haal CMS links op
+            const q = query(collection(db, "globalLinks"), orderBy("order", "asc"));
+            onSnapshot(q, (snapshot) => {
+                globalLinks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Bouw de menu's op
+                buildDynamicNavbar();  
+                buildDynamicSidebar(); 
+            });
+        }
+    });
+
+    // Start ook de standaard functies
+    bootstrapNavigation();
+}
+
+// --- 2. NAVBAR BOUWEN (Bovenbalk) ---
+function buildDynamicNavbar() {
+    // We zoeken de UL in de mainnav (uit jouw header.html)
+    const navbarUl = document.querySelector('.mainnav > ul');
+    if(!navbarUl) return;
+
+    // 1. Verwijder oude CMS items (zodat we niet dubbel toevoegen bij updates)
+    navbarUl.querySelectorAll('.cms-item').forEach(e => e.remove());
+
+    // 2. Filter items voor Navbar
+    const navItems = globalLinks.filter(l => l.locations && l.locations.navbar);
+    
+    // 3. Bouw boomstructuur
+    const tree = buildTree(navItems);
+
+    // 4. Render items en voeg toe achteraan
+    Object.keys(tree).forEach(rootKey => {
+        const item = tree[rootKey];
+        const el = createMenuItem(rootKey, item);
+        el.classList.add('cms-item'); // Markeer als dynamisch
+        navbarUl.appendChild(el);
+    });
+
+    // Her-activeer hover events
+    initUIComponents();
+}
+
+function createMenuItem(label, data) {
+    const li = document.createElement('li');
+    
+    // Attribute Helper (AANGEPAST)
+    const getAttrs = (link) => {
+        const safeUrl = ensureAbsoluteUrl(link.url); // <--- HIER GEBRUIKEN WE DE FUNCTIE
+        const t = link.target || "_blank";
+        
+        if (t === 'popup') {
+            return `href="#" onclick="event.preventDefault(); window.open('${safeUrl}', 'popup', 'width=1200,height=800');"`;
+        } else if (t === '_self') {
+            return `href="${safeUrl}"`; 
+        } else {
+            return `href="${safeUrl}" target="${t}"`;
+        }
+    };
+
+    const isLeaf = Array.isArray(data);
+    const hasSubMenu = !isLeaf && Object.keys(data).length > 0;
+
+    if (hasSubMenu) {
+        li.className = "has-submenu cms-item";
+        li.innerHTML = `<a class="menu-link" href="#" aria-haspopup="true"><span class="label">${label}</span></a>`;
+        
+        const ul = document.createElement('ul');
+        ul.className = "submenu";
+        
+        Object.keys(data).forEach(key => {
+            if(key === '_links') {
+                data['_links'].forEach(link => {
+                    const subLi = document.createElement('li');
+                    subLi.innerHTML = `<a ${getAttrs(link)}>${link.icon || ''} ${link.title}</a>`;
+                    ul.appendChild(subLi);
+                });
+            } else {
+                const subLi = document.createElement('li');
+                subLi.className = "has-submenu";
+                subLi.innerHTML = `<a href="#" aria-haspopup="true">${key}</a>`;
+                const subUl = document.createElement('ul');
+                subUl.className = "submenu";
+
+                if(Array.isArray(data[key])) {
+                    data[key].forEach(link => {
+                        const deepLi = document.createElement('li');
+                        deepLi.innerHTML = `<a ${getAttrs(link)}>${link.icon || ''} ${link.title}</a>`;
+                        subUl.appendChild(deepLi);
+                    });
+                }
+                subLi.appendChild(subUl);
+                ul.appendChild(subLi);
+            }
+        });
+        li.appendChild(ul);
+        
+    } else if (isLeaf) {
+        li.className = "cms-item";
+        data.forEach(link => {
+             li.innerHTML = `<a class="menu-link" ${getAttrs(link)}><span class="label">${link.icon || ''} ${link.title}</span></a>`;
+        });
+    }
+    return li;
+}
+
+// --- 3. SIDEBAR BOUWEN (Zijbalk) ---
+function buildDynamicSidebar() {
+    const sidebar = document.getElementById('sidemenu');
+    if(!sidebar) return;
+    
+    let dynSection = document.getElementById('dyn-sidebar-section');
+    if(!dynSection) {
+        dynSection = document.createElement('nav');
+        dynSection.className = "sidemenu-section cms-section";
+        dynSection.id = "dyn-sidebar-section";
+        dynSection.innerHTML = "<h4>Mijn Snelkoppelingen</h4><ul></ul>";
+        sidebar.appendChild(dynSection);
+    }
+
+    const ul = dynSection.querySelector('ul');
+    ul.innerHTML = ""; 
+
+    const sideItems = globalLinks.filter(l => l.locations && l.locations.sidebar);
+    
+    if (sideItems.length === 0) {
+        dynSection.style.display = 'none';
+        return;
+    }
+    dynSection.style.display = 'block';
+    if(!dynSection.classList.contains('open')) dynSection.classList.add('open');
+
+    const groups = {};
+    sideItems.forEach(link => {
+        const rootCat = (link.category || "Overige").split('>')[0].trim();
+        if(!groups[rootCat]) groups[rootCat] = [];
+        groups[rootCat].push(link);
+    });
+
+    Object.keys(groups).sort().forEach(cat => {
+        if(cat !== "Overige") {
+            const liHeader = document.createElement('li');
+            liHeader.innerHTML = `<strong style="display:block; padding: 10px 20px; color:var(--muted); font-size:0.85em; text-transform:uppercase;">${cat}</strong>`;
+            ul.appendChild(liHeader);
+        }
+
+        groups[cat].forEach(link => {
+            const li = document.createElement('li');
+            
+            // AANGEPAST: Safe Url gebruiken
+            const safeUrl = ensureAbsoluteUrl(link.url); 
+            const t = link.target || "_blank";
+            
+            let attr = `href="${safeUrl}" target="${t}"`;
+            if (t === 'popup') attr = `href="#" onclick="event.preventDefault(); window.open('${safeUrl}', 'popup', 'width=1200,height=800');"`;
+            if (t === '_self') attr = `href="${safeUrl}"`;
+
+            li.innerHTML = `<a ${attr}>${link.icon || '🔗'} ${link.title}</a>`;
+            ul.appendChild(li);
+        });
+    });
+}
+
+// --- 4. HELPERS ---
+function buildTree(items) {
+    const tree = {};
+    items.forEach(link => {
+        const parts = (link.category || "Overige").split('>').map(s => s.trim());
+        let currentLevel = tree;
+        
+        parts.forEach((part, index) => {
+            if (!currentLevel[part]) {
+                currentLevel[part] = (index === parts.length - 1 && parts.length > 1) ? [] : {}; 
+            }
+            currentLevel = currentLevel[part];
+        });
+        
+        if(Array.isArray(currentLevel)) {
+             currentLevel.push(link);
+        } else {
+             if(!currentLevel['_links']) currentLevel['_links'] = [];
+             currentLevel['_links'].push(link);
+        }
+    });
+    return tree;
+}
+
+// --- 5. BESTAANDE FUNCTIES (Behouden uit jouw origineel) ---
+
 function getPathPrefix() {
     const path = window.location.pathname;
-    if (path.includes("/src/modules/") || path.includes("/HTML/")) {
-        return "../../../";
-    }
+    if (path.includes("/src/modules/") || path.includes("/HTML/")) return "../../../";
     return "";
 }
 
 function fixPaths() {
     const prefix = getPathPrefix();
     if (!prefix) return;
-
     document.querySelectorAll("a[data-internal]").forEach(link => {
         const href = link.getAttribute("href");
-        if (href && !href.startsWith("http") && !href.startsWith("#") && !href.startsWith("mailto")) {
-            if (!href.startsWith(prefix)) {
-                link.setAttribute("href", prefix + href);
-            }
-        }
-    });
-
-    document.querySelectorAll("img[data-fix-path]").forEach(img => {
-        const src = img.getAttribute("src");
-        if (src && !src.startsWith("http")) {
-            if (!src.startsWith(prefix)) {
-                img.setAttribute("src", prefix + src);
-            }
+        if (href && !href.startsWith("http") && !href.startsWith("#") && !href.startsWith(prefix)) {
+            link.setAttribute("href", prefix + href);
         }
     });
 }
 
-/**
- * 2. KLIK AFHANDELING (Global Listeners)
- */
 function initGlobalListeners() {
     if (listenersInitialized) return;
     listenersInitialized = true;
 
-    console.log("👂 Global Listeners geactiveerd");
-
     document.addEventListener("click", (e) => {
-        // A. HAMBURGER
-        const btn = e.target.closest("#hamburgerBtn");
-        if (btn) {
-            e.preventDefault(); e.stopPropagation();
-            toggleSidebar();
-            return;
+        // 1. Hamburger
+        if (e.target.closest("#hamburgerBtn")) {
+            e.preventDefault(); e.stopPropagation(); toggleSidebar(); return;
         }
-
-        // B. BACKDROP
-        const bd = e.target.closest("#sidemenu-backdrop");
-        if (bd) {
-            toggleSidebar(false);
-            return;
+        // 2. Backdrop
+        if (e.target.closest("#sidemenu-backdrop")) {
+            toggleSidebar(false); return;
         }
-
-        // C. LOGO
-        const brand = e.target.closest("#brandLogo");
-        if (brand) {
-            const prefix = getPathPrefix();
-            window.location.href = prefix + "index.html"; 
-            return;
+        // 3. Logo
+        if (e.target.closest("#brandLogo")) {
+            window.location.href = getPathPrefix() + "index.html"; return;
         }
-
-        // D. SIDEBAR ACCORDEON
+        
+        // 4. SIDEBAR ACCORDEON (Hersteld!)
+        // Dit zorgt dat zowel vaste als nieuwe menu's open/dicht kunnen
         const header = e.target.closest(".sidemenu-section h4");
         if (header) {
             header.parentElement.classList.toggle("open");
-            return;
         }
     });
 
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") toggleSidebar(false);
-    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleSidebar(false); });
 }
 
 function toggleSidebar(forceState = null) {
     const sidemenu = document.getElementById("sidemenu");
     const backdrop = document.getElementById("sidemenu-backdrop");
-    const hamburger = document.getElementById("hamburgerBtn");
-
     if (!sidemenu) return;
-
     const currentState = sidemenu.getAttribute("data-state") === "open";
     const newState = forceState !== null ? forceState : !currentState;
-
     sidemenu.setAttribute("data-state", newState ? "open" : "closed");
-    sidemenu.setAttribute("aria-hidden", String(!newState));
-    
-    if (hamburger) hamburger.setAttribute("aria-expanded", String(newState));
-    
-    if (backdrop) {
-        backdrop.hidden = !newState;
-        backdrop.style.display = newState ? "block" : "none";
-    }
-    document.body.style.overflow = newState ? "hidden" : "";
+    if (backdrop) backdrop.style.display = newState ? "block" : "none";
 }
 
-/**
- * 3. UI INITIALISATIE
- */
 function initUIComponents() {
     const dropdowns = document.querySelectorAll(".mainnav .has-submenu");
     dropdowns.forEach(item => {
+        // Verwijder oude listeners om dubbelingen te voorkomen bij re-render
+        const clone = item.cloneNode(true);
+        item.parentNode.replaceChild(clone, item);
+        
         let closeTimer;
-        item.addEventListener("mouseenter", () => {
+        clone.addEventListener("mouseenter", () => {
             clearTimeout(closeTimer);
-            dropdowns.forEach(o => o !== item && o.classList.remove("open"));
-            item.classList.add("open");
+            document.querySelectorAll(".mainnav .has-submenu").forEach(o => o !== clone && o.classList.remove("open"));
+            clone.classList.add("open");
         });
-        item.addEventListener("mouseleave", () => {
-            closeTimer = setTimeout(() => item.classList.remove("open"), 300);
+        clone.addEventListener("mouseleave", () => {
+            closeTimer = setTimeout(() => clone.classList.remove("open"), 300);
         });
-    });
-
-    const links = document.querySelectorAll(".mainnav a, .sidemenu-section a");
-    links.forEach(link => {
-        const href = link.getAttribute("href");
-        if (!href) return;
-        if (link.hasAttribute("data-newtab") || (href.startsWith("http") && !href.includes(window.location.hostname))) {
-            link.setAttribute("target", "_blank");
-            link.setAttribute("rel", "noopener noreferrer");
-        }
     });
 }
 
+// VASTE LINKS (Header Icons)
 function renderQuickLinks() {
     const container = document.getElementById("quickLinks");
     if (!container) return;
@@ -163,113 +314,30 @@ function renderQuickLinks() {
         a.style.marginLeft = "10px";
         container.appendChild(a);
     });
-
+    
+    // Issue knop
     const btn = document.createElement("button");
     btn.id = "report-issue-btn";
-    btn.className = "icon-btn header-link";
     btn.textContent = "🐞";
-    btn.title = "Probleem melden";
-    btn.style.marginLeft = "10px";
-    btn.style.background = "transparent"; btn.style.border = "none"; btn.style.fontSize = "1.2rem"; btn.style.cursor = "pointer";
+    btn.className = "icon-btn header-link";
+    btn.style.marginLeft = "10px"; btn.style.background = "transparent"; btn.style.border = "none"; btn.style.fontSize = "1.2rem"; btn.style.cursor="pointer";
     container.appendChild(btn);
 }
 
-// --- ISSUE REPORTING LOGICA (Toegevoegd) ---
-
-function gatherIssueContext() {
-    return {
-        env: window.APP_ENV || "UNKNOWN",
-        url: window.location.href,
-        title: document.title || "",
-        userAgent: navigator.userAgent || "",
-        screen: `${window.innerWidth}x${window.innerHeight}`
-    };
-}
-
-async function sendIssueToBackend(payload) {
-    if (!REPORT_ISSUE_URL || REPORT_ISSUE_URL.includes("REGIO-PROJECT")) {
-        console.warn("Backend URL nog niet geconfigureerd.");
-        return;
-    }
-
-    const res = await fetch(REPORT_ISSUE_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) throw new Error("Backend error " + res.status);
-    return await res.json();
-}
-
-function initIssueReportModal() {
-    // 1. Luister naar openen
-    document.addEventListener("click", (e) => {
-        if(e.target.closest("#report-issue-btn") && window.Modal) {
-            const infoEl = document.getElementById("report-page-info");
-            if (infoEl) infoEl.textContent = window.location.pathname;
-            window.Modal.open("modal-report-issue");
-        }
-    });
-
-    // 2. Luister naar VERSTUREN (Deze ontbrak!)
-    // We gebruiken delegation op document level voor het geval de modal pas later in de DOM komt
-    document.addEventListener("click", async (e) => {
-        if(e.target && e.target.id === "report-submit") {
-            const btn = e.target;
-            const titleEl = document.getElementById("report-title");
-            const descEl = document.getElementById("report-description");
-            const typeEl = document.getElementById("report-type");
-            const techEl = document.getElementById("report-include-tech");
-
-            if (!titleEl || !descEl || !titleEl.value || !descEl.value) {
-                alert("Vul een titel en omschrijving in.");
-                return;
-            }
-
-            btn.disabled = true;
-            btn.textContent = "Verzenden...";
-
-            try {
-                const context = (techEl && techEl.checked) ? gatherIssueContext() : null;
-                const payload = {
-                    type: typeEl ? typeEl.value : "bug",
-                    title: titleEl.value,
-                    description: descEl.value,
-                    context
-                };
-
-                await sendIssueToBackend(payload);
-                
-                alert("Melding verzonden! Bedankt.");
-                if (window.Modal) window.Modal.close();
-                titleEl.value = "";
-                descEl.value = "";
-
-            } catch (err) {
-                console.error(err);
-                alert("Fout bij verzenden: " + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = "Versturen";
-            }
-        }
-    });
-}
-
-/**
- * HOOFD START FUNCTIE
- */
 function bootstrapNavigation() {
-    // 1. Start de luisteraars (maar 1 keer!)
     initGlobalListeners();
-    initIssueReportModal(); 
-
-    // 2. Fix de DOM
     fixPaths();
     renderQuickLinks();
     initUIComponents();
 }
 
-document.addEventListener("partials:loaded", bootstrapNavigation);
-document.addEventListener("DOMContentLoaded", bootstrapNavigation);
+// --- START DE APPLICATIE ---
+
+// 1. Start de logica zodra de pagina begint te laden (voor Auth & Database)
+document.addEventListener("DOMContentLoaded", initNavigation);
+
+// 2. Her-teken de navigatiebalk zodra header.html is ingeladen
+// (Dit is nodig omdat de knoppen in de header zitten die later pas verschijnt)
+document.addEventListener("partials:loaded", () => {
+    bootstrapNavigation();
+});

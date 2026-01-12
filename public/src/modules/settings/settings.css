@@ -1,3 +1,27 @@
+/* src/modules/settings/settings.css */
+
+/* DWING DE THEMA KLEUREN */
+body.module-settings {
+  background-color: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+}
+
+/* ZORG DAT DE KAARTEN OOK MEEDOEN */
+.card {
+  background-color: var(--card);
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+/* INPUT VELDEN DONKER MAKEN */
+.module-settings input,
+.module-settings select {
+  background-color: var(--bg);
+  color: var(--fg);
+  border-color: var(--border);
+}
+
 /* ============ BASIS LAYOUT ============ */
 .module-settings .page {
   grid-template-columns: 1fr;
@@ -242,4 +266,357 @@
   margin-inline: auto;
   padding-inline: 16px;
   /* gelijk aan je andere .card */
+}
+
+/* TAB NAVIGATIE */
+.settings-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg);
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: var(--bg-hover);
+  opacity: 1;
+}
+
+.tab-btn.active {
+  background: var(--primary);
+  color: white;
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+/* CONTENT AREAS */
+.tab-content {
+  display: none; /* Verberg standaard */
+  animation: fadeIn 0.3s ease-out;
+}
+.tab-content.active {
+  display: block; /* Toon actieve */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* TABLES (Voor Links) */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th {
+  font-weight: 700;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.02);
+}
+.data-table tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* BESTAANDE STIJLEN (Behouden) */
+.module-settings .page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.mode-toggle {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-group input {
+  width: 100%;
+  padding-right: 45px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.input-group .toggle-pw {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 45px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.checkbox-group label {
+  display: block;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.text-danger {
+  color: #ef4444;
+}
+.text-center {
+  text-align: center;
+}
+
+/* ... (Houd je bestaande CSS voor tabs en tabellen) ... */
+/* Voeg dit toe onderaan of vervang het bestand als je wilt */
+
+/* TAB NAVIGATIE */
+.settings-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 10px;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg);
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.tab-btn:hover {
+  background: var(--bg-hover);
+  opacity: 1;
+}
+.tab-btn.active {
+  background: var(--primary);
+  color: white;
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+.tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease-out;
+}
+.tab-content.active {
+  display: block;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* TABLE */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th {
+  font-weight: 700;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.02);
+}
+.data-table tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* LAYOUT */
+.module-settings .page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.card h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-group input {
+  width: 100%;
+  padding-right: 45px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.input-group .toggle-pw {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 45px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+.text-danger {
+  color: #ef4444;
+}
+.text-center {
+  text-align: center;
+}
+
+/* --- NIEUW: TOGGLE SWITCHES (SCHUIVERTJES) --- */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+}
+
+input:checked + .slider {
+  background-color: #22c55e; /* Groen */
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #22c55e;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+
+/* DISABLED STATE (Voor de Mainbar als Sidebar aan staat) */
+input:disabled + .slider {
+  background-color: #e2e8f0;
+  cursor: not-allowed;
+}
+input:disabled + .slider:before {
+  background-color: #cbd5e1;
 }

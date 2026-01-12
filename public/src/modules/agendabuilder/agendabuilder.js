@@ -14,6 +14,7 @@ let titles = [];
 let locations = [];
 let shortcuts = [];
 
+const CONTEXT = window.AGENDA_CONTEXT || 'main';
 const $ = id => document.getElementById(id);
 
 // --- INIT ---
@@ -26,49 +27,59 @@ async function init() {
         loadConfig();
         setupUI();
         
-        // Defaults
-        $('date').value = new Date().toISOString().split('T')[0];
-        $('tz').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if($('date')) $('date').value = new Date().toISOString().split('T')[0];
+        if($('tz') && $('tz').type !== 'hidden') $('tz').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        if (CONTEXT === 'partner') {
+            if($('advanced-sc-options')) $('advanced-sc-options').style.display = 'none';
+        }
     });
 }
 
 function loadConfig() {
+    // HAAL CONFIG OP UIT CENTRALE SETTINGS
     subscribeToSettings(currentUser.uid, (data) => {
         if(data) {
             apiConfig.webhookUrl = data.webhookUrl || "";
             apiConfig.token = data.token || "";
-            $('cfg-webhook').value = apiConfig.webhookUrl;
-            $('cfg-token').value = apiConfig.token;
         }
     });
 
     const sub = (type, cb) => subscribeToAgendaItems(currentUser.uid, type, cb);
 
-    sub('calendar', (data) => {
-        calendars = data;
-        renderCalendars();
-        renderConfigList('calendar', calendars, 'list-calendars');
+    // HIER ZAT DE FOUT: De 'renderConfigList' aanroepen ontbraken voor de gewone items.
+    
+    sub('calendar', (data) => { 
+        calendars = data; 
+        if(CONTEXT==='main') {
+            renderCalendars(); 
+            renderConfigList('calendar', calendars, 'list-calendars'); // <--- Toegevoegd
+        }
         fillSelect('sc-cal', calendars); 
     });
 
-    sub('label', (data) => {
-        labels = data;
-        renderChips('label', labels, 'container-labels');
-        renderConfigList('label', labels, 'list-labels');
-        fillSelect('sc-label', labels);
+    sub('label', (data) => { 
+        labels = data; 
+        if(CONTEXT==='main') {
+            renderChips('label', labels, 'container-labels'); 
+            renderConfigList('label', labels, 'list-labels'); // <--- Toegevoegd
+        }
     });
 
-    sub('title', (data) => {
-        titles = data;
-        renderChips('title', titles, 'container-titles');
-        renderConfigList('title', titles, 'list-titles');
-        fillSelect('sc-title', titles); // Nieuw: dropdown voor titels vullen
+    sub('title', (data) => { 
+        titles = data; 
+        if(CONTEXT==='main') {
+            renderChips('title', titles, 'container-titles'); 
+            renderConfigList('title', titles, 'list-titles'); // <--- Toegevoegd
+        }
     });
 
-    sub('location', (data) => {
-        locations = data;
-        renderChips('location', locations, 'container-locations');
-        renderConfigList('location', locations, 'list-locations');
+    sub('location', (data) => { 
+        locations = data; 
+        if(CONTEXT==='main') {
+            renderChips('location', locations, 'container-locations'); 
+            renderConfigList('location', locations, 'list-locations'); // <--- Toegevoegd
+        }
     });
 
     sub('shortcut', (data) => {
@@ -78,12 +89,13 @@ function loadConfig() {
     });
 }
 
-// --- RENDERING MAIN UI ---
+// --- RENDERING ---
 
 function renderCalendars() {
     const container = $('container-calendars');
+    if(!container) return;
     container.innerHTML = "";
-    if(calendars.length === 0) { container.innerHTML = '<span class="tiny muted">Nog geen agenda\'s.</span>'; return; }
+    if(calendars.length === 0) { container.innerHTML = '<span class="tiny muted">Nog geen agenda\'s. Voeg toe via Beheer.</span>'; return; }
 
     calendars.forEach(cal => {
         const btn = document.createElement("button");
@@ -101,14 +113,14 @@ function renderCalendars() {
 
 function renderChips(type, items, containerId) {
     const container = $(containerId);
+    if(!container) return;
     container.innerHTML = "";
     items.forEach(item => {
         const chip = document.createElement("span");
         chip.className = "chip";
         chip.textContent = item.value;
         chip.onclick = () => {
-            const targetMap = { label: 'label', title: 'title', location: 'location' };
-            $(targetMap[type]).value = item.value;
+            if($(type)) $(type).value = item.value;
         };
         container.appendChild(chip);
     });
@@ -117,44 +129,68 @@ function renderChips(type, items, containerId) {
 function renderShortcutsMain() {
     const container = $('container-shortcuts');
     container.innerHTML = "";
-    if(shortcuts.length === 0) { container.innerHTML = '<span class="tiny muted">Nog geen snelkoppelingen.</span>'; return; }
 
-    shortcuts.forEach(sc => {
+    const filteredShortcuts = shortcuts.filter(sc => {
+        const itemCtx = (sc.extra && sc.extra.context) ? sc.extra.context : 'main';
+        return itemCtx === CONTEXT;
+    });
+
+    if(filteredShortcuts.length === 0) { container.innerHTML = '<span class="tiny muted">Geen snelkoppelingen.</span>'; return; }
+
+    filteredShortcuts.forEach(sc => {
         let data = sc.extra || {};
         const btn = document.createElement("div");
         btn.className = "shortcut-btn";
-        btn.innerHTML = `
-            <strong>⚡ ${sc.value}</strong>
-            <small>${data.calendar || '-'} • ${data.label || ''} ${data.title || ''}</small>
-        `;
+        
+        let subText = "";
+        if (CONTEXT === 'partner') {
+            subText = `${data.start || '?'} - ${data.end || '?'}`;
+        } else {
+            subText = `${data.calendar || '-'} • ${data.label || ''} ${data.title || ''}`;
+        }
+
+        btn.innerHTML = `<strong>⚡ ${sc.value}</strong><small>${subText}</small>`;
+        
         btn.onclick = () => {
-            if(data.calendar) {
+            if(data.calendar && $('calendarId')) {
                 $('calendarId').value = data.calendar;
-                document.querySelectorAll('.cal-btn').forEach(b => b.classList.toggle('active', b.textContent === data.calendar));
+                if(document.querySelectorAll('.cal-btn').length > 0) {
+                    document.querySelectorAll('.cal-btn').forEach(b => b.classList.toggle('active', b.textContent === data.calendar));
+                }
             }
-            if(data.label) $('label').value = data.label;
-            if(data.title) $('title').value = data.title;
-            showToast(`Snelkoppeling "${sc.value}" toegepast`, "success");
+            if(data.label && $('label')) $('label').value = data.label;
+            if(data.title && $('title')) $('title').value = data.title;
+            if(data.start && $('start')) $('start').value = data.start;
+            if(data.end && $('end')) $('end').value = data.end;
+
+            showToast(`"${sc.value}" toegepast`, "success");
         };
         container.appendChild(btn);
     });
 }
 
-// --- RENDERING CONFIG (CRUCIAAL VOOR BEWERKEN) ---
+// --- CONFIG MODAL ---
 
 function renderConfigList(type, items, listId) {
     const list = $(listId);
+    if(!list) return;
     list.innerHTML = "";
+
+    let itemsToShow = items;
+    if (type === 'shortcut') {
+        itemsToShow = items.filter(sc => {
+            const itemCtx = (sc.extra && sc.extra.context) ? sc.extra.context : 'main';
+            return itemCtx === CONTEXT;
+        });
+    }
     
-    items.forEach(item => {
+    itemsToShow.forEach(item => {
         const row = document.createElement("div");
         
         if(type === 'shortcut') {
-            // --- SNELKOPPELING EDIT MODUS (MET DROPDOWNS) ---
             row.className = "config-item shortcut-item";
             const data = item.extra || {};
 
-            // Header: Naam + Delete
             const headerDiv = document.createElement("div");
             headerDiv.style.display = "flex"; headerDiv.style.gap = "10px"; headerDiv.style.gridColumn = "1/-1";
             
@@ -172,33 +208,41 @@ function renderConfigList(type, items, listId) {
             headerDiv.appendChild(delBtn);
             row.appendChild(headerDiv);
 
-            // Details: Dropdowns
             const detailsDiv = document.createElement("div");
             detailsDiv.className = "shortcut-details";
 
-            // Agenda Kieser
-            const calSel = createSelect(calendars, data.calendar, "Agenda");
-            calSel.onchange = () => updateExtra(item, 'calendar', calSel.value);
-            detailsDiv.appendChild(calSel);
+            if (CONTEXT === 'main') {
+                const calSel = createSelect(calendars, data.calendar, "Agenda");
+                calSel.onchange = () => updateExtra(item, 'calendar', calSel.value);
+                detailsDiv.appendChild(calSel);
 
-            // Label Kieser
-            const labSel = createSelect(labels, data.label, "Label");
-            labSel.onchange = () => updateExtra(item, 'label', labSel.value);
-            detailsDiv.appendChild(labSel);
+                const labSel = createSelect(labels, data.label, "Label");
+                labSel.onchange = () => updateExtra(item, 'label', labSel.value);
+                detailsDiv.appendChild(labSel);
 
-            // Titel Kieser (of tekst)
-            // We gebruiken de lijst van titels om een dropdown te maken
-            const titSel = createSelect(titles, data.title, "Titel");
-            titSel.onchange = () => updateExtra(item, 'title', titSel.value);
-            detailsDiv.appendChild(titSel);
+                const titSel = createSelect(titles, data.title, "Titel");
+                titSel.onchange = () => updateExtra(item, 'title', titSel.value);
+                detailsDiv.appendChild(titSel);
+            } else {
+                const startInp = document.createElement("input"); 
+                startInp.type="time"; startInp.value=data.start||""; startInp.title="Starttijd";
+                startInp.onchange = () => updateExtra(item, 'start', startInp.value);
+                
+                const endInp = document.createElement("input"); 
+                endInp.type="time"; endInp.value=data.end||""; endInp.title="Eindtijd";
+                endInp.onchange = () => updateExtra(item, 'end', endInp.value);
+
+                detailsDiv.style.gridTemplateColumns = "1fr 1fr";
+                detailsDiv.appendChild(startInp);
+                detailsDiv.appendChild(endInp);
+            }
 
             row.appendChild(detailsDiv);
 
         } else {
-            // --- STANDAARD ITEM (AGENDA, LABEL, TITEL) ---
+            if(CONTEXT !== 'main') return; 
+
             row.className = "config-item";
-            
-            // Kleur (Alleen Agenda)
             if(type === 'calendar') {
                 const colorInput = document.createElement("input");
                 colorInput.type = "color";
@@ -207,15 +251,11 @@ function renderConfigList(type, items, listId) {
                 colorInput.onchange = () => updateAgendaItem(item.id, { color: colorInput.value });
                 row.appendChild(colorInput);
             }
-
-            // Naam Input
             const input = document.createElement("input");
             input.value = item.value;
             input.style.flex = "1";
             input.onchange = () => updateAgendaItem(item.id, { value: input.value });
             row.appendChild(input);
-
-            // Delete
             const delBtn = document.createElement("button");
             delBtn.className = "del-btn";
             delBtn.textContent = "🗑️";
@@ -232,7 +272,6 @@ function createSelect(options, currentVal, placeholder) {
     const empty = document.createElement("option");
     empty.value = ""; empty.textContent = `(geen ${placeholder})`;
     sel.appendChild(empty);
-    
     options.forEach(opt => {
         const o = document.createElement("option");
         o.value = opt.value;
@@ -263,51 +302,57 @@ function fillSelect(id, items) {
 // --- UI EVENTS ---
 
 function setupUI() {
-    $('btnReset').onclick = () => {
-        ['calendarId','label','title','start','end','durH','durM','location','description'].forEach(id => $(id).value = "");
+    if($('btnReset')) $('btnReset').onclick = () => {
+        ['calendarId','label','title','start','end','durH','durM','location','description'].forEach(id => { if($(id)) $(id).value = ""; });
         document.querySelectorAll('.cal-btn').forEach(b => b.classList.remove("active"));
         showToast("Reset uitgevoerd", "info");
     };
 
     $('btnConfig').onclick = () => window.Modal.open("modal-config");
 
-    $('btnSaveApi').onclick = async () => {
-        await updateSettings(currentUser.uid, { webhookUrl: $('cfg-webhook').value.trim(), token: $('cfg-token').value.trim() });
-        showToast("Opgeslagen", "success");
-    };
+    // OUDE btnSaveApi is WEG, dus die onclick is niet meer nodig.
 
     const add = (id, type, extra={}) => {
-        const val = $(id).value.trim();
+        const el = $(id);
+        if(!el) return;
+        const val = el.value.trim();
         if(val) { 
             addAgendaItem({ uid: currentUser.uid, type, value: val, visible: true, ...extra }); 
-            $(id).value = ""; 
+            el.value = ""; 
         }
     };
 
-    $('btnAddCal').onclick = () => add('new-cal-name', 'calendar', { color: $('new-cal-color').value });
-    $('btnAddLabel').onclick = () => add('new-label-name', 'label');
-    $('btnAddTitle').onclick = () => add('new-title-name', 'title');
-    $('btnAddLocation').onclick = () => add('new-location-name', 'location');
+    if($('btnAddCal')) $('btnAddCal').onclick = () => add('new-cal-name', 'calendar', { color: $('new-cal-color').value });
+    if($('btnAddLabel')) $('btnAddLabel').onclick = () => add('new-label-name', 'label');
+    if($('btnAddTitle')) $('btnAddTitle').onclick = () => add('new-title-name', 'title');
+    if($('btnAddLocation')) $('btnAddLocation').onclick = () => add('new-location-name', 'location');
 
     $('btnAddShortcut').onclick = async () => {
         const name = $('sc-name').value.trim();
         if(!name) return showToast("Naam is verplicht", "error");
         
+        let extra = { context: CONTEXT };
+        
+        if (CONTEXT === 'main') {
+            extra.calendar = $('sc-cal').value;
+            extra.label = $('sc-label').value;
+            extra.title = $('sc-title').value;
+        } else {
+            extra.start = $('sc-start').value;
+            extra.end = $('sc-end').value;
+        }
+        
         await addAgendaItem({
             uid: currentUser.uid,
             type: 'shortcut',
             value: name,
-            extra: { 
-                calendar: $('sc-cal').value, 
-                label: $('sc-label').value, 
-                title: $('sc-title').value 
-            }
+            extra: extra
         });
         $('sc-name').value = "";
         showToast("Snelkoppeling aangemaakt", "success");
     };
 
-    $('btnTogglePayload').onclick = () => {
+    if($('btnTogglePayload')) $('btnTogglePayload').onclick = () => {
         $('payloadArea').classList.toggle("open");
         if($('payloadArea').classList.contains("open")) buildPreview();
     };
@@ -318,32 +363,42 @@ function setupUI() {
 // --- LOGIC ---
 
 function buildPayload() {
+    const calId = $('calendarId') ? $('calendarId').value : "prive";
+    const lab = $('label') ? $('label').value : "";
+    const tit = $('title') ? $('title').value : "Afspraak";
+    const desc = $('description') ? $('description').value : "";
+    const loc = $('location') ? $('location').value : "";
+    const timezone = $('tz') ? $('tz').value : "Europe/Brussels";
+    
+    // VALIDATIE OP TOKEN
+    if(!apiConfig.token) throw new Error("⚠️ Geen Token gevonden. Stel dit in via Instellingen.");
+    if(!apiConfig.webhookUrl) throw new Error("⚠️ Geen Webhook URL. Stel dit in via Instellingen.");
+    
     const p = {
         token: apiConfig.token,
-        calendarId: $('calendarId').value || "prive",
-        title: [$('label').value, $('title').value].filter(Boolean).join(" - "),
+        calendarId: calId,
+        title: [lab, tit].filter(Boolean).join(" - "),
         start: "", end: "",
-        description: $('description').value,
-        location: $('location').value,
-        tz: $('tz').value
+        description: desc,
+        location: loc,
+        tz: timezone
     };
-
-    if(!p.token) throw new Error("Geen Token");
-    if(!p.title) throw new Error("Titel is leeg");
-    if(!$('date').value || !$('start').value) throw new Error("Datum/Start ontbreekt");
 
     const date = $('date').value;
     const startT = $('start').value;
     const endT = $('end').value;
-    
+
+    if(!date || !startT) throw new Error("Datum/Start ontbreekt");
+
     p.start = `${date}T${startT}:00`;
 
     if(endT) {
         p.end = `${date}T${endT}:00`;
     } else {
-        const dH = Number($('durH').value||0);
-        const dM = Number($('durM').value||0);
-        if(dH === 0 && dM === 0) throw new Error("Geen eindtijd/duur");
+        const dH = $('durH') ? Number($('durH').value||0) : 0;
+        const dM = $('durM') ? Number($('durM').value||0) : 0;
+        
+        if(dH === 0 && dM === 0) throw new Error("Geen eindtijd of duur ingevuld");
         
         const sDate = new Date(p.start);
         sDate.setHours(sDate.getHours() + dH);
@@ -357,18 +412,14 @@ function buildPayload() {
 function buildPreview() {
     try {
         const payload = buildPayload();
-        $('resultJson').textContent = JSON.stringify(payload, null, 2);
-        const url = new URL(apiConfig.webhookUrl);
-        Object.keys(payload).forEach(key => url.searchParams.append(key, payload[key]));
-        $('resultUrl').textContent = url.toString();
+        if($('resultJson')) $('resultJson').textContent = JSON.stringify(payload, null, 2);
     } catch (e) {
-        $('resultJson').textContent = "⚠️ " + e.message;
+        if($('resultJson')) $('resultJson').textContent = "⚠️ " + e.message;
     }
 }
 
 async function sendPost() {
     try {
-        if(!apiConfig.webhookUrl) throw new Error("Geen Webhook URL");
         const payload = buildPayload();
         showToast("Verzenden...", "info");
 
@@ -383,5 +434,4 @@ async function sendPost() {
     }
 }
 
-// Start
 init();

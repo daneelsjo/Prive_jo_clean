@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="../../../CSS/components-sidemenu.css" />
   <link rel="stylesheet" href="./agendabuilder.css" />
   <script>
-    // Thema script mag blijven staan
     (function () {
       try {
         var pref = localStorage.getItem('theme_pref') || 'system';
@@ -21,9 +20,8 @@
         document.documentElement.setAttribute('data-theme', final);
       } catch (e) { /* no-op */ }
     })();
+    window.APP_ENV = "DEV";
   </script>
-
-    <script>window.APP_ENV = "DEV";</script>
 </head>
 
 <body class="module-agendabuilder">
@@ -37,7 +35,7 @@
             
             <section class="card left-panel">
                 <h2 style="margin-bottom:20px;">Agenda Builder</h2>
-
+                
                 <h3 class="section-label">1. Kies Agenda</h3>
                 <div id="container-calendars" class="chips">
                     <span class="tiny muted">Laden...</span>
@@ -95,10 +93,16 @@
             </section>
 
             <aside class="right-panel">
+                
                 <div class="side-actions">
-                    <button id="btnConfig" class="primary full-width" style="margin-bottom:10px;">⚙️ Configuratie</button>
+                    <button id="btnConfig" class="primary full-width" style="margin-bottom:10px;">⚙️ Lijsten Beheren</button>
                     <button id="btnReset" class="ghost full-width">🔄 Reset Formulier</button>
                 </div>
+                <div style="margin-bottom: 20px;">
+                    <button onclick="window.location.href='./partner.html'" class="primary full-width" style="justify-content:center; background-color: #8b5cf6; border-color: #8b5cf6;">
+                        👩 Ga naar Partner Agenda
+                    </button>
+                </div>   
 
                 <div class="card" style="margin-top:20px;">
                     <h2 style="font-size:1rem;">⚡ Snelkoppelingen</h2>
@@ -113,28 +117,11 @@
   </div>
 
   <div id="modal-config" class="modal-card" hidden style="max-width:900px;">
-    <div class="modal-header"><h3>Instellingen</h3><button class="modal-close" data-modal-close="modal-config">✕</button></div>
+    <div class="modal-header"><h3>Lijsten Beheren</h3><button class="modal-close" data-modal-close="modal-config">✕</button></div>
     <div class="modal-body">
         
-        <div class="config-section">
-            <h4>🔑 API & Webhook</h4>
-            <div class="row">
-                <div>
-                    <label>Webhook URL</label>
-                    <div class="input-group">
-                        <input id="cfg-webhook" type="password" />
-                        <button class="toggle-pw" onclick="togglePw('cfg-webhook')">👁️</button>
-                    </div>
-                </div>
-                <div>
-                    <label>Token</label>
-                    <div class="input-group">
-                        <input id="cfg-token" type="password" />
-                        <button class="toggle-pw" onclick="togglePw('cfg-token')">👁️</button>
-                    </div>
-                </div>
-            </div>
-            <button id="btnSaveApi" class="primary small">Opslaan</button>
+        <div class="alert info" style="margin-bottom:15px; font-size:0.9rem;">
+            ℹ️ De Webhook URL en Token beheer je nu via <a href="../settings/settings.html" style="color:var(--primary); text-decoration:underline;">Instellingen</a>.
         </div>
 
         <div class="config-section">
@@ -203,12 +190,5 @@
   <script type="module" src="../../../script/javascript/modal.js"></script>
   <script type="module" src="../../../src/components/navigation.js"></script>
   <script type="module" src="./agendabuilder.js"></script>
-  
-  <script>
-      function togglePw(id) {
-          const el = document.getElementById(id);
-          el.type = el.type === 'password' ? 'text' : 'password';
-      }
-  </script>
 </body>
 </html>

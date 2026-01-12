@@ -9,11 +9,9 @@
   <link rel="stylesheet" href="../../../CSS/main.css">
   <link rel="stylesheet" href="../../../CSS/components-menu.css">
   <link rel="stylesheet" href="../../../CSS/components-sidemenu.css">
-  
   <link rel="stylesheet" href="./settings.css">
   
-  <script>
-    window.APP_ENV = "DEV"; 
+<script>
     (function () {
       try {
         var pref = localStorage.getItem('theme_pref') || 'system';
@@ -23,7 +21,9 @@
         document.documentElement.setAttribute('data-theme', final);
       } catch (e) { /* no-op */ }
     })();
-  </script>
+</script>
+
+  <script>window.APP_ENV = "DEV";</script>
 </head>
 
 <body class="module-settings">
@@ -31,52 +31,185 @@
 
   <div id="app" style="display:none;">
     <div class="page">
+      
+      <div class="settings-tabs">
+          <button class="tab-btn active" data-tab="tab-sticknotes">📝 Sticknotes</button>
+          <button class="tab-btn" data-tab="tab-agenda">📅 Agenda</button>
+          <button class="tab-btn" data-tab="tab-links">🔗 Links Beheer</button>
+          <button class="tab-btn" data-tab="tab-admin">🛡️ Admin</button>
+      </div>
+
       <main class="content">
         
-        <section class="card">
-          <h2>Weergave</h2>
-          <div style="display:flex; gap:1rem; flex-wrap:wrap; justify-content:center;">
-            <label><input type="radio" name="theme" value="system" checked> Systeem</label>
-            <label><input type="radio" name="theme" value="light"> Licht</label>
-            <label><input type="radio" name="theme" value="dark"> Donker</label>
-          </div>
-          <div style="display:flex; justify-content:center;">
-            <button id="saveTheme" class="primary" style="margin-top:.75rem;">💾 Opslaan</button>
-          </div>
-        </section>
+<div id="tab-sticknotes" class="tab-content active">
+            
+            <section class="card">
+                <h2>Categorieën</h2>
+                <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; justify-content:center;">
+                  <input id="catName" placeholder="Nieuwe categorie" style="max-width:260px;" />
+                  <select id="catType">
+                    <option value="werk">Werk</option>
+                    <option value="prive">Privé</option>
+                  </select>
+                  <button id="addCat" class="primary small">➕</button>
+                </div>
+                <div id="catList" style="margin-top:1rem;"></div>
+            </section>
 
-        <section class="card">
-          <h2>Categorieën</h2>
-          <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; justify-content:center;">
-            <input id="catName" placeholder="Nieuwe categorie" style="max-width:260px;" />
-            <select id="catType">
-              <option value="werk">Werk</option>
-              <option value="prive">Privé</option>
-            </select>
-            <button id="addCat" class="primary">➕ Toevoegen</button>
-          </div>
-          <div id="catList" style="margin-top:1rem;"></div>
-        </section>
+            <section class="card">
+                <h2>Post-its per modus</h2>
+                <div class="mode-toggle">
+                  <input type="checkbox" id="modeSwitchSettings" />
+                  <label for="modeSwitchSettings" class="switch icon-only">
+                    <span class="knob"></span>
+                    <span class="icon icon-work">🧰</span>
+                    <span class="icon icon-prive">🏠</span>
+                  </label>
+                </div>
+                
+                <p class="text-muted small text-center" style="margin-bottom:15px;">
+                    Schakel hierboven om te testen. De instelling wordt direct opgeslagen.
+                </p>
 
-        <section class="card">
-          <h2>Post-its per modus</h2>
-          <div class="mode-toggle">
-            <input type="checkbox" id="modeSwitchSettings" aria-label="Schakel tussen werk en privé" />
-            <label for="modeSwitchSettings" class="switch icon-only">
-              <span class="knob"></span>
-              <span class="icon icon-work" title="Werk">🧰</span>
-              <span class="icon icon-prive" title="Privé">🏠</span>
-            </label>
-          </div>
-          <div id="modeSlots"></div>
-          <div style="display:flex; justify-content:center;">
-            <button id="saveModeSlots" class="primary" style="margin-top:.75rem;">💾 Opslaan</button>
-          </div>
-        </section>
+                <div id="modeSlots"></div> 
+                
+                <div style="display:flex; justify-content:center;">
+                  <button id="saveModeSlots" class="primary small" style="margin-top:.75rem;">💾 Instellingen Opslaan</button>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-agenda" class="tab-content">
+            <section class="card">
+                <h2>Make.com Connectie</h2>
+                <p class="text-muted small">Instellingen voor de Agenda Builder.</p>
+                
+                <label>Webhook URL</label>
+                <div class="input-group">
+                    <input id="cfg-webhook" type="password" placeholder="https://hook.make.com/..." />
+                    <button class="toggle-pw" onclick="togglePw('cfg-webhook')">👁️</button>
+                </div>
+
+                <label style="margin-top:15px;">Beveiligingstoken</label>
+                <div class="input-group">
+                    <input id="cfg-token" type="password" placeholder="Token" />
+                    <button class="toggle-pw" onclick="togglePw('cfg-token')">👁️</button>
+                </div>
+
+                <div style="margin-top:20px; text-align:right;">
+                    <button id="btnSaveAgenda" class="primary">💾 Opslaan</button>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-links" class="tab-content">
+            <section class="card full-width">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>🔗 Navigatie Links</h2>
+                    <button id="btnNewLink" class="primary small">➕ Nieuwe Link</button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="data-table" id="linksTable">
+                        <thead>
+                            <tr>
+                                <th>Titel / URL</th>
+                                <th>Locatie(s)</th>
+                                <th>Categorie</th>
+                                <th style="width:50px;">Actie</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" class="text-center">Laden...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-admin" class="tab-content">
+            <section class="card">
+                <h2>Weergave</h2>
+                <div style="display:flex; gap:1rem; flex-wrap:wrap; justify-content:center;">
+                  <label><input type="radio" name="theme" value="system" checked> Systeem</label>
+                  <label><input type="radio" name="theme" value="light"> Licht</label>
+                  <label><input type="radio" name="theme" value="dark"> Donker</label>
+                </div>
+                <div style="display:flex; justify-content:center;">
+                  <button id="saveTheme" class="primary small" style="margin-top:.75rem;">💾 Opslaan</button>
+                </div>
+            </section>
+        </div>
 
       </main>
-      <aside class="rightcol"></aside>
     </div>
+  </div>
+
+  <div id="modal-link-edit" class="modal-card" hidden>
+      <div class="modal-header"><h3>Link Bewerken</h3><button class="modal-close" data-modal-close="modal-link-edit">✕</button></div>
+      <div class="modal-body">
+          <input type="hidden" id="link-id">
+          
+          <div class="form-grid">
+              <label>Titel</label>
+              <input id="link-title" placeholder="bv. Facturatie Tool" />
+
+              <label>URL</label>
+              <input id="link-url" placeholder="https://..." />
+
+              <label style="margin-top:10px;">Openen in</label>
+              <select id="link-target">
+                  <option value="_blank">📄 Nieuw Tabblad (Standaard)</option>
+                  <option value="_self">⬇️ Zelfe Pagina</option>
+                  <option value="popup">🪟 Nieuw Venster (Popup)</option>
+              </select>
+
+              <div class="row">
+                  <label style="margin-top:10px;">Categorie</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                  <select id="link-cat-select" style="flex:1;">
+                      <option value="">- Geen categorie -</option>
+                  </select>
+                  <button id="btn-toggle-cat-input" class="ghost small" style="padding:8px;" title="Nieuwe categorie typen">✏️</button>
+              </div>
+              <input id="link-cat-input" placeholder="bv. Verdi > Web" style="display:none; margin-top:5px;" />
+
+                  <div><label>Volgorde</label><input id="link-order" type="number" value="10"></div>
+              </div>
+
+              <label style="margin-top:15px; font-weight:bold; margin-bottom:10px; display:block;">Zichtbaarheid</label>
+              
+              <div class="toggle-row">
+                  <label class="switch">
+                      <input type="checkbox" id="show-landing" checked>
+                      <span class="slider round"></span>
+                  </label>
+                  <span>Dashboard (Grote knop)</span>
+              </div>
+
+              <div class="toggle-row">
+                  <label class="switch">
+                      <input type="checkbox" id="show-sidebar">
+                      <span class="slider round"></span>
+                  </label>
+                  <span>Zijbalk (Menu)</span>
+              </div>
+
+              <div class="toggle-row">
+                  <label class="switch">
+                      <input type="checkbox" id="show-navbar">
+                      <span class="slider round"></span>
+                  </label>
+                  <span id="label-navbar">Bovenbalk (Icoon)</span>
+              </div>
+
+          </div>
+          
+          <div style="margin-top:20px; display:flex; gap:10px;">
+              <button id="btnSaveLink" class="primary full-width">Opslaan</button>
+              <button id="btnDeleteLink" class="ghost text-danger" style="display:none;">Verwijderen</button>
+          </div>
+      </div>
   </div>
 
   <div data-include="../../../partials/modals.html"></div>
@@ -86,5 +219,11 @@
   <script type="module" src="../../../src/components/navigation.js"></script>
   
   <script type="module" src="./settings.js"></script>
+  <script>
+    function togglePw(id) {
+        const el = document.getElementById(id);
+        el.type = el.type === 'password' ? 'text' : 'password';
+    }
+  </script>
 </body>
 </html>

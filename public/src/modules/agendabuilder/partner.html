@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Partner Agenda</title>
+  <link rel="icon" href="../../../IMG/JD_Web_Solutions.ico">
+  
+  <link rel="stylesheet" href="../../../CSS/main.css" />
+  <link rel="stylesheet" href="../../../CSS/components-menu.css" />
+  <link rel="stylesheet" href="../../../CSS/components-sidemenu.css" />
+  <link rel="stylesheet" href="./agendabuilder.css" />
+  
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('theme_pref') || 'system';
+        var final = pref === 'system'
+          ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        document.documentElement.setAttribute('data-theme', final);
+      } catch (e) { /* no-op */ }
+    })();
+      window.APP_ENV = "DEV";
+      // DIT IS BELANGRIJK: Hiermee weet JS dat we in 'partner' modus zitten
+      window.AGENDA_CONTEXT = "partner"; 
+  </script>
+</head>
+<body class="module-agendabuilder">
+  <div data-include="../../../partials/header.html"></div>
+
+  <div id="app" style="display:none;">
+      <div class="page">
+          <div class="main-grid">
+            <section class="card left-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>👩 Partner Agenda</h2>
+                    <a href="./agendabuilder.html" class="ghost small" style="text-decoration:none;">Terug</a>
+                </div>
+
+                <input id="calendarId" type="hidden" value="femke" />
+                <input id="label" type="hidden" value="" />
+                <input id="title" type="hidden" value="Femke Werken" /> 
+                <input id="location" type="hidden" value="De medemens" />
+                <input id="tz" type="hidden" value="Europe/Brussels" />
+
+                <h3 class="section-label">Tijdstip</h3>
+                <div class="row">
+                    <div><label>Datum</label><input id="date" type="date" /></div>
+                </div>
+                <div class="row">
+                    <div><label>Start</label><input id="start" type="time" /></div>
+                    <div><label>Einde</label><input id="end" type="time" /></div>
+                </div>
+
+                <div class="row">
+                    <div><label>Beschrijving (Optioneel)</label><input id="description" placeholder="..." /></div>
+                </div>
+
+                <button id="btnSend" class="primary big" style="background:#22c55e; border-color:#22c55e; width:100%; margin-top:20px;">
+                    🚀 Inplannen
+                </button>
+            </section>
+
+            <aside class="right-panel">
+                <div class="side-actions">
+                    <button id="btnConfig" class="primary full-width">⚙️ Beheer Snelkoppelingen</button>
+                </div>
+
+                <div class="card" style="margin-top:20px;">
+                    <h2 style="font-size:1rem;">⚡ Snelkoppelingen</h2>
+                    <div id="container-shortcuts" class="shortcut-list">
+                        <span class="tiny muted">Geen snelkoppelingen.</span>
+                    </div>
+                </div>
+            </aside>
+          </div>
+      </div>
+  </div>
+
+  <div id="modal-config" class="modal-card" hidden style="max-width:900px;">
+    <div class="modal-header"><h3>Snelkoppelingen Beheren</h3><button class="modal-close" data-modal-close="modal-config">✕</button></div>
+    <div class="modal-body">
+        
+        <div class="config-section" style="border:none;">
+            <div id="list-shortcuts" class="config-list"></div>
+            
+            <div class="form-grid" style="background:rgba(0,0,0,0.03); padding:10px; border-radius:8px; margin-top:15px;">
+                <h5>Nieuwe maken</h5>
+                <label>Naam knop</label>
+                <input id="sc-name" placeholder="bv. Ochtendshift" />
+                
+                <div class="row" style="margin-top:8px;">
+                    <div><label>Starttijd</label><input type="time" id="sc-start"></div>
+                    <div><label>Eindtijd</label><input type="time" id="sc-end"></div>
+                </div>
+
+                <div id="advanced-sc-options">
+                    <label>Agenda (Overschrijf standaard)</label>
+                    <select id="sc-cal"><option value="">- Standaard -</option></select>
+                </div>
+                
+                <button id="btnAddShortcut" class="primary small" style="margin-top:10px;">Opslaan</button>
+            </div>
+        </div>
+
+    </div>
+    <div class="modal-footer"><button class="ghost" data-modal-close="modal-config">Sluiten</button></div>
+  </div>
+
+  <div data-include="../../../partials/modals.html"></div>
+  <script src="../../../script/javascript/include-partials.js"></script>
+  <script type="module" src="../../../script/javascript/modal.js"></script>
+  <script type="module" src="../../../src/components/navigation.js"></script>
+  <script type="module" src="./agendabuilder.js"></script>
+</body>
+</html>

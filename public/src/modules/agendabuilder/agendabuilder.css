@@ -1,8 +1,7 @@
 /* src/modules/agendabuilder/agendabuilder.css */
 
-/* --- LAYOUT --- */
+/* --- JOUW GOEDE LAYOUT (BEHOUDEN) --- */
 .module-agendabuilder .page {
-  /* OVERSCHRIJF MAIN.CSS */
   width: 98% !important;
   max-width: 1900px;
   margin: 0 auto;
@@ -161,6 +160,11 @@
 .chip:active {
   transform: translateY(0);
 }
+.chip.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
 
 /* Agenda Knoppen */
 .cal-btn {
@@ -211,7 +215,46 @@
   font-size: 0.85rem;
 }
 
-/* --- CONFIG MODAL --- */
+/* --- DEBUG AREA --- */
+.payload-area {
+  margin-top: 30px;
+  border-top: 1px dashed var(--border);
+  padding-top: 20px;
+  display: none;
+}
+.payload-area.open {
+  display: block;
+}
+.out {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+/* --- HIER KOMT DE NIEUWE STIJL VOOR DE MODAL LIJSTEN --- */
+/* Dit zorgt dat de input velden en prullenbakjes netjes naast elkaar staan */
+
+.config-section {
+  margin-bottom: 25px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+}
+.config-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.config-section h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: var(--primary);
+}
+
+/* De lijst items */
 .config-list {
   display: flex;
   flex-direction: column;
@@ -256,18 +299,18 @@ input[type="color"].color-swatch::-webkit-color-swatch {
 /* SHORTCUT EDIT GRID */
 .config-item.shortcut-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto; /* Naam + Prullenbak op regel 1 */
   gap: 12px;
   background: rgba(0, 0, 0, 0.02);
   border: 1px solid var(--border);
   padding: 16px;
 }
 .shortcut-details {
-  grid-column: 1 / -1;
+  grid-column: 1 / -1; /* Details op regel 2 over volledige breedte */
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
   padding: 10px;
   border-radius: 6px;
 }
@@ -279,6 +322,8 @@ input[type="color"].color-swatch::-webkit-color-swatch {
   font-size: 0.95rem;
   border: 1px solid #ccc;
   border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 .del-btn {
@@ -301,22 +346,13 @@ input[type="color"].color-swatch::-webkit-color-swatch {
   color: white;
 }
 
-/* Payload Debug */
-.payload-area {
-  margin-top: 30px;
-  border-top: 1px dashed var(--border);
-  padding-top: 20px;
-  display: none;
+.form-grid {
+  display: grid;
+  gap: 10px;
 }
-.payload-area.open {
-  display: block;
-}
-.out {
-  background: #1e293b;
-  color: #e2e8f0;
-  padding: 16px;
-  border-radius: 8px;
-  font-family: monospace;
-  font-size: 0.85rem;
-  word-break: break-all;
+.form-grid h5 {
+  margin: 0 0 5px 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.75rem;
 }

@@ -36,65 +36,74 @@
 
             <h1 class="hero-title">JD SOLUTIONS</h1>
 
-            <div class="dashboard-grid">
+<div class="dashboard-layout">
                 
-                <a href="src/modules/sticknotes/sticknotes.html" class="nav-card">
-                    <h3>Sticknotes</h3>
-                    <span>Takenbeheer, notities en werk/privé overzicht.</span>
-                </a>
+                <div class="main-modules">
+                    <h2 class="section-title">Mijn Applicaties</h2>
+                    <div class="modules-grid">
+                        <a href="src/modules/sticknotes/sticknotes.html" class="nav-card">
+                            <h3>📝 Sticknotes</h3>
+                            <span>Takenbeheer & notities</span>
+                        </a>
 
-                <a href="src/modules/planner/plan.html" class="nav-card">
-                    <h3>Planner</h3>
-                    <span>School- en weekplanning beheren.</span>
-                </a>
+                        <a href="src/modules/planner/plan.html" class="nav-card">
+                            <h3>🗓️ Planner</h3>
+                            <span>Weekplanning beheren</span>
+                        </a>
 
-                <a href="src/modules/time/tijd.html" class="nav-card">
-                    <h3>Tijdsregistratie</h3>
-                    <span>Urenregistratie, overuren en verlof berekening.</span>
-                </a>
+                        <a href="src/modules/tijdsregistratie/time.html" class="nav-card">
+                            <h3>⏱️ Tijd</h3>
+                            <span>Urenregistratie & verlof</span>
+                        </a>
 
-                <a href="src/modules/Workflow/workflow.html" class="nav-card">
-                    <h3>Workflow</h3>
-                    <span>Kanban-bord en projectopvolging.</span>
-                </a>
+                        <a href="src/modules/Workflow/workflow.html" class="nav-card">
+                            <h3>🔀 Workflow</h3>
+                            <span>Project Kanban</span>
+                        </a>
 
-                <a href="src/modules/agendabuilder/agendabuilder.html" class="nav-card">
-    <h3>Agenda Builder</h3>
-    <span>Genereer URL's voor Make.com automatisaties.</span>
-</a>
+                        <a href="src/modules/agendabuilder/agendabuilder.html" class="nav-card">
+                            <h3>📬 Agenda</h3>
+                            <span>Automatisatie tools</span>
+                        </a>
 
-                <a href="src/modules/settings/settings.html" class="nav-card">
-                    <h3>Instellingen</h3>
-                    <span>Applicatie voorkeuren en categoriebeheer.</span>
-                </a>
+                        <a href="src/modules/settings/settings.html" class="nav-card">
+                            <h3>⚙️ Instellingen</h3>
+                            <span>Beheer & Config</span>
+                        </a>
+                    </div>
+                </div>
+
+                <aside class="quick-links-sidebar">
+                    <h2 class="section-title">Snelkoppelingen</h2>
+                    <div id="landing-links-container">
+                        <span style="opacity:0.5; font-size:0.9rem;">Laden...</span>
+                    </div>
+                </aside>
 
             </div>
         </div>
 
     </div>
 
-    <script type="module">
+<script type="module">
         import { login, logout, watchUser } from "./src/services/auth.js";
         import { initDevTools } from "./src/components/dev-tools.js";
+        // NIEUW: Database imports
+        import { db, collection, query, where, orderBy, onSnapshot } from "./src/services/db.js";
 
-        // Elementen selecteren
         const loginView = document.getElementById("login-view");
         const dashView = document.getElementById("dashboard-view");
-        
         const loginBtn = document.getElementById("btn-login-google");
         const logoutBtn = document.getElementById("btn-logout");
-        
         const userNameEl = document.getElementById("user-name");
         const userAvatarEl = document.getElementById("user-avatar");
+        const linksContainer = document.getElementById("landing-links-container");
 
-        // Start Dev Tools
         initDevTools();
 
-        // Knoppen koppelen
         loginBtn.addEventListener("click", login);
         logoutBtn.addEventListener("click", logout);
 
-        // Luisteren naar inlog status
         watchUser((user) => {
             if (user) {
                 loginView.style.display = "none";
@@ -108,12 +117,80 @@
                 }
 
                 if(window.updateDevPanel) window.updateDevPanel(user);
+
+                // --- NIEUW: LINKS LADEN ---
+                loadLandingLinks();
+
             } else {
                 loginView.style.display = "flex";
                 dashView.style.display = "none";
                 if(window.updateDevPanel) window.updateDevPanel(null);
             }
         });
+
+        function loadLandingLinks() {
+            // Haal alleen links op waar 'landing' op true staat
+            // Let op: In Firestore queries met object fields (locations.landing) heb je soms een index nodig.
+            // Als het niet werkt, check je console voor een link om de index aan te maken.
+            const q = query(
+                collection(db, "globalLinks"), 
+                where("locations.landing", "==", true),
+                orderBy("order", "asc")
+            );
+
+            onSnapshot(q, (snapshot) => {
+                const links = snapshot.docs.map(doc => doc.data());
+                renderLinks(links);
+            });
+        }
+
+// HELPER: Zorgt dat een link altijd werkt (voegt https:// toe indien nodig)
+        function ensureAbsoluteUrl(url) {
+            if (!url) return "#";
+            // Als het al begint met http, https, mailto of # is het goed
+            if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("mailto:") || url.startsWith("#")) {
+                return url;
+            }
+            // Anders plakken we er https:// voor
+            return "https://" + url;
+        }
+
+        function renderLinks(links) {
+            if(!linksContainer) return;
+            linksContainer.innerHTML = "";
+
+            if(links.length === 0) {
+                linksContainer.innerHTML = '<div style="opacity:0.6; font-size:0.8rem; color:#94a3b8;">Geen links.</div>';
+                return;
+            }
+
+            links.forEach(link => {
+                const a = document.createElement("a");
+                a.className = "shortcut-btn"; 
+                
+                // GEBRUIK DE SLIMME URL
+                const safeUrl = ensureAbsoluteUrl(link.url);
+                
+                // Target logica
+                const t = link.target || "_blank";
+                if (t === 'popup') {
+                    a.href = "#";
+                    a.onclick = (e) => {
+                        e.preventDefault();
+                        window.open(safeUrl, 'popup', 'width=1200,height=800');
+                    };
+                } else {
+                    a.href = safeUrl;
+                    if(t !== '_self') a.target = t;
+                }
+
+                // Inhoud
+                a.textContent = link.title; 
+                
+                linksContainer.appendChild(a);
+            });
+        }
+        
     </script>
     
     <script type="module" src="src/components/navigation.js"></script>

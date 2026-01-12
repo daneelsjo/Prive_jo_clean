@@ -11,7 +11,7 @@ const db = getFirestore(app);
 
 // --- EXPORT FIREBASE PRIMITIVES ---
 // Hier maken we de functies beschikbaar voor de andere modules
-export { 
+export { db,
     getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, 
     getDoc, getDocs, onSnapshot, query, where, orderBy, serverTimestamp, getAuth 
     // ^--- getDocs OOK HIER TOEGEVOEGD
@@ -165,3 +165,4 @@ export const subscribeToChecklistTemplates = (uid, callback) => {
 };
 export const addChecklistTemplate = (data) => addDoc(collection(db, "workflowChecklistTemplates"), data);
 export const deleteChecklistTemplate = (id) => deleteDoc(doc(db, "workflowChecklistTemplates", id));
+
