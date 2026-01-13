@@ -2,7 +2,7 @@
     <button id="hamburgerBtn" class="icon-btn" aria-label="Menu" aria-controls="sidemenu" aria-expanded="false">☰</button>
     
     <div class="brand" id="brandLogo" style="cursor: pointer;" title="Terug naar Dashboard">
-        <strong>JD Solutions</strong>
+        <strong>JD Landingspagina</strong>
     </div>
     
     <nav class="header-icons" id="quickLinks" aria-label="Snelkoppelingen"></nav>
@@ -23,20 +23,10 @@
             <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span
                     class="label">Verdi</span></a>
             <ul class="submenu">
-                <li class="has-submenu">
-                    <a href="#" aria-haspopup="true" aria-expanded="false">Web</a>
-                    <ul class="submenu">
-                        <li><a href="https://disparant.verdi.cloud/" data-newtab>Live</a></li>
-                        <li><a href="https://disparant-staging.verdi.cloud/home" data-newtab>Staging</a></li>
-                    </ul>
-                </li>
-                <li class="has-submenu">
-                    <a href="#" aria-haspopup="true" aria-expanded="false">Mobile</a>
-                    <ul class="submenu">
-                        <li><a href="https://mobile-disparant.verdi.cloud/login" data-newtab>Live</a></li>
-                        <li><a href="https://mobile-disparant-staging.verdi.cloud/login" data-newtab>Staging</a></li>
-                    </ul>
-                </li>
+<li><a href="https://disparant.verdi.cloud/" data-newtab>Verdi web Live</a></li>
+<li><a href="https://disparant-staging.verdi.cloud/home" data-newtab>Verdi web Staging</a></li>
+<li><a href="https://mobile-disparant.verdi.cloud/login" data-newtab>Verdi Mobile Live</a></li>
+                        <li><a href="https://mobile-disparant-staging.verdi.cloud/login" data-newtab>Verdi Mobile Staging</a></li>
             </ul>
         </li>
 
@@ -55,29 +45,15 @@
         <li class="has-submenu">
             <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span class="label">Ina</span></a>
             <ul class="submenu">
-                <li class="has-submenu">
-                    <a href="#" aria-haspopup="true" aria-expanded="false">Applicatie</a>
-                    <ul class="submenu">
-                        <li><a href="https://hvzrand.ina.gemsotec.com" data-newtab>Live</a></li>
-                        <li><a href="https://hvzrandacc.ina.gemsotec.com" data-newtab>Acc</a></li>
-                    </ul>
+
+                <li><a href="https://hvzrand.ina.gemsotec.com" data-newtab>INA Live</a></li>
+                <li><a href="https://hvzrandacc.ina.gemsotec.com" data-newtab>INA Staging</a></li>
+                <li><a href="https://hvzrand.ina.gemsotec.com/admin/#/events" data-newtab>INA admin Live</a></li>
+                <li><a href="https://hvzrandacc.ina.gemsotec.com/admin/#/events" data-newtab>INA admin Staging</a></li>      
+                <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrand/console/" data-newtab>INA Keykloack Live</a>
                 </li>
-                <li class="has-submenu">
-                    <a href="#" aria-haspopup="true" aria-expanded="false">Keycloak</a>
-                    <ul class="submenu">
-                        <li><a href="https://hvzrand.ina.gemsotec.com/admin/#/events" data-newtab>Live</a>
-                        </li>
-                    </ul>
-                </li>
-                <li class="has-submenu">
-                    <a href="#" aria-haspopup="true" aria-expanded="false">Keycloak - NEW</a>
-                    <ul class="submenu">
-                        <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrand/console/" data-newtab>Live</a>
-                        </li>
-                        <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrandacc/console/"
-                                data-newtab>Acc</a></li>
-                    </ul>
-                </li>
+                <li><a href="https://keycloak.ina.gemsotec.com/auth/admin/hvzrandacc/console/"
+                                data-newtab>INA Keykloack Staging</a></li>
             </ul>
         </li>
 
@@ -86,59 +62,15 @@
             <a class="menu-link" href="#" aria-haspopup="true" aria-expanded="false"><span class="label">Abi</span></a>
             <ul class="submenu">
                 <li><a href="https://www.ambuweb.be/" data-newtab>Ambuweb</a></li>
-                <li class="has-submenu">
-                    <a href="#" aria-haspopup="true" aria-expanded="false">Abiweb</a>
-                    <ul class="submenu">
-                        <li><a href="https://abiweb.zonerand.be/" data-newtab>Live</a></li>
-                        <li><a href="https://testabiweb.zonerand.be/" data-newtab>Testomgeving</a></li>
-                    </ul>
-                </li>
+                <li><a href="https://abiweb.zonerand.be/" data-newtab>Abiweb Live</a></li>
+                        <li><a href="https://testabiweb.zonerand.be/" data-newtab>Abiweb Staging</a></li>
             </ul>
         </li>
     </ul>
 </nav>
 
 <aside id="sidemenu" class="sidemenu" aria-hidden="true" data-state="closed">
-    <nav class="sidemenu-section">
-        <h4>Modules</h4>
-        <ul>
-            <li><a href="index.html" data-internal>🏠 Dashboard</a></li>
-            <li><a href="src/modules/tijdsregistratie/time.html" data-internal>⏱️ Tijdsregistratie</a></li>
-            <li><a href="src/modules/sticknotes/sticknotes.html" data-internal>📝 Sticknotes</a></li>
-            <li><a href="src/modules/planner/plan.html" data-internal>📅 Planner</a></li>
-            <li><a href="src/modules/agendabuilder/agendabuilder.html" data-internal>📬 Agenda Builder</a></li>
-            <li><a href="src/modules/settings/settings.html" data-internal>⚙️ Instellingen</a></li>
-            <li><a href="src/modules/Workflow/workflow.html" data-internal>� workflow</a></li>
-        </ul>
-    </nav>
-    <nav class="sidemenu-section">
-        <h4>OPTECH</h4>
-        <ul>
-            <li><a href="https://trello.com" data-newtab>Trello</a></li>
-            <li><a href="https://www.teamviewer.com" data-newtab>Teamviewer</a></li>
-            <li><a href="https://www.crashrecoverysystem.com/extranet/index.php?menu=customer_administration&action=edit_site_license_clients" data-newtab>Modutech</a></li>
-            <li><a href="https://drive.google.com/drive/folders/13cYou5JVF10MMjTVVE9X7Wx-w43ov_4D" data-newtab>Map veelgebruikte documenten</a></li>
-            <li><a href="https://docs.google.com/spreadsheets/d/1t-zr3UwLZ_qwXws47-3jz9H6u5-_s98UL73PYbIPSEU/edit?gid=1670678363#gid=1670678363" data-newtab>Master doc devices</a></li>
-            <li><a href="https://central.samsungknox.com/uspcommon/dashboard" data-newtab>Samsung KNOX</a></li>
-        </ul>
-    </nav>
+    
 
-    <nav class="sidemenu-section">
-        <h4>Interessante links</h4>
-        <ul>
-            <li><a href="https://sites.google.com/view/oefenbeleid/homepage-nl" data-newtab>kennisbank brandweer</a></li>
-            <li><a href="https://kiosk.id.nl/magazines" data-newtab>tijdschrift Computer</a></li>
-        </ul>
-    </nav>
-
-    <nav class="sidemenu-section">
-        <h4>Apps</h4>
-        <ul>
-            <li><a href="https://www.appsheet.com/start/504ba865-3785-4c6b-a33c-9d5edf2d3962" data-newtab>Optech</a>
-            </li>
-            <li><a href="https://www.appsheet.com/start/218e57f1-032f-4480-8b55-b2a38e944fef" data-newtab>Magazijn Regio
-                    Zuid</a></li>
-        </ul>
-    </nav>
 </aside>
 <div id="sidemenu-backdrop" hidden></div>

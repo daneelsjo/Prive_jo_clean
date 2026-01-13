@@ -61,7 +61,7 @@ body.page-landing {
   background: #1e293b; /* Slate 800 */
   border: 1px solid #334155;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 2.5rem 2rem;
   height: 160px;
   display: flex;
   flex-direction: column;
@@ -80,12 +80,23 @@ body.page-landing {
 
 .nav-card h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   color: #fff;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+h3 {
+  display: block;
+  font-size: 1.17em;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  font-weight: bold;
+  unicode-bidi: isolate;
 }
 
 .nav-card span {

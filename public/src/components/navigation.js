@@ -129,11 +129,20 @@ function createMenuItem(label, data) {
     return li;
 }
 
+function initExternalLinks() {
+    document.querySelectorAll("a[data-newtab]").forEach(link => {
+        link.setAttribute("target", "_blank");
+        // Veiligheid: voorkomt dat de nieuwe pagina toegang heeft tot de oude
+        link.setAttribute("rel", "noopener noreferrer"); 
+    });
+}
+
 // --- 3. SIDEBAR BOUWEN (Zijbalk) ---
 function buildDynamicSidebar() {
     const sidebar = document.getElementById('sidemenu');
     if(!sidebar) return;
     
+    // Zoek of maak een sectie voor dynamische links
     let dynSection = document.getElementById('dyn-sidebar-section');
     if(!dynSection) {
         dynSection = document.createElement('nav');
@@ -144,7 +153,7 @@ function buildDynamicSidebar() {
     }
 
     const ul = dynSection.querySelector('ul');
-    ul.innerHTML = ""; 
+    ul.innerHTML = ""; // Leegmaken
 
     const sideItems = globalLinks.filter(l => l.locations && l.locations.sidebar);
     
@@ -153,8 +162,12 @@ function buildDynamicSidebar() {
         return;
     }
     dynSection.style.display = 'block';
+    
+    // Zorg dat de hoofdsectie "Mijn Snelkoppelingen" open staat, 
+    // maar de sub-categorieën daarbinnen zullen standaard dicht zijn.
     if(!dynSection.classList.contains('open')) dynSection.classList.add('open');
 
+    // Groepeer op Hoofdcategorie
     const groups = {};
     sideItems.forEach(link => {
         const rootCat = (link.category || "Overige").split('>')[0].trim();
@@ -164,25 +177,71 @@ function buildDynamicSidebar() {
 
     Object.keys(groups).sort().forEach(cat => {
         if(cat !== "Overige") {
-            const liHeader = document.createElement('li');
-            liHeader.innerHTML = `<strong style="display:block; padding: 10px 20px; color:var(--muted); font-size:0.85em; text-transform:uppercase;">${cat}</strong>`;
-            ul.appendChild(liHeader);
+            // --- CATEGORIE (SUBMENU) ---
+            const groupLi = document.createElement('li');
+            
+            // De titel van de categorie (Klikbaar om te openen/sluiten)
+            const titleLink = document.createElement('a');
+            titleLink.href = "#";
+            titleLink.innerHTML = `<span style="flex:1;">${cat}</span> <span style="font-size:0.8em; opacity:0.5;">▼</span>`;
+            titleLink.style.fontWeight = "bold";
+            titleLink.style.color = "var(--muted)";
+            titleLink.style.textTransform = "uppercase";
+            titleLink.style.display = "flex";
+            titleLink.style.justifyContent = "space-between";
+            titleLink.style.cursor = "pointer";
+
+            // Het lijstje met links (Standaard VERBORGEN)
+            const subUl = document.createElement('ul');
+            subUl.style.display = "none"; 
+            subUl.style.paddingLeft = "15px"; // Beetje inspringen
+            subUl.style.marginTop = "5px";
+            subUl.style.marginBottom = "10px";
+            subUl.style.listStyle = "none";
+
+            // Klik event om open/dicht te klappen
+            titleLink.onclick = (e) => {
+                e.preventDefault();
+                const isOpen = subUl.style.display === "block";
+                subUl.style.display = isOpen ? "none" : "block";
+                // Pijltje draaien (optioneel, visueel extraatje)
+                titleLink.querySelector('span:last-child').style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
+            };
+
+            groupLi.appendChild(titleLink);
+
+            // Links toevoegen aan de sublijst
+            groups[cat].forEach(link => {
+                const li = document.createElement('li');
+                const safeUrl = ensureAbsoluteUrl(link.url);
+                const t = link.target || "_blank";
+                
+                let attr = `href="${safeUrl}" target="${t}"`;
+                if (t === 'popup') attr = `href="#" onclick="event.preventDefault(); window.open('${safeUrl}', 'popup', 'width=1200,height=800');"`;
+                
+                // GEEN ICOON MEER, ALLEEN TITEL
+                li.innerHTML = `<a ${attr}>${link.title}</a>`;
+                subUl.appendChild(li);
+            });
+
+            groupLi.appendChild(subUl);
+            ul.appendChild(groupLi);
+
+        } else {
+            // --- OVERIGE (LOSSE LINKS) ---
+            groups[cat].forEach(link => {
+                const li = document.createElement('li');
+                const safeUrl = ensureAbsoluteUrl(link.url);
+                const t = link.target || "_blank";
+                
+                let attr = `href="${safeUrl}" target="${t}"`;
+                if (t === 'popup') attr = `href="#" onclick="event.preventDefault(); window.open('${safeUrl}', 'popup', 'width=1200,height=800');"`;
+
+                // GEEN ICOON MEER, ALLEEN TITEL
+                li.innerHTML = `<a ${attr}>${link.title}</a>`;
+                ul.appendChild(li);
+            });
         }
-
-        groups[cat].forEach(link => {
-            const li = document.createElement('li');
-            
-            // AANGEPAST: Safe Url gebruiken
-            const safeUrl = ensureAbsoluteUrl(link.url); 
-            const t = link.target || "_blank";
-            
-            let attr = `href="${safeUrl}" target="${t}"`;
-            if (t === 'popup') attr = `href="#" onclick="event.preventDefault(); window.open('${safeUrl}', 'popup', 'width=1200,height=800');"`;
-            if (t === '_self') attr = `href="${safeUrl}"`;
-
-            li.innerHTML = `<a ${attr}>${link.icon || '🔗'} ${link.title}</a>`;
-            ul.appendChild(li);
-        });
     });
 }
 
@@ -327,6 +386,7 @@ function renderQuickLinks() {
 function bootstrapNavigation() {
     initGlobalListeners();
     fixPaths();
+    initExternalLinks();
     renderQuickLinks();
     initUIComponents();
 }
