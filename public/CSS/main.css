@@ -45,8 +45,18 @@ body {
 
 body {
   margin: 0;
-  font: 15px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
-    "Helvetica Neue", Arial, "Noto Color Emoji", "Apple Color Emoji", sans-serif;
+  font:
+    15px/1.4 system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Ubuntu,
+    Cantarell,
+    "Helvetica Neue",
+    Arial,
+    "Noto Color Emoji",
+    "Apple Color Emoji",
+    sans-serif;
   background: var(--bg);
   color: var(--fg);
 }
@@ -152,7 +162,9 @@ button.ghost:hover {
   background: var(--card);
   color: var(--fg);
   cursor: pointer;
-  transition: transform 0.05s ease, filter 0.15s ease;
+  transition:
+    transform 0.05s ease,
+    filter 0.15s ease;
 }
 
 .btn-icon.sm {
@@ -678,4 +690,75 @@ body.env-dev .brand::after {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ==========================================================================
+   GLOBAL DARK MODE FIXES (Modals & Datumprikkers)
+   ========================================================================== */
+
+/* 1. Modal Kruisje Zichtbaar Maken */
+.modal-close {
+  color: var(
+    --fg,
+    #f1f5f9
+  ) !important; /* Dwing lichte tekstkleur af in dark mode */
+  opacity: 0.7;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  color: #ef4444 !important; /* Maak hem mooi rood als je erover muist */
+  opacity: 1;
+}
+
+/* ==========================================================================
+   DATUMPRIKKERS KOGELVRIJ IN DARK MODE
+   ========================================================================== */
+
+html[data-theme="dark"] input[type="date"],
+html[data-theme="dark"] input[type="time"],
+html[data-theme="dark"] input[type="month"],
+html[data-theme="dark"] input[type="datetime-local"] {
+  /* Dwingt de browser-popup zélf om de donkere variant te gebruiken */
+  color-scheme: dark !important;
+
+  /* Forceer lichte tekst op een donkere achtergrond in het veld */
+  background-color: var(--bg, #1e293b) !important;
+  color: var(--fg, #f1f5f9) !important;
+  border: 1px solid var(--border, #334155) !important;
+}
+
+/* Forceer het icoontje naar wit */
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2) !important;
+  opacity: 0.8 !important;
+  cursor: pointer !important;
+}
+
+/* ====== KALENDER ICOON FIX ====== */
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="time"],
+[data-theme="dark"] input[type="month"] {
+  color-scheme: dark !important;
+}
+
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(100%) !important;
+  opacity: 0.9 !important;
+  cursor: pointer !important;
+}
+
+/* --- KOGELVRIJ WIT KALENDER ICOON --- */
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7v-5z"/></svg>') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  cursor: pointer !important;
 }

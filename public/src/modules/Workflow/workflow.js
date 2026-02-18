@@ -506,8 +506,8 @@ async function handleDrop(e, colId) {
         const updateData = { columnId: colId };
 
         // Logica voor 'Afgewerkt' kolom (Archivering)
-        if (targetCol && targetCol.title.toLowerCase() === "afgewerkt") {
-            updateData.finishedAt = serverTimestamp(); 
+        if (targetCol && targetCol.title.trim().toLowerCase() === "afgewerkt") {
+            updateData.finishedAt = new Date(); 
             const deleteDate = new Date();
             deleteDate.setFullYear(deleteDate.getFullYear() + 1);
             updateData.deleteAt = deleteDate; 

@@ -45,6 +45,32 @@ function computeMinutes(entry) {
     return Math.max(0, total);
 }
 
+function computeTimeSplit(entry) {
+    // Splitsen: binnen werkvenster (7-18) vs erbuiten
+    const s = hmToMin(entry?.start), e = hmToMin(entry?.end);
+    if (s == null || e == null || e <= s) return { inside: 0, outside: 0 };
+    
+    // Houd rekening met eventuele pauzes
+    let intervals = [[s, e]];
+    const bs = hmToMin(entry?.beginbreak), be = hmToMin(entry?.endbreak);
+    if (bs != null && be != null && s <= bs && bs < be && be <= e) {
+        intervals = [[s, bs], [be, e]];
+    }
+
+    const overlapMinutes = ([a, b], wStart, wEnd) => {
+        const lo = Math.max(a, wStart), hi = Math.min(b, wEnd);
+        return Math.max(0, hi - lo);
+    };
+
+    const total = intervals.reduce((sum, iv) => sum + (iv[1] - iv[0]), 0);
+    // HIER ZAT DE FOUT: 'iv' werd niet meegegeven aan overlapMinutes
+    const inside = intervals.reduce((sum, iv) => sum + overlapMinutes(iv, WIN_START, WIN_END), 0);
+    const outside = Math.max(0, total - inside);
+    
+    return { inside, outside };
+}
+
+
 function computeInterventionSplit(entry) {
     // Interventie splitsen: binnen werkvenster vs erbuiten (opt-out)
     const s = hmToMin(entry?.start), e = hmToMin(entry?.end);
@@ -225,25 +251,24 @@ function renderTable() {
         runningWeek = w;
 
         // Dagtotaal berekenen
+// Dagtotaal berekenen
         let dayMinutes = 0;
         segs.forEach(s => {
             const t = (s.type || "").toLowerCase();
             const mins = computeMinutes(s);
+            const { inside, outside } = computeTimeSplit(s);
             
-            // Totalen tellen voor chips
-            if(t === "verlof") verlofTotal += mins;
-            else if(t === "recup") recupTotal += mins;
-            else if(["overuren", "andere", "oefening"].includes(t)) overOtherTotal += mins;
-
-            // Dagtotaal (standaard, verlof, feestdag tellen mee voor gepresteerd)
-            if(!["sport", "oefening", "andere"].includes(t)) {
-                if(t === "interventie") {
-                    const { inside, optout } = computeInterventionSplit(s);
-                    dayMinutes += inside;
-                    weekOptOut += optout;
-                } else {
-                    dayMinutes += mins;
-                }
+            if (t === "verlof") { verlofTotal += mins; dayMinutes += mins; }
+            else if (t === "recup") { recupTotal += mins; dayMinutes += mins; }
+            else if (t === "feestdag") { dayMinutes += mins; }
+            else if (t === "sport") { /* doet niets voor werktijd */ }
+            else if (["overleg", "oefening", "andere"].includes(t)) {
+                dayMinutes += inside;       // Binnen 7-18 = glijtijd
+                overOtherTotal += outside;  // Buiten 7-18 = overuren
+            } else {
+                // standaard, interventie
+                dayMinutes += inside;       // Binnen 7-18 = glijtijd
+                weekOptOut += outside;      // Buiten 7-18 = opt-out
             }
         });
         
@@ -482,7 +507,6 @@ async function exportMonthPdf() {
     let recupTotal = 0;
     let optOutExcessTotal = 0;
 
-    // (Herhaal logica van renderTable voor totalen)
     let tempWeekSum = 0;
     let tempWeekDays = 0;
     let tempWeekOptOut = 0;
@@ -505,25 +529,28 @@ async function exportMonthPdf() {
         }
         currentWeek = w;
 
-        // Dagtotaal
+        // Dagtotaal LOOP 1
+        let dayMinutes = 0;
         segs.forEach(s => {
             const t = (s.type || "").toLowerCase();
             const mins = computeMinutes(s);
-            if(t === "verlof") verlofTotal += mins;
-            else if(t === "recup") recupTotal += mins;
-            else if(["overuren", "andere", "oefening"].includes(t)) overOtherTotal += mins;
+            const { inside, outside } = computeTimeSplit(s);
 
-            if(!["sport", "oefening", "andere"].includes(t)) {
-                if(t === "interventie") {
-                    const { inside, optout } = computeInterventionSplit(s);
-                    tempWeekSum += inside;
-                    tempWeekOptOut += optout;
-                } else {
-                    tempWeekSum += mins;
-                }
+            if (t === "verlof") { verlofTotal += mins; dayMinutes += mins; }
+            else if (t === "recup") { recupTotal += mins; dayMinutes += mins; }
+            else if (t === "feestdag") { dayMinutes += mins; }
+            else if (t === "sport") { /* niets */ }
+            else if (["overleg", "oefening", "andere"].includes(t)) {
+                dayMinutes += inside;
+                overOtherTotal += outside;
+            } else {
+                // standaard, interventie
+                dayMinutes += inside;
+                tempWeekOptOut += outside; 
             }
         });
         if(isWorkday) tempWeekDays++;
+        tempWeekSum += dayMinutes;
     }
     // Laatste week
     if(currentWeek !== null) {
@@ -554,7 +581,7 @@ async function exportMonthPdf() {
             const exp = tempWeekDays * DAILY_EXPECTED_MIN;
             const diff = tempWeekSum - exp;
             body.push([{
-                content: `Week ${currentWeek} totaal: ${minToHM(tempWeekSum)} / ${minToHM(exp)}  (${diff>=0?"+":""}${minToHM(Math.abs(diff))})  |  opt-out: ${minToHM(tempWeekOptOut)}`,
+                content: `Week ${currentWeek} totaal: ${minToHM(tempWeekSum)} / ${minToHM(exp)}  (${diff>=0?"+":""}${minToHM(diff)})  |  opt-out: ${minToHM(tempWeekOptOut)}`,
                 colSpan: 8,
                 styles: { halign: "center", fillColor: [240, 248, 255], fontStyle: "bold" }
             }]);
@@ -562,16 +589,23 @@ async function exportMonthPdf() {
         }
         currentWeek = w;
 
-        // Dagtotaal berekenen voor de header
+        // Dagtotaal LOOP 2 (Voor in de tabel Header)
         let dayMinutes = 0;
         segs.forEach(s => {
             const t = (s.type || "").toLowerCase();
-            if(t === "interventie") {
-                const { inside, optout } = computeInterventionSplit(s);
+            const mins = computeMinutes(s);
+            const { inside, outside } = computeTimeSplit(s);
+
+            if (t === "verlof" || t === "recup" || t === "feestdag") {
+                dayMinutes += mins;
+            } else if (t === "sport") {
+                // niets
+            } else if (["overleg", "oefening", "andere"].includes(t)) {
                 dayMinutes += inside;
-                tempWeekOptOut += optout;
-            } else if (!["sport", "oefening", "andere"].includes(t)) {
-                dayMinutes += computeMinutes(s);
+            } else {
+                // standaard, interventie
+                dayMinutes += inside;
+                tempWeekOptOut += outside; 
             }
         });
         if(isWorkday) tempWeekDays++;
@@ -607,7 +641,7 @@ async function exportMonthPdf() {
         const exp = tempWeekDays * DAILY_EXPECTED_MIN;
         const diff = tempWeekSum - exp;
         body.push([{
-            content: `Week ${currentWeek} totaal: ${minToHM(tempWeekSum)} / ${minToHM(exp)}  (${diff>=0?"+":""}${minToHM(Math.abs(diff))})  |  opt-out: ${minToHM(tempWeekOptOut)}`,
+            content: `Week ${currentWeek} totaal: ${minToHM(tempWeekSum)} / ${minToHM(exp)}  (${diff>=0?"+":""}${minToHM(diff)})  |  opt-out: ${minToHM(tempWeekOptOut)}`,
             colSpan: 8,
             styles: { halign: "center", fillColor: [240, 248, 255], fontStyle: "bold" }
         }]);
@@ -624,16 +658,16 @@ async function exportMonthPdf() {
 
     // Glijtijd tekst
     const glideTxt = monthDiffTotal >= 0 
-        ? `Te veel aan glijtijd: ${minToHM(monthDiffTotal)}` 
-        : `Te weinig aan glijtijd: -${minToHM(Math.abs(monthDiffTotal))}`;
+        ? `Glijtijd saldo: +${minToHM(monthDiffTotal)}` 
+        : `Glijtijd saldo: ${minToHM(monthDiffTotal)}`; // Negatief teken zit al in minToHM
     doc.text(glideTxt, 40, yPos); yPos += 14;
 
-    if(overOtherTotal > 0) { doc.text(`Overuren & Andere: ${minToHM(overOtherTotal)}`, 40, yPos); yPos += 14; }
+    if(overOtherTotal > 0) { doc.text(`Overuren (incl. Oefening/Overleg): ${minToHM(overOtherTotal)}`, 40, yPos); yPos += 14; }
     if(verlofTotal > 0) { doc.text(`Verlof: ${minToHM(verlofTotal)}`, 40, yPos); yPos += 14; }
     if(recupTotal > 0) { doc.text(`Recup: ${minToHM(recupTotal)}`, 40, yPos); yPos += 14; }
     if(optOutExcessTotal > 0) { 
         doc.setTextColor(200, 0, 0); // Rood
-        doc.text(`Te veel aan opt-out: ${minToHM(optOutExcessTotal)}`, 40, yPos); 
+        doc.text(`Te veel aan opt-out (> 10u): ${minToHM(optOutExcessTotal)}`, 40, yPos); 
         doc.setTextColor(0); // Reset zwart
         yPos += 14; 
     }
