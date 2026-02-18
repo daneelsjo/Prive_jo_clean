@@ -1531,49 +1531,53 @@ async function sendToAgenda() {
 }
 
 
-// --- RETRO-ACTIEF FIX SCRIPT (-15 DAGEN) ---
+// --- KOGELVRIJ RETRO-ACTIEF FIX SCRIPT ---
 window.fixOldTickets = async function() {
-    const doneCol = columns.find(c => c.title.toLowerCase().trim() === "afgewerkt");
-    if (!doneCol) return console.error("Kolom 'Afgewerkt' niet gevonden.");
-
-    console.log("We zoeken rechtstreeks in de database naar tickets in 'Afgewerkt'...");
+    console.log("Start kogelvrij script met hardcoded IDs...");
     
-    // UPDATE: We vertellen de database netjes dat we alleen in jouw eigen data zoeken
+    // We halen AL jouw kaarten op dit specifieke bord op
     const q = query(
         collection(db, "workflowCards"), 
-        where("boardId", "==", boardId),
-        where("uid", "==", currentUser.uid),
-        where("columnId", "==", doneCol.id)
+        where("boardId", "==", "NEla5osn007Ff7y862KZ"),
+        where("uid", "==", currentUser.uid)
     );
+    
     const snap = await getDocs(q);
+    console.log(`🔍 Totaal aantal kaarten op dit bord gevonden: ${snap.docs.length}`);
 
     let count = 0;
-    
+    const targetColId = "s6rBRhdP9nFHHPZuDTGW";
+
     // Bereken datums: vandaag - 15 dagen
     const pastDate = new Date();
     pastDate.setDate(pastDate.getDate() - 15);
-    
     const deleteDate = new Date(pastDate);
     deleteDate.setFullYear(deleteDate.getFullYear() + 1);
 
     for (let document of snap.docs) {
         const data = document.data();
         
-        // Check of hij nog geen finishedAt heeft
-        if (!data.finishedAt) {
-            try {
-                await updateDoc(doc(db, "workflowCards", document.id), {
-                    finishedAt: pastDate,
-                    deleteAt: deleteDate
-                });
-                count++;
-                console.log(`✅ Gefixt (-15d): ${data.title}`);
-            } catch (e) {
-                console.error(`❌ Kon niet updaten: ${data.title}`, e);
+        // Vergelijk kolom ID (met .trim() om onzichtbare Make.com spaties te negeren!)
+        if (data.columnId && data.columnId.trim() === targetColId) {
+            
+            // Check of de datum leeg is
+            if (!data.finishedAt) {
+                try {
+                    await updateDoc(doc(db, "workflowCards", document.id), {
+                        finishedAt: pastDate,
+                        deleteAt: deleteDate
+                    });
+                    count++;
+                    console.log(`✅ Gefixt (-15d): ${data.title || 'Zonder titel'}`);
+                } catch (e) {
+                    console.error(`❌ Kon niet updaten: ${data.title}`, e);
+                }
+            } else {
+                console.log(`⏩ Overgeslagen (heeft al een datum): ${data.title}`);
             }
         }
     }
-    console.log(`🎉 Klaar! ${count} tickets zijn succesvol naar het verleden gestuurd. Geef je pagina een harde refresh.`);
+    console.log(`🎉 Klaar! Er zijn ${count} tickets succesvol naar het verleden gestuurd.`);
 };
 
 init();
