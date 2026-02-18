@@ -1530,33 +1530,6 @@ async function sendToAgenda() {
 }
 }
 
-// --- TIJDELIJK REPARATIE SCRIPT ---
-window.fixArchiveData = async function() {
-    // 1. Zoek de juiste kolom
-    const doneCol = columns.find(c => c.title.toLowerCase().trim() === "afgewerkt");
-    if (!doneCol) return console.error("Kolom 'Afgewerkt' niet gevonden.");
 
-    // 2. Zoek alle kaarten in die kolom ZONDER finishedAt datum
-    const cardsToFix = cards.filter(c => c.columnId === doneCol.id && !c.finishedAt);
-    console.log(`Gevonden kaarten om te fixen: ${cardsToFix.length}`);
-
-    // 3. Update ze stuk voor stuk
-    for (let card of cardsToFix) {
-        const finishedAt = new Date();
-        const deleteAt = new Date();
-        deleteAt.setFullYear(deleteAt.getFullYear() + 1); // +1 jaar voor archief
-
-        try {
-            await updateDoc(doc(db, "workflowCards", card.id), {
-                finishedAt: finishedAt,
-                deleteAt: deleteAt
-            });
-            console.log(`✅ Gefixt: ${card.title}`);
-        } catch (e) {
-            console.error(`❌ Fout bij: ${card.title}`, e);
-        }
-    }
-    console.log("🎉 Klaar! Alle kaarten zijn bijgewerkt.");
-};
 
 init();
