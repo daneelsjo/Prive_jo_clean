@@ -1531,5 +1531,44 @@ async function sendToAgenda() {
 }
 
 
+// --- RETRO-ACTIEF FIX SCRIPT (-15 DAGEN) ---
+window.fixOldTickets = async function() {
+    const doneCol = columns.find(c => c.title.toLowerCase().trim() === "afgewerkt");
+    if (!doneCol) return console.error("Kolom 'Afgewerkt' niet gevonden.");
+
+    console.log("We zoeken rechtstreeks in de database naar tickets in 'Afgewerkt'...");
+    
+    // We negeren het lokale geheugen en trekken ze direct uit Firestore
+    const q = query(collection(db, "workflowCards"), where("columnId", "==", doneCol.id));
+    const snap = await getDocs(q);
+
+    let count = 0;
+    
+    // Bereken datums: vandaag - 15 dagen
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 15);
+    
+    const deleteDate = new Date(pastDate);
+    deleteDate.setFullYear(deleteDate.getFullYear() + 1);
+
+    for (let document of snap.docs) {
+        const data = document.data();
+        
+        // Check of hij nog geen finishedAt heeft (of dat het veld leeg is)
+        if (!data.finishedAt) {
+            try {
+                await updateDoc(doc(db, "workflowCards", document.id), {
+                    finishedAt: pastDate,
+                    deleteAt: deleteDate
+                });
+                count++;
+                console.log(`✅ Gefixt (-15d): ${data.title}`);
+            } catch (e) {
+                console.error(`❌ Kon niet updaten: ${data.title}`, e);
+            }
+        }
+    }
+    console.log(`🎉 Klaar! ${count} tickets zijn succesvol naar het verleden gestuurd. Geef je pagina een harde refresh.`);
+};
 
 init();
