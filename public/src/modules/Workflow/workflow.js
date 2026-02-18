@@ -1538,8 +1538,13 @@ window.fixOldTickets = async function() {
 
     console.log("We zoeken rechtstreeks in de database naar tickets in 'Afgewerkt'...");
     
-    // We negeren het lokale geheugen en trekken ze direct uit Firestore
-    const q = query(collection(db, "workflowCards"), where("columnId", "==", doneCol.id));
+    // UPDATE: We vertellen de database netjes dat we alleen in jouw eigen data zoeken
+    const q = query(
+        collection(db, "workflowCards"), 
+        where("boardId", "==", boardId),
+        where("uid", "==", currentUser.uid),
+        where("columnId", "==", doneCol.id)
+    );
     const snap = await getDocs(q);
 
     let count = 0;
@@ -1554,7 +1559,7 @@ window.fixOldTickets = async function() {
     for (let document of snap.docs) {
         const data = document.data();
         
-        // Check of hij nog geen finishedAt heeft (of dat het veld leeg is)
+        // Check of hij nog geen finishedAt heeft
         if (!data.finishedAt) {
             try {
                 await updateDoc(doc(db, "workflowCards", document.id), {
