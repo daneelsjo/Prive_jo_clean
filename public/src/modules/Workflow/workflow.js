@@ -1580,4 +1580,35 @@ window.fixOldTickets = async function() {
     console.log(`🎉 Klaar! Er zijn ${count} tickets succesvol naar het verleden gestuurd.`);
 };
 
+// --- EENMALIG OPSCHOON SCRIPT VOOR ACCOUNT A ---
+window.cleanUpAccountA = async function() {
+    const targetUid = "RraloFcyZoSGHNRwY9pmBBoszCR2";
+    console.log("Start met het opsporen van kaartjes voor Account A...");
+
+    // Zoek alle kaarten die NIET bij jou horen
+    const q = query(
+        collection(db, "workflowCards"), 
+        where("uid", "==", targetUid)
+    );
+
+    const snap = await getDocs(q);
+    console.log(`🔍 Er zijn ${snap.docs.length} kaartjes gevonden voor Account A.`);
+
+    if (snap.docs.length === 0) return console.log("Geen kaartjes gevonden om te verwijderen.");
+
+    if (!confirm(`Weet je zeker dat je alle ${snap.docs.length} kaartjes van Account A wilt wissen?`)) return;
+
+    let count = 0;
+    for (let document of snap.docs) {
+        try {
+            await deleteDoc(doc(db, "workflowCards", document.id));
+            count++;
+            if (count % 10 === 0) console.log(`${count} kaartjes verwijderd...`);
+        } catch (e) {
+            console.error(`❌ Fout bij verwijderen van ${document.id}:`, e);
+        }
+    }
+    console.log(`🎉 Operatie geslaagd! ${count} kaartjes zijn permanent verwijderd uit de database.`);
+};
+
 init();
