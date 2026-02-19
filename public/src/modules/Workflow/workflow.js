@@ -1580,35 +1580,47 @@ window.fixOldTickets = async function() {
     console.log(`🎉 Klaar! Er zijn ${count} tickets succesvol naar het verleden gestuurd.`);
 };
 
-// --- EENMALIG OPSCHOON SCRIPT VOOR ACCOUNT A ---
-window.cleanUpAccountA = async function() {
-    const targetUid = "RraloFcyZoSGHNRwY9pmBBoszCR2";
-    console.log("Start met het opsporen van kaartjes voor Account A...");
+window.archiveCurrentDoneCards = async function() {
+    console.log("Start met het archiveren van huidige 'Afgewerkt' kaartjes...");
+    
+    // We pakken de ID van je 'Afgewerkt' kolom die we eerder hebben vastgesteld
+    const targetColId = "s6rBRhdP9nFHHPZuDTGW"; 
 
-    // Zoek alle kaarten die NIET bij jou horen
     const q = query(
         collection(db, "workflowCards"), 
-        where("uid", "==", targetUid)
+        where("boardId", "==", boardId),
+        where("uid", "==", currentUser.uid),
+        where("columnId", "==", targetColId)
     );
 
     const snap = await getDocs(q);
-    console.log(`🔍 Er zijn ${snap.docs.length} kaartjes gevonden voor Account A.`);
-
-    if (snap.docs.length === 0) return console.log("Geen kaartjes gevonden om te verwijderen.");
-
-    if (!confirm(`Weet je zeker dat je alle ${snap.docs.length} kaartjes van Account A wilt wissen?`)) return;
+    console.log(`🔍 Er zijn ${snap.docs.length} kaartjes gevonden in 'Afgewerkt'.`);
 
     let count = 0;
+
     for (let document of snap.docs) {
+        const data = document.data();
+        
+        // We berekenen de nieuwe datum: createdAt + 1 dag
+        // Als createdAt niet bestaat, pakken we 'vandaag - 15 dagen' als fallback
+        let baseDate = data.createdAt ? data.createdAt.toDate() : new Date();
+        if (!data.createdAt) baseDate.setDate(baseDate.getDate() - 15);
+        
+        const newFinishedAt = new Date(baseDate);
+        newFinishedAt.setDate(newFinishedAt.getDate() + 1);
+
         try {
-            await deleteDoc(doc(db, "workflowCards", document.id));
+            await updateDoc(doc(db, "workflowCards", document.id), {
+                finishedAt: newFinishedAt
+                // deleteAt laten we ongemoeid zoals gevraagd
+            });
             count++;
-            if (count % 10 === 0) console.log(`${count} kaartjes verwijderd...`);
+            console.log(`✅ Gearchiveerd: ${data.title}`);
         } catch (e) {
-            console.error(`❌ Fout bij verwijderen van ${document.id}:`, e);
+            console.error(`❌ Fout bij updaten van ${data.title}:`, e);
         }
     }
-    console.log(`🎉 Operatie geslaagd! ${count} kaartjes zijn permanent verwijderd uit de database.`);
+    console.log(`🎉 Klaar! ${count} kaartjes zijn nu officieel 'oud' genoeg voor het archief. Ververs je pagina.`);
 };
 
 init();
