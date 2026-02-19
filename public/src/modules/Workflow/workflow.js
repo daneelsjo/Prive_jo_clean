@@ -1580,47 +1580,6 @@ window.fixOldTickets = async function() {
     console.log(`🎉 Klaar! Er zijn ${count} tickets succesvol naar het verleden gestuurd.`);
 };
 
-window.archiveCurrentDoneCards = async function() {
-    console.log("Start met het archiveren van huidige 'Afgewerkt' kaartjes...");
-    
-    // We pakken de ID van je 'Afgewerkt' kolom die we eerder hebben vastgesteld
-    const targetColId = "s6rBRhdP9nFHHPZuDTGW"; 
 
-    const q = query(
-        collection(db, "workflowCards"), 
-        where("boardId", "==", boardId),
-        where("uid", "==", currentUser.uid),
-        where("columnId", "==", targetColId)
-    );
-
-    const snap = await getDocs(q);
-    console.log(`🔍 Er zijn ${snap.docs.length} kaartjes gevonden in 'Afgewerkt'.`);
-
-    let count = 0;
-
-    for (let document of snap.docs) {
-        const data = document.data();
-        
-        // We berekenen de nieuwe datum: createdAt + 1 dag
-        // Als createdAt niet bestaat, pakken we 'vandaag - 15 dagen' als fallback
-        let baseDate = data.createdAt ? data.createdAt.toDate() : new Date();
-        if (!data.createdAt) baseDate.setDate(baseDate.getDate() - 15);
-        
-        const newFinishedAt = new Date(baseDate);
-        newFinishedAt.setDate(newFinishedAt.getDate() + 1);
-
-        try {
-            await updateDoc(doc(db, "workflowCards", document.id), {
-                finishedAt: newFinishedAt
-                // deleteAt laten we ongemoeid zoals gevraagd
-            });
-            count++;
-            console.log(`✅ Gearchiveerd: ${data.title}`);
-        } catch (e) {
-            console.error(`❌ Fout bij updaten van ${data.title}:`, e);
-        }
-    }
-    console.log(`🎉 Klaar! ${count} kaartjes zijn nu officieel 'oud' genoeg voor het archief. Ververs je pagina.`);
-};
 
 init();
