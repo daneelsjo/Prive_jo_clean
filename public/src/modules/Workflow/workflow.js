@@ -39,6 +39,7 @@ let activeFilters = {
 // Temp state voor modals
 /** @type {string|null} */       let currentCardId = null;
 /** @type {ChecklistItem[]} */   let currentChecklist = [];
+/** @type {ChecklistItem[]} */   let currentSubtasks = [];
 /** @type {Link[]} */            let currentLinks = [];
 /** @type {Log[]} */             let currentLogs = [];
 /** @type {ChecklistItem[]} */   let tempTemplateItems = [];
@@ -487,6 +488,15 @@ function createCardEl(card) {
         progressHtml = `<div class="wf-progress-container"><div class="wf-progress-bar" style="width:${pct}%"></div></div>`;
     }
 
+    // 4b. SUBTASK COUNTER
+    let subtaskHtml = "";
+    if(card.subtasks && card.subtasks.length > 0) {
+        const total = card.subtasks.length;
+        const done = card.subtasks.filter(i => i.done).length;
+        const allDone = done === total;
+        subtaskHtml = `<span class="wf-subtask-count ${allDone ? 'done' : ''}">📋 ${done}/${total}</span>`;
+    }
+
     // 5. NIEUW LABEL LOGIC
     let newBadgeHtml = "";
     if (card.createdAt) {
@@ -507,6 +517,7 @@ function createCardEl(card) {
         </div>
         <div class="wf-tags" style="margin-top:0;">${tagsHtml}</div>
         ${progressHtml}
+        ${subtaskHtml}
     `;
 
     // Events
@@ -791,8 +802,8 @@ function renderTemplateEditorItems() {
  */
 function openCardModal(card = null, readOnly = false, afterOpen = null) {
     currentCardId = card ? card.id : null;
-    // Zorg dat we altijd arrays hebben, ook al is de data corrupt of leeg
     currentChecklist = (card && Array.isArray(card.checklist)) ? [...card.checklist] : [];
+    currentSubtasks  = (card && Array.isArray(card.subtasks))  ? [...card.subtasks]  : [];
     currentLinks = (card && Array.isArray(card.links)) ? [...card.links] : [];
     currentLogs = (card && Array.isArray(card.logs)) ? [...card.logs] : [];
     
@@ -863,6 +874,7 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
     });
 
     renderCardTagsSelector(card ? (card.tags || []) : []);
+    renderSubtasks();
     renderChecklist();
     renderLinks();
     renderLogs();
@@ -987,6 +999,49 @@ function renderChecklist() {
             currentChecklist.splice(idx, 1);
             renderChecklist();
         };
+
+        row.appendChild(label);
+        row.appendChild(txt);
+        row.appendChild(del);
+        cont.appendChild(row);
+    });
+}
+
+function renderSubtasks() {
+    const cont = $('subtasks-container');
+    cont.innerHTML = "";
+    $('st-count').textContent = currentSubtasks.length;
+
+    if (currentSubtasks.length === 0) {
+        cont.innerHTML = '<span class="muted small" style="font-style:italic; opacity:0.6;">Geen sub-taken. Voeg er een toe hieronder.</span>';
+    }
+
+    currentSubtasks.forEach((item, idx) => {
+        const row = document.createElement("div");
+        row.className = `check-row ${item.done ? 'done' : ''}`;
+
+        const label = document.createElement("label");
+        label.className = "cl-switch";
+        const chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.checked = item.done;
+        chk.onchange = () => { currentSubtasks[idx].done = chk.checked; renderSubtasks(); };
+        const slider = document.createElement("span");
+        slider.className = "cl-slider";
+        label.appendChild(chk);
+        label.appendChild(slider);
+
+        const txt = document.createElement("input");
+        txt.type = "text";
+        txt.value = item.text || "";
+        txt.placeholder = "Sub-taak omschrijving...";
+        txt.onchange = () => { currentSubtasks[idx].text = txt.value; };
+
+        const del = document.createElement("button");
+        del.innerHTML = "✕";
+        del.className = "del-icon-btn";
+        del.style.fontSize = "0.9rem";
+        del.onclick = () => { currentSubtasks.splice(idx, 1); renderSubtasks(); };
 
         row.appendChild(label);
         row.appendChild(txt);
@@ -1197,6 +1252,12 @@ function setupUI() {
         openFilterModal(); // Refresh modal view
     };
 
+    $('btnAddSubtask').onclick = () => {
+        const txt = $('new-subtask-text').value.trim();
+        if(txt) { currentSubtasks.push({text: txt, done: false}); $('new-subtask-text').value=""; renderSubtasks(); }
+    };
+    $('new-subtask-text').addEventListener('keydown', e => { if(e.key === 'Enter') $('btnAddSubtask').click(); });
+
     $('btnAddCheckitem').onclick = () => {
         const txt = $('new-check-text').value.trim();
         if(txt) { currentChecklist.push({text: txt, done: false}); $('new-check-text').value=""; renderChecklist(); }
@@ -1341,6 +1402,7 @@ function setupUI() {
             dueDate: dueTimestamp,
             priorityId: priorityId,
             tags: tagIds,
+            subtasks: currentSubtasks,
             checklist: currentChecklist,
             links: currentLinks,
             logs: currentLogs
