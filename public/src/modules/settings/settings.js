@@ -7,6 +7,36 @@ import { showToast } from "../../components/toast.js";
 
 const $ = id => document.getElementById(id);
 
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function confirmDialog(message) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--card,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;max-width:360px;width:90%;display:flex;flex-direction:column;gap:16px';
+        const msg = document.createElement('p');
+        msg.textContent = message;
+        msg.style.cssText = 'margin:0;font-size:0.95rem';
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display:flex;justify-content:flex-end;gap:10px';
+        const no = document.createElement('button');
+        no.textContent = 'Annuleren';
+        no.style.cssText = 'padding:6px 14px;border-radius:6px;border:1px solid var(--border,#334155);background:transparent;cursor:pointer;color:inherit';
+        const yes = document.createElement('button');
+        yes.textContent = 'Verwijderen';
+        yes.style.cssText = 'padding:6px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer';
+        btns.append(no, yes);
+        box.append(msg, btns);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        const cleanup = result => { overlay.remove(); resolve(result); };
+        yes.onclick = () => cleanup(true);
+        no.onclick = () => cleanup(false);
+        overlay.onclick = e => { if(e.target === overlay) cleanup(false); };
+    });
+}
+
 let currentUser = null;
 let currentSettings = {};
 let globalLinks = [];
@@ -23,18 +53,18 @@ async function init() {
       currentSettings = data || {};
       renderSticknotesSettings();
       renderAgendaSettings();
-      renderAdminSettings(); // <--- Nieuw: Thema zit nu hier
+      renderAdminSettings();
     });
 
     // 2. Laad Global Links (CMS)
-    subscribeToGlobalLinks(); // <--- Nieuw
-    
+    subscribeToGlobalLinks();
+
     // 3. Start Events
-    setupTabs(); // <--- Nieuw
+    setupTabs();
     setupSticknotesEvents();
     setupAgendaEvents();
-    setupLinksEvents(); // <--- Nieuw
-    setupAdminEvents(); // <--- Nieuw
+    setupLinksEvents();
+    setupAdminEvents();
   });
 }
 
@@ -69,7 +99,7 @@ function renderSticknotesSettings() {
         div.style.color = '#1e293b';
         div.style.padding = '5px 10px'; div.style.borderRadius = '15px'; div.style.display='inline-flex'; div.style.gap='8px'; div.style.alignItems='center'; div.style.margin='4px';
         div.innerHTML = `
-          <span>${cat.name} <small style="opacity:0.6">(${cat.type})</small></span>
+          <span>${escHtml(cat.name)} <small style="opacity:0.6">(${escHtml(cat.type)})</small></span>
           <span style="cursor:pointer; font-weight:bold; color:#ef4444;" onclick="window.removeCat(${index})">×</span>
         `;
         list.appendChild(div);
@@ -106,7 +136,7 @@ function setupAdminEvents() {
 function setupSticknotesEvents() {
     // 1. Categorie verwijderen
     window.removeCat = async (index) => {
-        if(!confirm("Categorie verwijderen?")) return;
+        if(!await confirmDialog("Categorie verwijderen?")) return;
         const newCats = [...(currentSettings.categories || [])];
         newCats.splice(index, 1);
         await updateSettings(currentUser.uid, { categories: newCats });
@@ -171,7 +201,7 @@ function subscribeToGlobalLinks() {
     onSnapshot(q, (snapshot) => {
         globalLinks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderLinksTable();
-        updateCategoryDropdown(); // <--- Dropdown vullen bij laden
+        updateCategoryDropdown();
     });
 }
 
@@ -194,11 +224,11 @@ function renderLinksTable() {
         if(link.locations?.navbar) badges += "🔝 ";
 
         tr.innerHTML = `
-            <td><strong>${link.title}</strong><br><small class="text-muted">${link.url}</small></td>
+            <td><strong>${escHtml(link.title)}</strong><br><small class="text-muted">${escHtml(link.url)}</small></td>
             <td>${badges}</td>
-            <td><span class="chip">${link.category || '-'}</span></td>
+            <td><span class="chip">${escHtml(link.category || '-')}</span></td>
             <td>
-                <button class="ghost small" onclick="window.editLink('${link.id}')">✏️</button>
+                <button class="ghost small" onclick="window.editLink('${escHtml(link.id)}')">✏️</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -356,7 +386,7 @@ function setupLinksEvents() {
     // 6. VERWIJDEREN
     $('btnDeleteLink').onclick = async () => {
         const id = $('link-id').value;
-        if(id && confirm("Verwijderen?")) {
+        if(id && await confirmDialog("Link verwijderen?")) {
             await deleteDoc(doc(db, "globalLinks", id));
             window.Modal.close();
         }

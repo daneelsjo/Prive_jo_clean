@@ -157,7 +157,7 @@ function openDayNotePopover(date, anchor) {
     const pop = document.createElement('div');
     pop.className = 'day-note-popover';
     pop.innerHTML = `
-        <textarea class="day-note-textarea" placeholder="Dagnotitie...">${current}</textarea>
+        <textarea class="day-note-textarea" placeholder="Dagnotitie..."></textarea>
         <div class="day-note-actions">
             <button class="btn-ghost day-note-cancel">Annuleren</button>
             <button class="btn-primary day-note-save">Opslaan</button>
@@ -169,6 +169,7 @@ function openDayNotePopover(date, anchor) {
     pop.style.top = `${rect.bottom + 4}px`;
     pop.style.left = `${Math.max(8, left)}px`;
     document.body.appendChild(pop);
+    pop.querySelector('textarea').value = current;
     pop.querySelector('textarea').focus();
     pop.querySelector('.day-note-save').onclick = () => {
         const val = pop.querySelector('textarea').value.trim();

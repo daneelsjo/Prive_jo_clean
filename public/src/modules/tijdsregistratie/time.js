@@ -1,8 +1,36 @@
 import { getCurrentUser, watchUser, login } from "../../services/auth.js";
-import { 
-    subscribeToSegments, addSegment, updateSegment, deleteSegment 
+import {
+    subscribeToSegments, addSegment, updateSegment, deleteSegment
 } from "../../services/db.js";
 import { showToast } from "../../components/toast.js";
+
+function confirmDialog(message) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--card,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;max-width:360px;width:90%;display:flex;flex-direction:column;gap:16px';
+        const msg = document.createElement('p');
+        msg.textContent = message;
+        msg.style.cssText = 'margin:0;font-size:0.95rem';
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display:flex;justify-content:flex-end;gap:10px';
+        const no = document.createElement('button');
+        no.textContent = 'Annuleren';
+        no.style.cssText = 'padding:6px 14px;border-radius:6px;border:1px solid var(--border,#334155);background:transparent;cursor:pointer;color:inherit';
+        const yes = document.createElement('button');
+        yes.textContent = 'Verwijderen';
+        yes.style.cssText = 'padding:6px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer';
+        btns.append(no, yes);
+        box.append(msg, btns);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        const cleanup = result => { overlay.remove(); resolve(result); };
+        yes.onclick = () => cleanup(true);
+        no.onclick = () => cleanup(false);
+        overlay.onclick = e => { if(e.target === overlay) cleanup(false); };
+    });
+}
 
 // State
 let currentUser = null;
@@ -460,7 +488,7 @@ async function saveSegmentFromModal() {
 
 async function deleteSegmentFromModal() {
     const id = document.getElementById("tr-delete").dataset.id;
-    if(id && confirm("Zeker weten?")) {
+    if(id && await confirmDialog("Registratie verwijderen?")) {
         try {
             await deleteSegment(id);
             showToast("Registratie verwijderd", "success");

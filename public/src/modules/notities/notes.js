@@ -1,7 +1,4 @@
 // Script/Javascript/notes.js
-window.DEBUG = true;
-const log = (...a) => window.DEBUG && console.log(...a);
-
 import {
     getFirebaseApp,
     // Auth
@@ -56,6 +53,34 @@ function formatLocalDatetime(ts) {
 }
 function escapeHtml(s = "") {
     return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function confirmDialog(message) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--card,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;max-width:360px;width:90%;display:flex;flex-direction:column;gap:16px';
+        const msg = document.createElement('p');
+        msg.textContent = message;
+        msg.style.cssText = 'margin:0;font-size:0.95rem';
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display:flex;justify-content:flex-end;gap:10px';
+        const no = document.createElement('button');
+        no.textContent = 'Annuleren';
+        no.style.cssText = 'padding:6px 14px;border-radius:6px;border:1px solid var(--border,#334155);background:transparent;cursor:pointer;color:inherit';
+        const yes = document.createElement('button');
+        yes.textContent = 'Verwijderen';
+        yes.style.cssText = 'padding:6px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer';
+        btns.append(no, yes);
+        box.append(msg, btns);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        const cleanup = result => { overlay.remove(); resolve(result); };
+        yes.onclick = () => cleanup(true);
+        no.onclick = () => cleanup(false);
+        overlay.onclick = e => { if(e.target === overlay) cleanup(false); };
+    });
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -235,7 +260,7 @@ function openNoteModal(note = null) {
     if (del) {
         del.onclick = async () => {
             if (!note) return;
-            if (!confirm("Notitie verwijderen?")) return;
+            if (!await confirmDialog("Notitie verwijderen?")) return;
             await deleteDoc(doc(db, "notes", note.id));
             Modal.close("modal-note");
         };
