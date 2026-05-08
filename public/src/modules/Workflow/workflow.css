@@ -13,19 +13,6 @@ body.page-workflow .content {
   max-width: 100%;
 }
 
-/* Zorg dat de kolommen de ruimte nemen */
-.workflow-board {
-  display: grid;
-  /* Gebruik minmax om te zorgen dat kolommen niet te smal worden op breed scherm */
-  grid-template-columns: repeat(4, minmax(280px, 1fr));
-  gap: 1.5rem;
-  align-items: start;
-  /* Hoogte: scherm minus header/toolbar */
-  height: calc(100vh - 140px);
-  width: 100%;
-}
-
-/* ... rest van de CSS ... */
 /* --- Toolbar --- */
 .wf-toolbar {
   display: flex;
@@ -64,11 +51,6 @@ body.page-workflow .content {
   width: 350px;
   outline: 2px solid var(--brand, #3b82f6);
   border-color: transparent;
-}
-
-.wf-toolbar-actions {
-  display: flex;
-  gap: 10px;
 }
 
 .wf-btn {
@@ -213,16 +195,6 @@ body.page-workflow .content {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
-}
-
-.wf-badge {
-  font-size: 0.7rem;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #fff; /* Badges hebben kleur-bg, dus tekst wit */
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* --- Admin / Settings --- */
@@ -484,28 +456,6 @@ input:checked + .wf-slider:before {
   line-height: 1.4;
 }
 
-/* Checklist styling verbetering */
-.check-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--border);
-}
-.check-row input[type="text"] {
-  border: none;
-  background: transparent;
-  flex: 1;
-  color: var(--fg);
-}
-.check-row input[type="text"]:focus {
-  outline: none;
-  border-bottom: 1px solid var(--brand);
-}
-.check-row.done input[type="text"] {
-  text-decoration: line-through;
-  opacity: 0.5;
-}
 /* --- TAB LOGICA FIX --- */
 .wf-tab-content {
   display: none !important; /* Forceer verbergen */
@@ -966,4 +916,131 @@ input:checked + .wf-slider:before {
   background-color: #ef4444;
   color: white;
   border-color: #ef4444;
+}
+
+/* --- MODAL LAYOUTS --- */
+#modal-card {
+  max-width: 800px;
+  height: 85vh;
+}
+#modal-card:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+}
+#modal-card > .modal-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#modal-card .wf-tab-nav {
+  padding: 10px 15px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.modal-body-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+.modal-card .modal-footer {
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+#modal-new-tag {
+  max-width: 400px;
+  z-index: 3200;
+}
+#modal-settings {
+  max-width: 700px;
+}
+#modal-quick-plan {
+  max-width: 400px;
+  z-index: 3200;
+}
+.modal-row {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+.modal-row > div {
+  flex: 1;
+}
+#modal-filter {
+  max-width: 400px;
+  z-index: 3200;
+}
+#modal-filter .modal-footer {
+  justify-content: space-between;
+}
+#modal-confirm {
+  max-width: 380px;
+  z-index: 3500;
+}
+#modal-confirm .modal-footer {
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn-danger {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+.btn-danger:hover {
+  filter: brightness(0.9);
+}
+#modal-archive {
+  max-width: 900px;
+  height: 80vh;
+}
+#modal-archive:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+}
+#modal-archive > .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+#modal-archive .wf-table thead {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+  border-bottom: 2px solid var(--border);
+}
+#modal-archive .wf-table th {
+  padding: 12px;
+  text-align: left;
+}
+#modal-archive .wf-table th:last-child {
+  text-align: right;
+}
+.wf-form-row {
+  margin-top: 15px;
+}
+
+/* --- KOLOM CONFIGURATIE --- */
+.col-config-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.col-config-row input {
+  flex: 1;
+}
+.col-config-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* --- ARCHIEF TABEL --- */
+.wf-table {
+  width: 100%;
+  border-collapse: collapse;
 }

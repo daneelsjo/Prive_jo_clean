@@ -9,33 +9,60 @@ import {
 } from "../../services/db.js";
 
 
+/**
+ * @typedef {{ id: string, uid: string, boardId: string, title: string, order: number }} Column
+ * @typedef {{ id: string, uid: string, name: string, color: string, builtin: boolean, active: boolean, category: 'priority'|'standard' }} Tag
+ * @typedef {{ text: string, done: boolean }} ChecklistItem
+ * @typedef {{ title: string, url: string }} Link
+ * @typedef {{ content: string, timestamp: string }} Log
+ * @typedef {{ id: string, uid: string, boardId: string, columnId: string, title: string, description?: string, dueDate?: object, priorityId?: string, tags: string[], checklist: ChecklistItem[], links: Link[], logs: Log[], createdAt?: object, finishedAt?: object, deleteAt?: object }} Card
+ * @typedef {{ id: string, uid: string, name: string, items: ChecklistItem[] }} ChecklistTemplate
+ * @typedef {{ webhookUrl: string, token: string }} ApiSettings
+ */
+
 const app = getFirebaseApp();
 const db = getFirestore(app);
 
 // State
 let currentUser = null;
-let boardId = null;
-let columns = [];
-let cards = [];
-let tags = [];
-let checklistTemplates = []; 
+/** @type {string|null} */ let boardId = null;
+/** @type {Column[]} */    let columns = [];
+/** @type {Card[]} */      let cards = [];
+/** @type {Tag[]} */       let tags = [];
+/** @type {ChecklistTemplate[]} */ let checklistTemplates = [];
 let activeFilters = {
-    priorities: [], // IDs van prioriteit tags
-    tags: []  ,      // IDs van standaard tags
-    showNewOnly: false // Voor nieuwe taken (24u)
+    /** @type {string[]} */ priorities: [],
+    /** @type {string[]} */ tags: [],
+    showNewOnly: false
 };
 
 // Temp state voor modals
-let currentCardId = null;
-let currentChecklist = [];
-let currentLinks = [];
-let currentLogs = [];
-let tempTemplateItems = []; // Voor de admin editor
+/** @type {string|null} */       let currentCardId = null;
+/** @type {ChecklistItem[]} */   let currentChecklist = [];
+/** @type {Link[]} */            let currentLinks = [];
+/** @type {Log[]} */             let currentLogs = [];
+/** @type {ChecklistItem[]} */   let tempTemplateItems = [];
 
-let apiSettings = { webhookUrl: "", token: "" };
+/** @type {ApiSettings} */ let apiSettings = { webhookUrl: "", token: "" };
 
 const $ = id => document.getElementById(id);
-const TAG_COLORS = ["#3b82f6", "#ef4444", "#f97316", "#eab308", "#84cc16", "#10b981", "#06b6d4", "#6366f1", "#8b5cf6", "#d946ef"];
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/**
+ * @param {string} message
+ * @returns {Promise<boolean>}
+ */
+function confirmDialog(message) {
+    return new Promise(resolve => {
+        $('confirm-message').textContent = message;
+        $('modal-confirm').hidden = false;
+        const cleanup = result => { $('modal-confirm').hidden = true; resolve(result); };
+        $('btnConfirmYes').onclick = () => cleanup(true);
+        $('btnConfirmNo').onclick  = () => cleanup(false);
+    });
+}
+
+const TAG_COLORS =["#3b82f6", "#ef4444", "#f97316", "#eab308", "#84cc16", "#10b981", "#06b6d4", "#6366f1", "#8b5cf6", "#d946ef"];
 
 // --- INIT ---
 async function init() {
@@ -88,26 +115,28 @@ async function ensureStandardTags(uid) {
 }
 
 function startStreams() {
-    subscribeToColumns(currentUser.uid, boardId, (data) => { columns = data; renderBoard(); renderColConfig(); });
-    
-    subscribeToTags(currentUser.uid, (data) => { 
-        tags = data; 
-        renderBoard(); 
-        renderTagConfig();
-        if(cards.length > 0) checkUrgentItems(); 
-    });
+    let initRender;
+    const scheduleRender = () => { clearTimeout(initRender); initRender = setTimeout(renderBoard, 50); };
 
-    // --- VOEG DEZE REGEL TOE ---
+    subscribeToColumns(currentUser.uid, boardId, (data) => {
+        columns = data;
+        scheduleRender();
+        if(!$('modal-settings').hidden) renderColConfig();
+    });
+    subscribeToTags(currentUser.uid, (data) => {
+        tags = data;
+        scheduleRender();
+        if(!$('modal-settings').hidden) renderTagConfig();
+        if(cards.length > 0) checkUrgentItems();
+    });
     subscribeToChecklistTemplates(currentUser.uid, (data) => {
         checklistTemplates = data;
-        renderTemplateConfig();     // Update de lijst in Instellingen
-        populateTemplateSelect();   // Update de dropdown in de Kaart
+        if(!$('modal-settings').hidden) renderTemplateConfig();
+        populateTemplateSelect();
     });
-    // ---------------------------
-    
     const q = query(collection(db, "workflowCards"), where("boardId", "==", boardId), where("uid", "==", currentUser.uid));
-    onSnapshot(q, (snap) => { 
-        cards = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
+    onSnapshot(q, (snap) => {
+        cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderBoard();
         checkUrgentItems();
     }, (err) => console.error(err));
@@ -189,6 +218,9 @@ function checkUrgentItems() {
     }
 }
 
+/**
+ * @param {Array<{title: string, reason: string, type: string, date: object|null}>} items
+ */
 function renderUrgentModal(items) {
     const list = $('urgent-list');
     list.innerHTML = "";
@@ -206,11 +238,11 @@ function renderUrgentModal(items) {
 
         row.innerHTML = `
             <div>
-                <strong># ${item.title}</strong>
+                <strong># ${escHtml(item.title)}</strong>
                 <span style="font-size:0.8rem; color:#94a3b8; margin-left:8px;">${dateStr}</span>
             </div>
-            <div class="wf-urgent-reason reason-${item.type}">
-                ${item.reason}
+            <div class="wf-urgent-reason reason-${escHtml(item.type)}">
+                ${escHtml(item.reason)}
             </div>
         `;
         list.appendChild(row);
@@ -218,6 +250,10 @@ function renderUrgentModal(items) {
 
     $('modal-urgent').hidden = false;
 }
+/**
+ * @param {string|null} prioId
+ * @returns {number}
+ */
 function getPriorityWeight(prioId) {
     if(!prioId) return 99; // Geen prio = onderaan
     const tag = tags.find(t => t.id === prioId);
@@ -296,11 +332,11 @@ function renderBoard() {
 
             if (count > 0) {
                 btn.innerHTML = `${icon} <span style="font-size:0.8em; font-weight:bold; margin-left:4px;">${count}</span>`;
+                btn.style.opacity = "1";
             } else {
                 btn.innerHTML = icon;
-                btn.style.opacity = "0.7"; 
+                btn.style.opacity = "0.7";
             }
-            btn.style.opacity = "1";
         }
     };
     
@@ -376,7 +412,7 @@ function renderBoard() {
 
         // HTML Opbouw
         const count = colCards.length;
-        colEl.innerHTML = `<div class="wf-column-header"><span>${col.title}</span><span class="wf-count-badge">${count}</span></div>`;
+        colEl.innerHTML = `<div class="wf-column-header"><span>${escHtml(col.title)}</span><span class="wf-count-badge">${count}</span></div>`;
         
         const cardsCont = document.createElement("div");
         cardsCont.className = "wf-column-cards";
@@ -402,6 +438,10 @@ function shouldShowCard(card) {
     return card.title.toLowerCase().includes(term) || cardTags.includes(term);
 }
 
+/**
+ * @param {Card} card
+ * @returns {HTMLElement}
+ */
 function createCardEl(card) {
     const el = document.createElement("div");
     el.className = "wf-card";
@@ -414,7 +454,7 @@ function createCardEl(card) {
     if (card.priorityId) {
         const prioObj = tags.find(t => t.id === card.priorityId);
         if (prioObj && prioObj.active !== false) {
-            tagsHtml += `<span class="wf-badge" style="background-color:${prioObj.color}; border:1px solid rgba(255,255,255,0.2);">${prioObj.name}</span>`;
+            tagsHtml += `<span class="wf-badge" style="background-color:${prioObj.color}; border:1px solid rgba(255,255,255,0.2);">${escHtml(prioObj.name)}</span>`;
         }
     }
 
@@ -422,7 +462,7 @@ function createCardEl(card) {
     (card.tags || []).forEach(tagId => {
         const tagObj = tags.find(t => t.id === tagId);
         if(tagObj && tagObj.active !== false && tagObj.category !== 'priority') {
-            tagsHtml += `<span class="wf-badge" style="background-color:${tagObj.color}">${tagObj.name}</span>`;
+            tagsHtml += `<span class="wf-badge" style="background-color:${tagObj.color}">${escHtml(tagObj.name)}</span>`;
         }
     });
 
@@ -461,7 +501,7 @@ function createCardEl(card) {
     el.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <div class="wf-card-title" style="margin:0;">
-                ${newBadgeHtml} ${card.title}
+                ${newBadgeHtml} ${escHtml(card.title)}
             </div>
             ${dateHtml}
         </div>
@@ -471,6 +511,7 @@ function createCardEl(card) {
 
     // Events
     el.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", card.id); el.style.opacity = "0.5"; });
+    el.addEventListener("dragend", () => { el.style.opacity = "1"; });
     el.addEventListener("click", () => openCardModal(card));
     
     // RECHTERMUISKLIK MENU (Toegevoegd in vorige stap)
@@ -524,18 +565,15 @@ async function handleDrop(e, colId) {
             // --- HIER STUREN WE HET SEINTJE NAAR MAKE (Scenario 2) ---
             // We sturen dit ALLEEN als er een URL is EN als het kaartje de juiste tag heeft!
             if(apiSettings.webhookUrl && isTicket) {
-                console.log("📨 Webhook verstuurd voor ticket update:", cardId);
                 fetch(apiSettings.webhookUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        trigger: "cardMoved",      
-                        ticketId: cardId,          
-                        columnId: colId            
+                        trigger: "cardMoved",
+                        ticketId: cardId,
+                        columnId: colId
                     })
-                }).catch(err => console.warn("Webhook fail", err));
-            } else if (!isTicket) {
-                console.log("🔕 Webhook overgeslagen: kaart is geen ticket.");
+                }).catch(err => console.error("Webhook fail", err));
             }
             // ---------------------------------------------------------
 
@@ -567,7 +605,7 @@ function renderTagConfig() {
         const preview = document.createElement("span"); 
         preview.className = "tag-preview"; 
         preview.style.backgroundColor = tag.color; 
-        preview.innerHTML = `${typeIcon} ${tag.name}`;
+        preview.innerHTML = `${typeIcon} ${escHtml(tag.name)}`;
         
         // Actie knoppen container
         const actions = document.createElement("div"); 
@@ -627,7 +665,7 @@ function renderTagConfig() {
             delBtn.innerHTML="🗑️"; 
             delBtn.className="del-icon-btn"; 
             delBtn.title = "Verwijderen";
-            delBtn.onclick = () => { if(confirm("Verwijderen?")) deleteTag(tag.id); };
+            delBtn.onclick = async () => { if(await confirmDialog("Tag verwijderen?")) deleteTag(tag.id); };
             actions.appendChild(delBtn);
         }
         
@@ -651,19 +689,10 @@ function renderColConfig() {
     sortedCols.forEach((col, idx) => {
         const row = document.createElement("div");
         row.className = "col-config-row";
-        row.style.display = "flex";
-        row.style.gap = "8px";
-        row.style.alignItems = "center";
-        row.style.marginBottom = "8px";
-        row.style.padding = "8px";
-        row.style.backgroundColor = "var(--bg)";
-        row.style.border = "1px solid var(--border)";
-        row.style.borderRadius = "6px";
 
         // Input veld voor Naam
         const input = document.createElement("input");
         input.value = col.title;
-        input.style.flex = "1";
         input.placeholder = "Kolom naam...";
         // Bij verlaten van veld -> Opslaan
         input.onchange = () => {
@@ -673,8 +702,7 @@ function renderColConfig() {
 
         // Actie knoppen container
         const actions = document.createElement("div");
-        actions.style.display = "flex";
-        actions.style.gap = "4px";
+        actions.className = "col-config-actions";
 
         // Omhoog (Links op bord)
         const upBtn = document.createElement("button");
@@ -698,9 +726,9 @@ function renderColConfig() {
         delBtn.className = "del-icon-btn";
         delBtn.title = "Verwijderen (Let op: kaarten blijven bestaan maar onzichtbaar)";
         delBtn.style.color = "#ef4444";
-        delBtn.onclick = () => { 
-            if(confirm(`Kolom "${col.title}" verwijderen? Kaarten in deze kolom worden onzichtbaar totdat je ze verplaatst.`)) {
-                deleteColumn(col.id); 
+        delBtn.onclick = async () => {
+            if(await confirmDialog(`Kolom "${col.title}" verwijderen? Kaarten in deze kolom worden onzichtbaar totdat je ze verplaatst.`)) {
+                deleteColumn(col.id);
             }
         };
 
@@ -737,9 +765,9 @@ function renderTemplateConfig() {
     checklistTemplates.forEach(tpl => {
         const row = document.createElement("div"); row.className = "template-row";
         const itemCount = tpl.items ? tpl.items.length : 0;
-        row.innerHTML = `<div><strong>${tpl.name}</strong><div class="template-items-preview">${itemCount} items</div></div>`;
+        row.innerHTML = `<div><strong>${escHtml(tpl.name)}</strong><div class="template-items-preview">${itemCount} items</div></div>`;
         const delBtn = document.createElement("button"); delBtn.innerHTML = "🗑️"; delBtn.className = "del-icon-btn";
-        delBtn.onclick = () => { if(confirm("Template verwijderen?")) deleteChecklistTemplate(tpl.id); };
+        delBtn.onclick = async () => { if(await confirmDialog("Template verwijderen?")) deleteChecklistTemplate(tpl.id); };
         row.appendChild(delBtn); list.appendChild(row);
     });
 }
@@ -748,7 +776,7 @@ function renderTemplateEditorItems() {
     const cont = $('tpl-items-container'); cont.innerHTML = "";
     tempTemplateItems.forEach((item, idx) => {
         const div = document.createElement("div"); div.className="temp-item-row";
-        div.innerHTML = `<span>• ${item.text}</span>`;
+        div.innerHTML = `<span>• ${escHtml(item.text)}</span>`;
         const del = document.createElement("button"); del.innerHTML="✕"; del.className="del-icon-btn"; del.style.fontSize="0.8rem";
         del.onclick = () => { tempTemplateItems.splice(idx, 1); renderTemplateEditorItems(); };
         div.appendChild(del); cont.appendChild(div);
@@ -756,7 +784,12 @@ function renderTemplateEditorItems() {
 }
 
 // --- MODAL & LOGIC ---
-function openCardModal(card = null) {
+/**
+ * @param {Card|null} card
+ * @param {boolean} readOnly
+ * @param {(() => void)|null} afterOpen
+ */
+function openCardModal(card = null, readOnly = false, afterOpen = null) {
     currentCardId = card ? card.id : null;
     // Zorg dat we altijd arrays hebben, ook al is de data corrupt of leeg
     currentChecklist = (card && Array.isArray(card.checklist)) ? [...card.checklist] : [];
@@ -799,11 +832,12 @@ function openCardModal(card = null) {
     });
 
     // 3. Render
+    const prioUpdaters = [];
     prioTags.forEach(t => {
         const chip = document.createElement("div");
         chip.textContent = t.name;
-        chip.className = "wf-tag-option"; 
-        
+        chip.className = "wf-tag-option";
+
         const updateState = () => {
             if (currentPrioId === t.id) {
                 chip.classList.add('selected');
@@ -817,30 +851,13 @@ function openCardModal(card = null) {
                 chip.style.color = "var(--muted)";
             }
         };
+        prioUpdaters.push(updateState);
         updateState();
 
         chip.onclick = () => {
-            if (currentPrioId === t.id) currentPrioId = null;
-            else currentPrioId = t.id;
-            
+            currentPrioId = currentPrioId === t.id ? null : t.id;
             prioCont.dataset.selected = currentPrioId || "";
-            
-            // Refresh visuals (simpel via loopje over de net gesorteerde array)
-            const allChips = prioCont.querySelectorAll('.wf-tag-option');
-            prioTags.forEach((pt, idx) => {
-                const c = allChips[idx];
-                if (currentPrioId === pt.id) {
-                    c.classList.add('selected');
-                    c.style.backgroundColor = pt.color;
-                    c.style.borderColor = pt.color;
-                    c.style.color = "white";
-                } else {
-                    c.classList.remove('selected');
-                    c.style.backgroundColor = "transparent";
-                    c.style.borderColor = "var(--border)";
-                    c.style.color = "var(--muted)";
-                }
-            });
+            prioUpdaters.forEach(fn => fn());
         };
         prioCont.appendChild(chip);
     });
@@ -862,7 +879,18 @@ function openCardModal(card = null) {
         btnPlan.disabled=false; btnPlan.textContent="⚡ Snel Plannen in Agenda"; 
         btnPlan.onclick = () => { $('qp-date').value = $('inpDate').value || new Date().toISOString().split('T')[0]; $('modal-quick-plan').hidden=false; };
     }
+    const modalEl = document.getElementById('modal-card');
+    if (readOnly) {
+        modalEl.classList.add('read-only');
+        $('modal-title').textContent = "Archief Detail (Alleen lezen)";
+        modalEl.querySelectorAll('input, textarea').forEach(i => i.disabled = true);
+    } else {
+        modalEl.classList.remove('read-only');
+        $('modal-title').textContent = card ? "Taak Bewerken" : "Nieuwe Taak";
+        modalEl.querySelectorAll('input, textarea').forEach(i => i.disabled = false);
+    }
     window.Modal.open("modal-card");
+    if (afterOpen) afterOpen();
 }
 
 function openFilterModal() {
@@ -994,14 +1022,14 @@ function openArchiveModal() {
         let prioHtml = '<span class="muted">-</span>';
         if (card.priorityId) {
             const p = tags.find(t => t.id === card.priorityId);
-            if(p) prioHtml = `<span class="wf-badge" style="background:${p.color}">${p.name}</span>`;
+            if(p) prioHtml = `<span class="wf-badge" style="background:${p.color}">${escHtml(p.name)}</span>`;
         }
 
         // Tags Labels
         let tagsHtml = "";
         (card.tags || []).forEach(tid => {
             const t = tags.find(x => x.id === tid);
-            if(t) tagsHtml += `<span class="wf-badge" style="background:${t.color}; margin-right:4px;">${t.name}</span>`;
+            if(t) tagsHtml += `<span class="wf-badge" style="background:${t.color}; margin-right:4px;">${escHtml(t.name)}</span>`;
         });
 
         // Datum
@@ -1012,7 +1040,7 @@ function openArchiveModal() {
         }
 
         tr.innerHTML = `
-            <td><strong>${card.title}</strong></td>
+            <td><strong>${escHtml(card.title)}</strong></td>
             <td>${prioHtml}</td>
             <td>${tagsHtml}</td>
             <td style="text-align:right; font-family:monospace;">${dateStr}</td>
@@ -1025,25 +1053,6 @@ function openArchiveModal() {
 
     window.Modal.open('modal-archive');
 }
-
-// --- UPDATE OPEN CARD MODAL (Voor Read-Only support) ---
-// Pas je bestaande openCardModal functie aan: verander de eerste regel naar:
-// function openCardModal(card = null, readOnly = false) { 
-
-// En voeg dit stukje toe HELEMAAL ONDERAAN die functie (net voor window.Modal.open):
-/*
-    const modalEl = document.getElementById('modal-card');
-    if (readOnly) {
-        modalEl.classList.add('read-only');
-        $('modal-card-title').textContent = "Archief Detail (Alleen lezen)";
-        // Zorg dat inputs disabled zijn voor zekerheid
-        modalEl.querySelectorAll('input, textarea').forEach(i => i.disabled = true);
-    } else {
-        modalEl.classList.remove('read-only');
-        $('modal-card-title').textContent = card ? "Taak Bewerken" : "Nieuwe Taak";
-        modalEl.querySelectorAll('input, textarea').forEach(i => i.disabled = false);
-    }
-*/
 
 // --- QUICK FILTER HELPER ---
 function toggleQuickTag(tagName) {
@@ -1086,7 +1095,7 @@ function renderLinks() {
     if(currentLinks.length === 0) cont.innerHTML = '<span class="muted small" style="font-style:italic;">Geen links.</span>';
     currentLinks.forEach((link, idx) => {
         const row = document.createElement("div"); row.className = "wf-link-item";
-        row.innerHTML = `<a href="${link.url}" target="_blank">🔗 ${link.title}</a>`;
+        row.innerHTML = `<a href="${escHtml(link.url)}" target="_blank">🔗 ${escHtml(link.title)}</a>`;
         const del = document.createElement("button"); del.innerHTML="🗑️"; del.className="del-icon-btn";
         del.onclick = () => { currentLinks.splice(idx, 1); renderLinks(); };
         row.appendChild(del); cont.appendChild(row);
@@ -1099,7 +1108,7 @@ function renderLogs() {
     [...currentLogs].reverse().forEach(log => {
         const div = document.createElement("div"); div.className = "wf-log-item";
         const dateStr = new Date(log.timestamp).toLocaleString('nl', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-        div.innerHTML = `<div class="wf-log-meta"><span>${dateStr}</span></div><div class="wf-log-content">${log.content}</div>`;
+        div.innerHTML = `<div class="wf-log-meta"><span>${dateStr}</span></div><div class="wf-log-content">${escHtml(log.content)}</div>`;
         cont.appendChild(div);
     });
 }
@@ -1131,15 +1140,42 @@ function renderCardTagsSelector(selectedIds = []) {
 
 // --- SETUP EVENTS ---
 function setupUI() {
-    $('searchInput').addEventListener('input', renderBoard);
+    let searchDebounce;
+    $('searchInput').addEventListener('input', () => {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(renderBoard, 200);
+    });
     $('btnNewCard').onclick = () => openCardModal();
     $('btnSettings').onclick = () => { renderTagConfig(); renderColConfig(); renderTemplateConfig(); window.Modal.open("modal-settings"); };
-    $('btnAddCol').onclick = async () => {
-        const title = prompt("Naam kolom:"); if(title) {
+    $('btnAddCol').onclick = () => {
+        $('add-col-form').style.display = 'block';
+        $('btnAddCol').style.display = 'none';
+        $('new-col-name').value = '';
+        $('new-col-name').focus();
+    };
+    $('btnConfirmAddCol').onclick = async () => {
+        const btn = $('btnConfirmAddCol');
+        if (btn.disabled) return;
+        const title = $('new-col-name').value.trim();
+        if (!title) return;
+        btn.disabled = true;
+        try {
             const maxOrder = columns.reduce((max, c) => Math.max(max, c.order), 0);
             await addColumn({ uid: currentUser.uid, boardId, title, order: maxOrder + 1 });
+            $('add-col-form').style.display = 'none';
+            $('btnAddCol').style.display = '';
+        } finally {
+            btn.disabled = false;
         }
     };
+    $('btnCancelAddCol').onclick = () => {
+        $('add-col-form').style.display = 'none';
+        $('btnAddCol').style.display = '';
+    };
+    $('new-col-name').addEventListener('keydown', e => {
+        if (e.key === 'Enter') $('btnConfirmAddCol').click();
+        if (e.key === 'Escape') $('btnCancelAddCol').click();
+    });
     $('btnOpenArchive').onclick = () => openArchiveModal();
     $('btnFilterTags').onclick = () => openFilterModal();
     // QUICK FILTERS
@@ -1156,7 +1192,7 @@ function setupUI() {
     }
     
     $('btnClearFilters').onclick = () => { 
-        activeFilters = { priorities:[], tags:[] }; 
+        activeFilters = { priorities:[], tags:[], showNewOnly: false };
         renderBoard(); 
         openFilterModal(); // Refresh modal view
     };
@@ -1165,6 +1201,7 @@ function setupUI() {
         const txt = $('new-check-text').value.trim();
         if(txt) { currentChecklist.push({text: txt, done: false}); $('new-check-text').value=""; renderChecklist(); }
     };
+    $('new-check-text').addEventListener('keydown', e => { if(e.key === 'Enter') $('btnAddCheckitem').click(); });
     
     // TEMPLATE LOAD LOGIC
     $('btnLoadTemplate').onclick = () => {
@@ -1194,6 +1231,7 @@ function setupUI() {
         const val = $('tpl-new-item').value.trim();
         if(val) { tempTemplateItems.push({text: val}); $('tpl-new-item').value=""; renderTemplateEditorItems(); }
     };
+    $('tpl-new-item').addEventListener('keydown', e => { if(e.key === 'Enter') $('btnTplAddItem').click(); });
     
     $('btnCancelTpl').onclick = () => {
         $('template-editor').style.display = "none";
@@ -1201,14 +1239,20 @@ function setupUI() {
     };
     
     $('btnSaveTpl').onclick = async () => {
+        const btn = $('btnSaveTpl');
+        if(btn.disabled) return;
         const name = $('tpl-name').value.trim();
         if(!name) return showToast("Naam verplicht", "error");
         if(tempTemplateItems.length === 0) return showToast("Voeg items toe", "error");
-        
-        await addChecklistTemplate({ uid: currentUser.uid, name, items: tempTemplateItems });
-        $('template-editor').style.display = "none";
-        $('btnNewTemplateToggle').style.display = "block";
-        showToast("Template opgeslagen", "success");
+        btn.disabled = true;
+        try {
+            await addChecklistTemplate({ uid: currentUser.uid, name, items: tempTemplateItems });
+            $('template-editor').style.display = "none";
+            $('btnNewTemplateToggle').style.display = "block";
+            showToast("Template opgeslagen", "success");
+        } finally {
+            btn.disabled = false;
+        }
     };
     $('btn-close-urgent').onclick = () => {
         if ($('chk-urgent-today').checked) {
@@ -1219,14 +1263,21 @@ function setupUI() {
     };
 
     $('btnAddLink').onclick = () => {
-        const t = $('new-link-title').value.trim(); const u = $('new-link-url').value.trim();
-        if(t && u) { currentLinks.push({title: t, url: u}); $('new-link-title').value=""; $('new-link-url').value=""; renderLinks(); }
+        const t = $('new-link-title').value.trim();
+        let u = $('new-link-url').value.trim();
+        if (!t || !u) return;
+        if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+        currentLinks.push({ title: t, url: u });
+        $('new-link-title').value = '';
+        $('new-link-url').value = '';
+        renderLinks();
     };
 
     $('btnAddLog').onclick = () => {
         const t = $('new-log-text').value.trim();
         if(t) { currentLogs.push({content: t, timestamp: new Date().toISOString()}); $('new-log-text').value=""; renderLogs(); }
     };
+    $('new-log-text').addEventListener('keydown', e => { if(e.key === 'Enter') $('btnAddLog').click(); });
 
     // New Tag Logic
     let editingTagId = null;
@@ -1241,79 +1292,77 @@ function setupUI() {
         window.Modal.open("modal-new-tag");
     };
     
-    window.openEditTagModal = (tag) => {
-        editingTagId = tag.id; $('new-tag-name').value=tag.name; $('new-tag-color-val').value=tag.color;
-        const colorsCont = $('new-tag-colors'); colorsCont.innerHTML="";
-        TAG_COLORS.forEach(c => {
-            const circle = document.createElement("div"); circle.className = `color-circle ${c===tag.color?'selected':''}`; circle.style.backgroundColor=c;
-            circle.onclick=()=>{ document.querySelectorAll('.color-circle').forEach(e=>e.classList.remove('selected')); circle.classList.add('selected'); $('new-tag-color-val').value=c; };
-            colorsCont.appendChild(circle);
-        });
-        window.Modal.open("modal-new-tag");
-    };
-
-    // ... in setupUI ...
-
     // Nieuwe Tag aanmaken
     $('btnSaveNewTag').onclick = async () => {
-        const name=$('new-tag-name').value; const color=$('new-tag-color-val').value;
-        // Haal type op uit radio buttons
+        const btn = $('btnSaveNewTag');
+        if(btn.disabled) return;
+        const name = $('new-tag-name').value;
+        const color = $('new-tag-color-val').value;
         const category = document.querySelector('input[name="tagType"]:checked').value;
-        
         if(!name) return showToast("Naam verplicht", "error");
-        
-        if(editingTagId) {
-            // Bij editen, behoud bestaande category tenzij we dat ook willen aanpassen (nu niet in UI voor edit)
-            await updateTag(editingTagId, {name, color, category}); 
-        } else {
-            await addTag({uid:currentUser.uid, name, color, builtin:false, active:true, category: category});
+        btn.disabled = true;
+        try {
+            if(editingTagId) {
+                await updateTag(editingTagId, {name, color, category});
+            } else {
+                await addTag({uid: currentUser.uid, name, color, builtin: false, active: true, category});
+            }
+            window.Modal.close();
+        } finally {
+            btn.disabled = false;
         }
-        window.Modal.close();
     };
 
     // Opslaan Kaart
     $('btnSaveCard').onclick = async () => {
-        const title = $('inpTitle').value; 
+        const btn = $('btnSaveCard');
+        if (btn.disabled) return;
+        const title = $('inpTitle').value;
         if(!title) return showToast("Titel verplicht", "error");
-        
+
         // 1. Tags
         const tagIds = JSON.parse($('card-tags-list').dataset.selected || "[]");
-        
+
         // 2. Prioriteit (NIEUW: Haal uit dataset ipv value)
         const priorityId = $('prio-tags-list').dataset.selected || null;
 
         let dueTimestamp = null;
         if ($('inpDate').value) {
-            const d = new Date($('inpDate').value); 
-            d.setHours(12, 0, 0, 0); 
+            const d = new Date($('inpDate').value);
+            d.setHours(12, 0, 0, 0);
             dueTimestamp = d;
         }
 
         const data = {
-            uid: currentUser.uid, 
-            boardId, 
+            uid: currentUser.uid,
+            boardId,
             title,
             description: $('inpDesc').value,
             dueDate: dueTimestamp,
-            priorityId: priorityId, 
+            priorityId: priorityId,
             tags: tagIds,
             checklist: currentChecklist,
             links: currentLinks,
             logs: currentLogs
         };
 
-        if(currentCardId) { 
-            await updateDoc(doc(db, "workflowCards", currentCardId), data); 
-            showToast("Opgeslagen", "success"); 
-        } else {
-            const firstCol = columns[0] ? columns[0].id : null;
-            if(!firstCol) return showToast("Geen kolom", "error");
-            data.columnId = firstCol; 
-            data.createdAt = serverTimestamp();
-            await addDoc(collection(db, "workflowCards"), data); 
-            showToast("Aangemaakt", "success");
+        btn.disabled = true;
+        try {
+            if(currentCardId) {
+                await updateDoc(doc(db, "workflowCards", currentCardId), data);
+                showToast("Opgeslagen", "success");
+            } else {
+                const firstCol = columns[0] ? columns[0].id : null;
+                if(!firstCol) return showToast("Geen kolom", "error");
+                data.columnId = firstCol;
+                data.createdAt = serverTimestamp();
+                await addDoc(collection(db, "workflowCards"), data);
+                showToast("Aangemaakt", "success");
+            }
+            window.Modal.close();
+        } finally {
+            btn.disabled = false;
         }
-        window.Modal.close();
     };
     
     // Helper voor edit tag modal invullen (moet ook radio button zetten)
@@ -1335,7 +1384,7 @@ function setupUI() {
         window.Modal.open("modal-new-tag");
     };
 
-    $('btnDeleteCard').onclick = async () => { if(confirm("Verwijderen?")) { if(currentCardId) await deleteDoc(doc(db, "workflowCards", currentCardId)); window.Modal.close(); } };
+    $('btnDeleteCard').onclick = async () => { if(await confirmDialog("Kaart verwijderen?")) { if(currentCardId) await deleteDoc(doc(db, "workflowCards", currentCardId)); window.Modal.close(); } };
     $('btnCloseQuick').onclick = () => $('modal-quick-plan').hidden = true;
     $('btnConfirmPlan').onclick = sendToAgenda;
 
@@ -1348,17 +1397,7 @@ function setupUI() {
             document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
         };
     });
-    
-    // Settings Tabs
-    window.switchSettingsTab = (tabName) => {
-        document.querySelectorAll('#modal-settings .wf-tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('#modal-settings .wf-settings-content').forEach(c => c.classList.remove('active'));
-        if(tabName==='tags') { document.querySelector('#modal-settings .wf-tab-btn:nth-child(1)').classList.add('active'); $('set-tab-tags').classList.add('active'); }
-        else if(tabName==='cols') { document.querySelector('#modal-settings .wf-tab-btn:nth-child(2)').classList.add('active'); $('set-tab-cols').classList.add('active'); }
-        else { document.querySelector('#modal-settings .wf-tab-btn:nth-child(3)').classList.add('active'); $('set-tab-lists').classList.add('active'); }
-    };
-
-    // --- CONTEXT MENU LOGICA ---
+}
 
 function showContextMenu(e, card) {
     e.preventDefault(); // Voorkom standaard browser menu
@@ -1379,11 +1418,7 @@ function showContextMenu(e, card) {
 
     // 1. Snel Plannen
     menu.appendChild(createMenuItem("📅 Inplannen", () => {
-        // We openen de kaart modal data eerst even 'fake' zodat de planningsfunctie weet over welke kaart het gaat
-        // Of netter: we passen de quickPlan functie aan dat hij een kaart object accepteert.
-        // Voor nu: simpele hack -> Zet waardes in hidden fields of open modal
-        openCardModal(card); 
-        setTimeout(() => $('btnQuickPlan').click(), 100); // Hacky maar werkt: opent modal en klikt meteen op plan knop
+        openCardModal(card, false, () => $('btnQuickPlan').click());
     }));
 
     // 2. Link Toevoegen (Via prompt)
@@ -1422,7 +1457,7 @@ function showContextMenu(e, card) {
 
     // 4. Verwijderen
     const delItem = createMenuItem("🗑️ Verwijderen", async () => {
-        if(confirm(`"${card.title}" verwijderen?`)) {
+        if(await confirmDialog(`"${card.title}" verwijderen?`)) {
             await deleteDoc(doc(db, "workflowCards", card.id));
         }
     });
@@ -1502,23 +1537,18 @@ async function sendToAgenda() {
             body: JSON.stringify(payload) 
         });
 
-        if(res.ok) { 
-            showToast("Ingepland!", "success"); 
+        if(res.ok) {
+            showToast("Ingepland!", "success");
             $('modal-quick-plan').hidden = true;
 
-            // 4. Log toevoegen aan de kaart
             const logMsg = `📅 Ingepland in agenda op ${date} om ${time} (${hours}u${minutes}m)`;
-            currentLogs.push({
-                content: logMsg, 
-                timestamp: new Date().toISOString()
-            });
-            renderLogs(); // Update de UI direct
-            
-            // We moeten het kaartje wel even opslaan om de log vast te leggen
-            // Omdat we in een modal zitten die nog open staat, kunnen we wachten tot de gebruiker op "Opslaan" drukt,
-            // OF we kunnen hier al een background save doen. 
-            // Gezien de structuur is wachten op "Opslaan & Sluiten" het veiligst om conflicten te voorkomen.
-            showToast("Vergeet niet op 'Opslaan' te klikken om de log te bewaren.", "info");
+            currentLogs.push({ content: logMsg, timestamp: new Date().toISOString() });
+            renderLogs();
+
+            if(currentCardId) {
+                updateDoc(doc(db, "workflowCards", currentCardId), { logs: currentLogs })
+                    .catch(err => console.error("Log auto-save mislukt", err));
+            }
 
         } else {
             showToast("Fout bij agenda server", "error");
@@ -1528,58 +1558,6 @@ async function sendToAgenda() {
         showToast("Netwerkfout", "error"); 
     }
 }
-}
-
-
-// --- KOGELVRIJ RETRO-ACTIEF FIX SCRIPT ---
-window.fixOldTickets = async function() {
-    console.log("Start kogelvrij script met hardcoded IDs...");
-    
-    // We halen AL jouw kaarten op dit specifieke bord op
-    const q = query(
-        collection(db, "workflowCards"), 
-        where("boardId", "==", "NEla5osn007Ff7y862KZ"),
-        where("uid", "==", currentUser.uid)
-    );
-    
-    const snap = await getDocs(q);
-    console.log(`🔍 Totaal aantal kaarten op dit bord gevonden: ${snap.docs.length}`);
-
-    let count = 0;
-    const targetColId = "s6rBRhdP9nFHHPZuDTGW";
-
-    // Bereken datums: vandaag - 15 dagen
-    const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 15);
-    const deleteDate = new Date(pastDate);
-    deleteDate.setFullYear(deleteDate.getFullYear() + 1);
-
-    for (let document of snap.docs) {
-        const data = document.data();
-        
-        // Vergelijk kolom ID (met .trim() om onzichtbare Make.com spaties te negeren!)
-        if (data.columnId && data.columnId.trim() === targetColId) {
-            
-            // Check of de datum leeg is
-            if (!data.finishedAt) {
-                try {
-                    await updateDoc(doc(db, "workflowCards", document.id), {
-                        finishedAt: pastDate,
-                        deleteAt: deleteDate
-                    });
-                    count++;
-                    console.log(`✅ Gefixt (-15d): ${data.title || 'Zonder titel'}`);
-                } catch (e) {
-                    console.error(`❌ Kon niet updaten: ${data.title}`, e);
-                }
-            } else {
-                console.log(`⏩ Overgeslagen (heeft al een datum): ${data.title}`);
-            }
-        }
-    }
-    console.log(`🎉 Klaar! Er zijn ${count} tickets succesvol naar het verleden gestuurd.`);
-};
-
 
 
 init();
