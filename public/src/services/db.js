@@ -2,7 +2,7 @@
 import { 
     getFirestore, collection, doc, onSnapshot, 
     query, where, addDoc, updateDoc, deleteDoc, setDoc, orderBy, 
-    getDoc, getDocs, serverTimestamp // <--- getDocs TOEGEVOEGD
+    getDoc, getDocs, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 import { app } from "./config.js";
@@ -13,8 +13,7 @@ const db = getFirestore(app);
 // Hier maken we de functies beschikbaar voor de andere modules
 export { db,
     getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, 
-    getDoc, getDocs, onSnapshot, query, where, orderBy, serverTimestamp, getAuth 
-    // ^--- getDocs OOK HIER TOEGEVOEGD
+    getDoc, getDocs, onSnapshot, query, where, orderBy, serverTimestamp, getAuth
 };
 
 // Helper to access the app instance if needed
@@ -117,6 +116,18 @@ export const addPlan = (data) => addDoc(collection(db, "plans"), data);
 export const updatePlan = (id, data) => updateDoc(doc(db, "plans", id), data);
 export const deletePlan = (id) => deleteDoc(doc(db, "plans", id));
 
+export const subscribeToPlanCounts = (uid, callback) => {
+    const q = query(collection(db, "plans"), where("uid", "==", uid));
+    return onSnapshot(q, (snap) => {
+        const counts = {};
+        snap.docs.forEach(d => {
+            const itemId = d.data().itemId;
+            if (itemId) counts[itemId] = (counts[itemId] || 0) + 1;
+        });
+        callback(counts);
+    });
+};
+
 // --- 7. Agenda Builder Config ---
 export const getAgendaSettings = (uid) => getDoc(doc(db, "settings", uid));
 
@@ -133,8 +144,6 @@ export const addAgendaItem = (data) => addDoc(collection(db, "agenda_items"), { 
 export const updateAgendaItem = (id, data) => updateDoc(doc(db, "agenda_items", id), data);
 export const deleteAgendaItem = (id) => deleteDoc(doc(db, "agenda_items", id));
 
-// ... (Houd de bovenste imports en exports zoals ze waren) ...
-
 // --- 8. Workflow Columns ---
 export const subscribeToColumns = (uid, boardId, callback) => {
     const q = query(
@@ -149,7 +158,7 @@ export const addColumn = (data) => addDoc(collection(db, "workflowColumns"), dat
 export const updateColumn = (id, data) => updateDoc(doc(db, "workflowColumns", id), data);
 export const deleteColumn = (id) => deleteDoc(doc(db, "workflowColumns", id));
 
-// --- 9. Workflow Tags (NIEUW) ---
+// --- 9. Workflow Tags ---
 export const subscribeToTags = (uid, callback) => {
     const q = query(collection(db, "workflowTags"), where("uid", "==", uid), orderBy("name", "asc"));
     return onSnapshot(q, (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -158,7 +167,7 @@ export const addTag = (data) => addDoc(collection(db, "workflowTags"), data);
 export const updateTag = (id, data) => updateDoc(doc(db, "workflowTags", id), data);
 export const deleteTag = (id) => deleteDoc(doc(db, "workflowTags", id));
 
-// --- 10. Workflow Checklist Templates (NIEUW) ---
+// --- 10. Workflow Checklist Templates ---
 export const subscribeToChecklistTemplates = (uid, callback) => {
     const q = query(collection(db, "workflowChecklistTemplates"), where("uid", "==", uid), orderBy("name", "asc"));
     return onSnapshot(q, (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));

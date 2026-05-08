@@ -1,6 +1,5 @@
 /* src/modules/agendabuilder/agendabuilder.css */
 
-/* --- JOUW GOEDE LAYOUT (BEHOUDEN) --- */
 .module-agendabuilder .page {
   width: 98% !important;
   max-width: 1900px;
@@ -20,7 +19,7 @@
   .module-agendabuilder .main-grid {
     grid-template-columns: 1fr;
   }
-  .right-panel {
+  .module-agendabuilder .right-panel {
     order: -1;
   }
 }
@@ -112,7 +111,7 @@
 }
 
 /* --- SIDEBAR & CHIPS --- */
-.right-panel {
+.module-agendabuilder .right-panel {
   position: sticky;
   top: 20px;
 }
@@ -235,9 +234,6 @@
   word-break: break-all;
 }
 
-/* --- HIER KOMT DE NIEUWE STIJL VOOR DE MODAL LIJSTEN --- */
-/* Dit zorgt dat de input velden en prullenbakjes netjes naast elkaar staan */
-
 .config-section {
   margin-bottom: 25px;
   border-bottom: 1px solid var(--border);
@@ -277,7 +273,6 @@
 /* KLEUR BOLLETJE */
 input[type="color"].color-swatch {
   -webkit-appearance: none;
-  border: none;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -355,4 +350,22 @@ input[type="color"].color-swatch::-webkit-color-swatch {
   color: var(--muted);
   text-transform: uppercase;
   font-size: 0.75rem;
+}
+
+/* --- DATUM SNELKNOPPEN --- */
+.date-quick-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.date-quick-btns button {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+}
+
+/* --- VELD VALIDATIE --- */
+.module-agendabuilder input.input-error {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.05) !important;
 }

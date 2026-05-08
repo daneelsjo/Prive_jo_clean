@@ -1,619 +1,2013 @@
-/* ==========================================================================
-   To-Do & Planner – Page CSS (clean)
-   ========================================================================== */
-
-/* ---------- Design tokens ---------- */
 :root {
-  --slot-h: 28px; /* hoogte per 30 min */
-  --time-col-w: 80px; /* breedte tijdkolom */
-  --gap: 1.25rem;
-
-  /* basis kleuren/afgeleiden – verwacht dat je thema al var(--card/--border) zet */
-  --card: rgba(255, 255, 255, 0.04);
-  --border: rgba(255, 255, 255, 0.12);
+  --hour-h: 60px;   /* hoogte van 1 uur in de kalender */
+  --slot-h: 15px;   /* hoogte van 1 kwartier (--hour-h / 4) */
+  --time-col-w: 56px;
   --primary: #2196f3;
+  --border: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --text: #ffffff;
 }
 
-/* ---------- Page layout 75/25 ---------- */
-.module-planner {
-  width: 100%;
-  max-width: none;
+body.planner-page {
+  background-color: #0f172a;
+  color: var(--text);
+  font-family: sans-serif;
   margin: 0;
-  --gap: 1rem
-  padding-inline: var(--gap);
-}
-.module-planner .page {
-  width: 100% !important;
-  margin: 0 !important;
-  display: grid;
-  grid-template-columns: 3fr 1fr; /* 75 / 25 */
-  column-gap: var(--gap);
-  align-items: start;
-}
-.leftcol {
-  min-width: 0;
-} /* voorkom overflow in grid child */
-.rightcol {
-  min-width: 320px;
 }
 
-.toprow,
-.header-card,
-.weekbar {
-  grid-column: 1 / -1;
-} /* header over beide kolommen */
+/* ═══════════════════════ LAYOUT ═══════════════════════ */
 
-.rightcol > .card {
-  width: 100%;
+.module-planner {
+  margin-top: 60px;
+  padding: 0;
 }
 
-/* Left column must be allowed to grow */
-.module-planner .leftcol{ min-width: 0; }
-
-/* Right column stays usable */
-.module-planner .rightcol{ min-width: 320px; }
-
-/* Header row spans both columns */
-.module-planner .toprow,
-.module-planner .header-card,
-.module-planner .weekbar{ grid-column: 1 / -1; }
-
-/* Backlog card fills its column */
-.module-planner .rightcol > .card{ width: 100%; }
-@media (max-width: 1100px) {
-  .module-planner .page {
-    grid-template-columns: 1fr;
-  }
-  .rightcol {
-    order: 2;
-  }
-}
-
-/* ---------- Cards / util ---------- */
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-}
-
-/* ---------- Kalender: raster & koppen ---------- */
-.calendar {
-  display: grid;
-  grid-template-columns: var(--time-col-w) repeat(7, 1fr); /* dag-aantal wordt door JS ingesteld, maar raster is gelijk */
-  gap: 0.25rem;
-  user-select: none;/* ====== Sticky + onafhankelijke scroll ====== */
-
-/* Links: alleen de kalender scrolt; bovenste kaart (week/print/…) blijft staan */
-.module-planner .leftcol .calendar-card{
-  /* hoogte: hele viewport minus wat marge; pas zo nodig aan */
-  height: calc(100dvh - 280px);
-  min-height: 320px;
-  overflow: auto;            /* eigen scrollbar voor het raster */
-}
-
-/* Dagenkoppen blijven zichtbaar terwijl je door het raster scrolt */
-.module-planner .leftcol .calendar .col-head{
+.planner-header {
   position: sticky;
-  top: 0;
-  z-index: 3;
-  background: var(--card);
-  /* een subtiele onderrand zodat de sticky-kop loskomt van het raster */
-  box-shadow: 0 2px 0 0 var(--border);
+  top: 60px;
+  z-index: 200;
+  background: #0f172a;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
 }
 
-/* Rechts: backlog krijgt eigen scrollbar onder de knoppenbalk */
-.module-planner .rightcol > .card{
+/* Exam countdown: full-width banner boven de toolbar */
+#examen-timer {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  color: #000;
+  padding: 8px 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  margin: 0 -24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Toolbar wrapper: column zodat timer boven de row staat */
+.planner-toolbar {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 2 * var(--gap));
-  min-height: 360px;
 }
 
-/* eerste child in de backlog-card is je kop met "Backlog (vakken)" + knoppen */
-.module-planner .rightcol > .card > :first-child{
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  background: inherit;      /* dezelfde kleur als de kaart */
-  border-bottom: 1px solid var(--border);
+/* Hoofdrij: nav | toggle | actions */
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
 }
 
-/* de lijsten zelf scollen onder de vaste kop */
-#backlogGroups{
-  overflow: auto;
-  min-height: 0;            /* noodzakelijk binnen flex-column */
+/* Navigatie: ◀ Titel ▶ */
+.toolbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* optioneel: iets kleinere buitenmarges zodat de kalender links wat meer ruimte krijgt */
-.module-planner{
-  --gap: 1rem;               /* ruimte tussen kolommen én aan de zijkanten */
-  padding-inline: var(--gap);
+.toolbar-nav #weekTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0;
+  white-space: nowrap;
+  min-width: 200px;
+  text-align: center;
 }
 
+/* Week / Dag schakelaar */
+.view-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-toggle .btn-text {
+  background: none;
+  color: #94a3b8;
+  padding: 5px 16px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.view-toggle .btn-text.is-active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Actie-knoppen (rechts) */
+.toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Content grid — override main.css max-width/margin */
+.page {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  padding: 16px 16px;
+  align-items: start;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.leftcol {
+  min-width: 0;
+}
+
+/* Backlog sticky */
+.rightcol {
+  position: sticky !important;
+  top: 112px;
+  display: flex !important;
+  flex-direction: column;
+}
+
+/* ═══════════════════════ RESPONSIVE ═══════════════════════ */
+
+@media (max-width: 1100px) {
+  .page {
+    grid-template-columns: 1fr 300px;
+  }
+}
+
+/* ── Prioriteit badges ── */
+.bl-pri {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.bl-pri-hoog { background: rgba(239, 68, 68, 0.18); color: #ef4444; }
+.bl-pri-laag { background: rgba(71, 85, 105, 0.15); color: #64748b; }
+
+@media (max-width: 800px) {
+  .page {
+    grid-template-columns: 1fr;
+    padding: 10px 12px;
+  }
+
+  .rightcol {
+    position: static !important;
+  }
+
+  .backlog-card {
+    max-height: 60vh;
+  }
+
+  .toolbar-nav #weekTitle {
+    min-width: 100px;
+    font-size: 0.8rem;
+  }
+
+  .toolbar-actions {
+    margin-left: 0;
+  }
+
+  .toolbar-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .view-toggle {
+    order: -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .planner-header {
+    padding: 0 12px;
+  }
+
+  .toolbar-actions .btn-outline {
+    display: none;
+  }
+
+  .modal-content {
+    max-height: 95vh;
+  }
+
+  .plan-time-bar {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: var(--time-col-w) repeat(7, 1fr);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .col-head {
-  font-weight: 800;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--card);
-  text-transform: capitalize;
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.time-col {
-  grid-column: 1 / 2;
-  display: grid;
-}
+/* Uur-label (:00) */
 .time-slot {
-  height: calc(var(--slot-h) * 2); /* één label per uur, 2 rijen hoog (30m) */
+  height: var(--slot-h);
+  padding: 0 6px;
+  font-size: 0.72rem;
+  color: #64748b;
   display: flex;
   align-items: flex-start;
   padding-top: 2px;
-  padding-left: 0.35rem;
-  font-size: 0.9rem;
-  opacity: 0.9;
+  font-weight: 600;
 }
 
-.day-col {
-  position: relative; /* absolute events binnenin */
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--card);
-  display: grid;
-}
-
-/* Dropzones (30 min) */
-.dropzone {
+/* :30 label — iets dimmer */
+.time-half {
   height: var(--slot-h);
-  border-top: 1px dashed transparent;
-}
-.dropzone[data-min="30"] {
-  border-top-style: dotted;
-  opacity: 0.9;
-}
-.dropzone:hover {
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
-  border-top-color: color-mix(in srgb, var(--primary) 35%, transparent);
-}
-.dragging-backlog .dropzone,
-.dragging-event .dropzone {
-  border-top-color: color-mix(in srgb, var(--primary) 25%, transparent);
-}
-
-/* ---------- Event blok ---------- */
-.event {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  border-radius: 0.5rem;
-  padding: 0.25rem 0.4rem;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  cursor: grab;
-}
-.event .title {
-  font-weight: 800;
-  line-height: 1.1;
-}
-.event .meta {
-  font-size: 0.75rem;
-  opacity: 0.9;
-}
-
-/* geselecteerd */
-.event.is-selected {
-  outline: 2px solid rgba(255, 255, 255, 0.55);
-  outline-offset: -2px;
-}
-
-/* actions (delete) */
-.event .evt-actions {
-  position: absolute;
-  top: 4px;
-  left: 6px;
+  padding: 0 6px;
+  font-size: 0.68rem;
+  color: #475569;
   display: flex;
-  gap: 4px;
-}
-.event .evt-del {
-  padding: 0 0.35rem;
-  height: 20px;
-  line-height: 18px;
-  border-radius: 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(0, 0, 0, 0.28);
-  color: #fff;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.event .evt-del:hover {
-  background: rgba(0, 0, 0, 0.38);
+  align-items: flex-start;
+  padding-top: 2px;
 }
 
-/* note indicator */
-.event.has-note::after {
-  content: "📒";
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: 0.9rem;
-  opacity: 0.85;
+/* :15 en :45 — geen label */
+.time-quarter {
+  height: var(--slot-h);
 }
 
-/* resize handle onderaan */
-.event .resize-h {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 2px;
-  height: 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.35);
-  cursor: ns-resize;
-  opacity: 0.9;
-}
-.event.resizing {
-  cursor: ns-resize;
-}
-body.resizing-event * {
-  user-select: none !important;
+.backlog-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 130px);
 }
 
-/* ---------- Tooltip ---------- */
-#evt-tip {
+.card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.backlog-search-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.backlog-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.backlog-search-input::placeholder {
+  color: #374151;
+}
+
+.backlog-content {
+  overflow-y: auto;
+  padding: 12px;
+  flex: 1;
+}
+
+/* ═══════════════════════════════════════
+   MODALS
+═══════════════════════════════════════ */
+
+.modal {
+  display: none;
   position: fixed;
   z-index: 9999;
-  pointer-events: none;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-  padding: 0.45rem 0.6rem;
-  font-size: 0.85rem;
-  display: none;
-}
-#evt-tip .t {
-  font-weight: 800;
-  margin-bottom: 0.15rem;
-}
-#evt-tip .m {
-  opacity: 0.85;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 
-/* ---------- Backlog groepen rechts ---------- */
-.bl-group {
-  margin-bottom: 0.85rem;
+.modal.is-active {
+  display: flex !important;
 }
-.bl-title {
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-content {
+  background: #1a2435;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  animation: modal-in 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.modal-content--wide {
+  max-width: 560px;
+}
+
+/* Header */
+.modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.45rem 0.6rem;
-  border-radius: 0.6rem 0.6rem 0 0;
-  font-weight: 800;
-}
-.bl-list {
-  border: 1px solid var(--border);
-  border-top: 0;
-  border-radius: 0 0 0.6rem 0.6rem;
-  background: var(--card);
-  padding: 0.5rem;
-}
-.bl-item {
-  display: grid;
-  grid-template-columns: 24px 1fr auto;
-  gap: 0.5rem;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 0.4rem 0.5rem;
-  margin-bottom: 0.5rem;
-  background: rgba(0, 0, 0, 0.15);
-}
-.bl-item .bl-sym {
-  font-size: 1rem;
-  text-align: center;
-}
-.bl-item .bl-main .t {
-  font-weight: 700;
-}
-.bl-item .bl-main .sub {
-  font-size: 0.8rem;
-  opacity: 0.85;
-}
-.bl-item .bl-actions {
-  display: flex;
-  gap: 0.35rem;
-}
-.btn-icon.sm {
-  font-size: 0.9rem;
-  padding: 0.2rem 0.45rem;
-  border-radius: 0.4rem;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.06);
-  color: inherit;
-  cursor: pointer;
-}
-.btn-icon.sm.neutral {
-  background: rgba(76, 175, 80, 0.15);
-}
-.btn-icon.sm.danger {
-  background: rgba(244, 67, 54, 0.15);
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
 }
 
-/* ---------- Filter button active state ---------- */
-#filterBtn.is-active {
+.modal-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: 0.01em;
+}
+
+.modal-close {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #64748b;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+/* Body */
+.modal-body {
+  padding: 1.4rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Footer */
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* Fields */
+.field {
+  margin-bottom: 1rem;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  margin-bottom: 0.4rem;
+}
+
+.field-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #374151;
+}
+
+/* Inputs & Select inside modals */
+.modal-body input[type="text"],
+.modal-body input[type="number"],
+.modal-body select {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Date/time: geen appearance reset — native picker moet zichtbaar blijven */
+.modal-body input[type="date"],
+.modal-body input[type="time"] {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+  color-scheme: dark;
+}
+
+.modal-body input[type="text"]:focus,
+.modal-body input[type="number"]:focus,
+.modal-body input[type="date"]:focus,
+.modal-body input[type="time"]:focus,
+.modal-body select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+.modal-body input::placeholder {
+  color: #374151;
+}
+
+.modal-body textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 70px;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.modal-body textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+.modal-body textarea::placeholder {
+  color: #374151;
+}
+
+.modal-body select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* Form row (2 columns) */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+/* Segmented control */
+.segmented-control {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.seg {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.seg.is-active {
   background: var(--primary);
   color: #fff;
-  border-color: var(--primary);
 }
 
-/* ---------- Misc ---------- */
-.muted {
-  opacity: 0.7;
+.seg:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.07);
+  color: #e2e8f0;
 }
 
-/* ===== Planner header / toolbar ===== */
-.planner-toolbar{
+/* Examen sub-card */
+.examen-fields-card {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 1rem;
   margin-bottom: 1rem;
-  padding: .9rem 1rem;
 }
 
-.planner-toolbar .tb-row{
-  display: grid;
+/* Checkbox group */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.25rem;
+}
+
+.cb-label {
+  display: flex;
   align-items: center;
-  gap: .75rem 1rem;
-  margin-bottom: .6rem;
-}
-.planner-toolbar .tb-row:last-child{ margin-bottom: 0; }
-
-/* Titelrij: 3 kolommen met titel gecentreerd */
-.planner-toolbar .tb-title{
-  grid-template-columns: auto 1fr auto;
-}
-.planner-toolbar .tb-title h2{
-  margin: 0;
-  text-align: center;
-  font-size: 1.25rem;
-  font-weight: 800;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  cursor: pointer;
 }
 
-/* Print rij: label links, inputs + knop rechts */
-.planner-toolbar .tb-print{
-  grid-template-columns: auto 1fr;
+/* Subject name row */
+.subject-name-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
-/* View rij: label + segmenten */
-.planner-toolbar .tb-view{
-  grid-template-columns: auto 1fr;
+.subject-name-row input {
+  flex: 1;
 }
 
-/* Labels */
-.planner-toolbar .tb-label{
-  opacity: .85;
+/* Divider inside modal body */
+.modal-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 1.25rem 0;
+}
+
+/* Ghost (secondary) button */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #64748b;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover {
+  background: #1976d2;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #e2e8f0;
+}
+
+.btn-icon {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: #e2e8f0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+/* Styling voor het kleurenpalet */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 8px;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+  padding: 0;
+}
+
+.swatch:hover {
+  transform: scale(1.15);
+}
+
+.swatch.is-selected {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px var(--primary);
+  transform: scale(1.15);
+}
+
+.color-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background-color: #f44336; /* Standaardkleur */
+}
+
+.dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.subjects-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.subjects-table th {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.7rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+}
+
+.subjects-table td {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.875rem;
+  color: #cbd5e1;
+  vertical-align: middle;
+}
+
+.sub-td-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.sub-edit-cell {
+  padding: 0.5rem 0 !important;
+}
+
+.sub-edit-name {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+}
+
+.sub-edit-name:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+.sub-edit-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+  gap: 5px;
+}
+
+.sub-edit-palette .swatch {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+/* --- VIEW UPGRADE: Backlog & Kalender --- */
+
+/* Kalender Blokjes mooier maken */
+.event {
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 0.85rem;
+  color: white;
+  z-index: 2;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.1s;
+}
+
+.event:hover {
+  transform: scale(1.02);
+  z-index: 10;
+}
+
+.evt-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-bottom: 3px;
+  min-width: 0;
+}
+
+.evt-sym {
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.event .title {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.event .meta {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.evt-notes-icon {
+  font-size: 0.65rem;
+  flex-shrink: 0;
+  opacity: 0.8;
+  line-height: 1;
+}
+
+.evt-tooltip {
+  position: fixed;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  max-width: 240px;
+  z-index: 99999;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  white-space: pre-wrap;
+  line-height: 1.45;
+  pointer-events: none;
+}
+
+/* Drie-stippen menu knop op kalender blokjes */
+.evt-menu-btn {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 1px 6px;
+  font-size: 1rem;
+  line-height: 1.4;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.event:hover .evt-menu-btn {
+  opacity: 1;
+}
+
+.evt-menu-btn:hover {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+/* Portal dropdown (appended to body, position: fixed) */
+.evt-dropdown-portal {
+  position: fixed;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  z-index: 9999;
+  min-width: 170px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.evt-drop-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  padding: 11px 16px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.evt-drop-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.evt-drop-done { color: #4ade80 !important; }
+.evt-drop-del  { color: #f87171 !important; }
+
+/* --- VIEW UPGRADE: Compacte Backlog & Inklappen --- */
+/* ── Vak-groep header ── */
+.bl-group {
+  margin-bottom: 6px;
+}
+
+.bl-title {
+  padding: 7px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.bl-title:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+}
+
+.bl-title-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bl-title-name {
+  flex: 1;
+}
+
+.bl-count {
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.toggle-icon {
+  font-size: 0.65rem;
+  opacity: 0.5;
+  transition: transform 0.2s;
+}
+
+.bl-group.is-collapsed .bl-list {
+  display: none;
+}
+
+.bl-group.is-collapsed .toggle-icon {
+  transform: rotate(-90deg);
+}
+
+/* ── Backlog items ── */
+.bl-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 6px 8px 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.bl-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.bl-item.is-dragging {
+  opacity: 0.45;
+}
+
+.bl-sym {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.bl-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.bl-main .t {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+/* ── Deadline badge ── */
+.bl-deadline {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
   white-space: nowrap;
 }
 
-/* Inputs en scheidingstreepje */
-.planner-toolbar .tb-inputs{
+.bl-plan-count {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #475569;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.bl-deadline.dl-ok      { background: rgba(100,116,139,0.25); color: #64748b; }
+.bl-deadline.dl-soon    { background: rgba(234,179,8,0.15);   color: #ca8a04; }
+.bl-deadline.dl-urgent  { background: rgba(249,115,22,0.18);  color: #ea580c; }
+.bl-deadline.dl-overdue { background: rgba(239,68,68,0.18);   color: #ef4444; }
+
+/* ── Actieknoppen (verschijnen op hover) ── */
+.bl-actions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.bl-item:hover .bl-actions {
+  opacity: 1;
+}
+
+.bl-actions .btn-icon.sm {
+  width: 24px;
+  height: 24px;
+  font-size: 0.7rem;
+  padding: 0;
+}
+
+/* ── Afgerond sectie ── */
+.bl-done-section {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 6px;
+}
+
+.bl-done-header {
   display: flex;
   align-items: center;
-  gap: .5rem;
-  flex-wrap: wrap;
-}
-.planner-toolbar input[type="text"],
-.planner-toolbar input[type="date"]{
-  height: 38px;
-  padding: 0 .6rem;
-  border-radius: .55rem;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.04);
-  color: inherit;
-  min-width: 11rem;
-}
-.planner-toolbar .sep{
-  opacity: .55;
-  user-select: none;
-}
-
-/* Buttons */
-.btn{
-  height: 38px;
-  padding: 0 .8rem;
-  border-radius: .6rem;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.06);
-  color: inherit;
-  cursor: pointer;
-}
-.btn.ghost:hover{ background: rgba(255,255,255,.1); }
-.btn.primary{
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-.btn.primary .ico{ margin-right: .4rem; }
-
-/* Segmented toggle */
-.segmented{
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: .6rem;
-  overflow: hidden;
-  width: max-content;
-}
-.segmented .seg{
-  padding: .45rem .9rem;
-  background: rgba(255,255,255,.04);
-  border: 0;
-  cursor: pointer;
-}
-.segmented .seg + .seg{ border-left: 1px solid var(--border); }
-.segmented .seg.is-active{
-  background: var(--primary);
-  color: #fff;
-}
-
-/* Responsief: stapel alles netjes onder elkaar */
-@media (max-width: 900px){
-  .planner-toolbar .tb-title{
-    grid-template-columns: 1fr;
-    row-gap: .5rem;
-  }
-  .planner-toolbar .tb-title h2{ text-align: left; }
-  .planner-toolbar .tb-title button{ justify-self: start; }
-  .planner-toolbar .tb-print,
-  .planner-toolbar .tb-view{
-    grid-template-columns: 1fr;
-  }
-  .planner-toolbar .tb-label{ margin-bottom: .25rem; }
-}
-
-/* ----- Backlog form layout ----- */
-.bl-form{ display:grid; gap:.55rem; }
-.bl-form .row{ display:flex; align-items:center; gap:.5rem; }
-
-.form-label{ font-weight:700; opacity:.9; }
-.form-label.req::after{ content:" *"; color:#ff6b6b; }
-
-#bl-subject{ height:38px; padding:0 .6rem; border-radius:.55rem;
-  border:1px solid var(--border); background:rgba(255,255,255,.05); color:inherit; min-width:14rem; }
-#bl-title, #bl-duration, #bl-due{ height:38px; padding:0 .6rem; border-radius:.55rem;
-  border:1px solid var(--border); background:rgba(255,255,255,.05); color:inherit; }
-
-.swatch{ width:24px; height:24px; border-radius:.45rem; border:1px solid var(--border); }
-
-.segmented{ display:inline-flex; border:1px solid var(--border); border-radius:.6rem; overflow:hidden; width:max-content; }
-.segmented .seg{ padding:.45rem .9rem; background:rgba(255,255,255,.05); border:0; cursor:pointer; }
-.segmented .seg + .seg{ border-left:1px solid var(--border); }
-.segmented .seg.is-active{ background:var(--primary); color:#fff; }
-
-.error{ color:#ff8a8a; font-size:.85rem; min-height:1em; }
-.hint{ opacity:.7; font-size:.85rem; }
-
-/* invalid highlight */
-.is-invalid{ border-color:#ff6b6b !important; box-shadow:0 0 0 2px rgba(255,107,107,.15); }
-#bl-subject option{
-  padding:.35rem .6rem;
-}
-
-/* ——— Type segmented: duidelijke 'selected' ——— */
-#modal-backlog .segmented .seg{
-  position: relative;
-  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
-}
-#modal-backlog .segmented .seg.is-active{
-  background: var(--primary);
-  color:#fff;
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
-}
-#modal-backlog .segmented .seg.is-active::after{
-  content:""; position:absolute; left:10px; right:10px; bottom:6px; height:3px;
-  border-radius:3px; background: rgba(255,255,255,.65);
-}
-
-/* ——— Sluitknop (X) in modal beter zichtbaar ——— */
-.modal-card .modal-close{
-  color:#fff; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
-}
-.modal-card .modal-close:hover{ background: rgba(255,255,255,.18); }
-
-/* ——— Date input: kalendericoon zichtbaar op dark ——— */
-input[type="date"]::-webkit-calendar-picker-indicator{
-  filter: invert(1) brightness(1.2);
-  opacity:.95;
-}
-input[type="date"]{
-  color-scheme: dark; /* betere native styling in dark */
-}
-
-/* ——— Select: eigen pijl (licht) zodat zichtbaar op dark ——— */
-#bl-subject{
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right .65rem center;
-  padding-right: 2rem;
-}
-
-/* opties iets meer lucht */
-#bl-subject option{ padding:.35rem .6rem; }
-
-/* ===== Examen – extra opvallend ===== */
-
-/* Backlog pills */
-.bl-item.type-examen{
-  border-width: 2px;
-  border-color: #ffd54f !important;          /* amber */
-  box-shadow: 0 0 0 2px rgba(255,213,79,.25), 0 8px 18px rgba(0,0,0,.22);
-  position: relative;
-}
-.bl-item.type-examen::before{
-  content: "EXAMEN";
-  position: absolute; top: -10px; right: 8px;
-  font-size: .65rem; letter-spacing: .12em;
-  background: #ffd54f; color: #262626;
-  padding: .1rem .35rem; border-radius: .35rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,.2);
-}
-
-/* Kalenderblokken */
-.event.type-examen{
-  border: 2px solid #ffd54f !important;
-  box-shadow:
-    0 0 0 2px rgba(255,213,79,.25),
-    0 10px 24px rgba(0,0,0,.28);
-}
-.event.type-examen .title{
-  text-transform: none;
-}
-.event.type-examen .evt-actions .evt-del{
-  border-color: rgba(255,213,79,.6);
-  background: rgba(38,38,38,.4);
-}
-
-/* Optioneel: subtiele "highlight strip" onderaan */
-.event.type-examen .resize-h{
-  background: #ffd54f;
-  opacity: .95;
-}
-/* Kalender-event: delete-knop alleen tonen op hover/selected en rechtsboven plaatsen */
-.event{ position: absolute; }               /* zekerheid: absoluut gepositioneerd */
-.event .evt-actions{
-  position: absolute;
-  top: 6px;
-  right: 6px;                               /* ← stonden links; naar rechts verplaatsen */
-  left: auto;
-  opacity: 0;                               /* standaard onzichtbaar */
-  pointer-events: none;                     /* geen klik-vangers zolang onzichtbaar */
-  transition: opacity .15s ease;
-}
-.event:hover .evt-actions,
-.event.is-selected .evt-actions{
-  opacity: 1;                               /* tonen bij hover of selectie */
-  pointer-events: auto;
-}
-.event .evt-del{
-  font-size: 14px;
-  line-height: 1;
-  border: 1px solid rgba(255,255,255,.35);
-  background: rgba(20,20,20,.35);
-  color: #fff;
+  gap: 6px;
+  padding: 5px 8px;
   border-radius: 6px;
-  padding: 4px 6px;
   cursor: pointer;
-}
-.event .evt-del:hover{
-  background: rgba(20,20,20,.55);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  user-select: none;
+  transition: background 0.12s;
 }
 
-/* (optioneel) het notitie-icoon rechts blijft zichtbaar */
-.event.has-note::after{
-  content: "🗒";
+.bl-done-header:hover {
+  background: rgba(255,255,255,0.04);
+  color: #64748b;
+}
+
+.bl-done-section.is-collapsed .bl-done-list {
+  display: none;
+}
+
+.bl-done-section.is-collapsed .toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.bl-item--done {
+  opacity: 0.45;
+}
+
+.bl-item--done .t {
+  text-decoration: line-through;
+}
+
+/* ── Lege staat ── */
+.bl-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #475569;
+}
+
+.bl-empty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.bl-empty p {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.bl-empty span {
+  font-size: 0.75rem;
+}
+
+.day-col {
+  position: relative;
+  min-height: calc(16 * var(--hour-h));
+  /* kwartier-rasterlijnen via CSS achtergrond */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.10) 0px,   rgba(255, 255, 255, 0.10) 1px,
+    transparent               1px,   transparent               14px,
+    rgba(255, 255, 255, 0.03) 14px,  rgba(255, 255, 255, 0.03) 15px,
+    transparent               15px,  transparent               29px,
+    rgba(255, 255, 255, 0.06) 29px,  rgba(255, 255, 255, 0.06) 30px,
+    transparent               30px,  transparent               44px,
+    rgba(255, 255, 255, 0.03) 44px,  rgba(255, 255, 255, 0.03) 45px,
+    transparent               45px,  transparent               59px
+  );
+  background-size: 100% var(--hour-h);
+}
+
+.drop-indicator {
   position: absolute;
-  right: 8px;
-  bottom: 6px;
-  opacity: .9;
-  font-size: 16px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.drop-indicator::before {
+  content: attr(data-time);
+  position: absolute;
+  left: 6px;
+  top: -9px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: #1a2435;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* Dag-kolommen oplichten tijdens slepen vanuit backlog */
+.is-dragging-backlog .day-col {
+  background: rgba(33, 150, 243, 0.04);
+  outline: 1px dashed rgba(33, 150, 243, 0.2);
+  outline-offset: -1px;
+}
+
+
+.event {
+  position: absolute;
+  z-index: 2;
+  /* left en width worden dynamisch gezet via JS (layout algoritme) */
+}
+.examen-subgroup {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.examen-header {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.examen-wrapper {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 7px;
+  padding: 4px;
+  margin-bottom: 6px;
+}
+
+.bl-item.is-main-examen {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-left: 3px solid var(--primary) !important;
+  margin-bottom: 4px;
+}
+
+.bl-item.is-main-examen .bl-main .t {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.examen-wrapper .bl-item:not(.is-main-examen) {
+  margin-left: 10px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 6px 6px 0;
+}
+
+.examen-wrapper.is-collapsed .examen-subtasks {
+  display: none;
+}
+
+.examen-wrapper.is-collapsed .is-main-examen {
+  margin-bottom: 0;
+}
+
+.exam-toggle {
+  margin-left: auto;
+  padding-right: 6px;
+  font-size: 0.65rem;
+  opacity: 0.4;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.examen-wrapper.is-collapsed .exam-toggle {
+  transform: rotate(-90deg);
+}
+
+/* ═══════════════════════════════════════
+   NIEUW PLAN MODAL
+═══════════════════════════════════════ */
+
+.modal-content--plan {
+  max-width: 460px;
+}
+
+.plan-time-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+
+/* Tabs */
+.plan-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+
+.plan-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.plan-tab.is-active {
+  color: #e2e8f0;
+  border-bottom-color: var(--primary);
+}
+
+.plan-tab:hover:not(.is-active) {
+  color: #94a3b8;
+}
+
+/* Backlog zoeklijst */
+#plan-bl-search {
+  width: 100%;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 7px;
+  color: #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  margin-bottom: 0.6rem;
+}
+
+#plan-bl-search:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(33,150,243,0.15);
+}
+
+.plan-bl-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plan-bl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.plan-bl-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.plan-bl-item.is-selected {
+  background: rgba(33,150,243,0.12);
+  border-color: rgba(33,150,243,0.3);
+}
+
+.plan-bl-sym {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.plan-bl-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-bl-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plan-bl-sub {
+  font-size: 0.72rem;
+  color: #475569;
+  margin-top: 1px;
+}
+
+.plan-bl-count {
+  font-size: 0.65rem;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.plan-bl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.plan-bl-empty {
+  text-align: center;
+  color: #475569;
+  font-size: 0.82rem;
+  padding: 1.5rem 0;
+}
+
+/* Exam-hoofditem in modal backloglijst */
+.plan-bl-item.is-main-examen {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-left: 3px solid var(--primary) !important;
+  margin-bottom: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Subtaken inspringen in modal */
+#plan-bl-list .examen-wrapper .plan-bl-item:not(.is-main-examen) {
+  margin-left: 10px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Vakgroep-header past zich aan in de smallere modal */
+#plan-bl-list .bl-title {
+  font-size: 0.75rem;
+  padding: 5px 8px;
+}
+
+/* Tijdbalk tussen tabs en body */
+.plan-time-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.15);
+  flex-shrink: 0;
+}
+
+.plan-time-bar input[type="date"],
+.plan-time-bar input[type="time"] {
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.82rem;
+  box-sizing: border-box;
+  color-scheme: dark;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.plan-time-bar input[type="date"] { width: 124px; }
+.plan-time-bar input[type="time"] { width: 86px; }
+
+.plan-time-bar input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(33,150,243,0.15);
+}
+
+.plan-time-arrow {
+  font-size: 0.8rem;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+/* Google Calendar-stijl selectieoverlay */
+.cal-selection {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  background: rgba(33, 150, 243, 0.22);
+  border: 2px solid rgba(33, 150, 243, 0.65);
+  border-radius: 6px;
+  z-index: 15;
+  pointer-events: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #90caf9;
+  padding: 3px 6px;
+  user-select: none;
+  min-height: 15px;
+  box-sizing: border-box;
+}
+
+/* --- VANDAAG KNOP --- */
+.btn-today {
+  background: rgba(33, 150, 243, 0.15);
+  color: var(--primary);
+  border: 1px solid rgba(33, 150, 243, 0.4);
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-today:hover {
+  background: rgba(33, 150, 243, 0.28);
+  border-color: var(--primary);
+}
+
+/* --- HUIDIGE TIJDLIJN --- */
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ef4444;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.now-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+/* --- HUIDIGE TIJD LABEL (tijdkolom) --- */
+.time-col {
+  position: relative;
+}
+
+.now-time-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1;
+  padding: 2px 3px;
+  border-radius: 3px;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* --- RESIZE HANDLE --- */
+.evt-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  cursor: ns-resize;
+  border-radius: 0 0 6px 6px;
+  z-index: 4;
+}
+
+.evt-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.event:hover .evt-resize-handle::after {
+  opacity: 1;
+}
+
+/* --- DONE EVENT --- */
+.event.is-done {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.event.is-done .title {
+  text-decoration: line-through;
+}
+
+.event.is-done::before {
+  content: "✓";
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  color: #4CAF50;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.evt-done {
+  color: #4CAF50 !important;
+  font-weight: bold;
+}
+
+/* --- CONFLICT HIGHLIGHT --- */
+.event.has-conflict {
+  border-color: rgba(244, 67, 54, 0.35);
+}
+
+/* --- TODAY COLUMN HEADER --- */
+.col-head.is-today {
+  color: var(--primary);
+  border-bottom: 2px solid var(--primary);
+}
+
+/* --- DEADLINE MARKERS IN COLUMN HEADER --- */
+.col-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.dl-markers {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.dl-marker-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+/* --- POMODORO TIMER PANEL --- */
+.pomodoro-panel {
+  display: none;
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 18px 20px;
+  z-index: 2000;
+  min-width: 220px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  color: var(--text);
+}
+
+.pomodoro-panel.is-active {
+  display: block;
+}
+
+.pomo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.pomo-btn-icon {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.pomo-btn-icon:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.pomo-title {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.pomo-time {
+  font-size: 3rem;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0 14px;
+}
+
+.pomo-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.pomo-controls .btn-text {
+  font-size: 0.82rem;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Dag-picker (herhaling) ── */
+.day-picker {
+  display: flex;
+  gap: 4px;
+}
+
+.day-btn {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  color: #64748b;
+  padding: 6px 2px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.day-btn.is-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.day-btn:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.07);
+  color: #94a3b8;
+}
+
+/* ── Aangepast interval ── */
+.recur-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recur-custom-row span {
+  font-size: 0.82rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.recur-custom-row input[type="number"] {
+  width: 60px !important;
+  text-align: center;
+}
+
+.recur-custom-row select {
+  flex: 1;
+}
+
+/* ── Notificatie bell-knop ── */
+#notifBtn.notif-active {
+  color: #fbbf24 !important;
+  border-color: rgba(251, 191, 36, 0.45) !important;
+}
+
+/* ── Notificatie paneel (portal) ── */
+.notif-panel {
+  position: fixed;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  z-index: 9999;
+  min-width: 250px;
+  max-width: 310px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.notif-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.notif-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.notif-item:last-child { border-bottom: none; }
+
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.notif-info { min-width: 0; }
+
+.notif-title {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-sub {
+  font-size: 0.7rem;
+  color: #475569;
+  margin-top: 1px;
+}
+
+.notif-empty,
+.notif-msg {
+  padding: 12px 14px;
+  font-size: 0.78rem;
+  color: #475569;
+  text-align: center;
+}
+
+/* ── Verstreken kalenderblokken ── */
+.event.is-missed {
+  opacity: 0.72;
+  border-left: 3px solid #ef4444 !important;
+}
+
+/* ── Dagnotities: kolomheader top-rij ── */
+.col-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.day-note-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.6rem;
+  opacity: 0;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.col-head:hover .day-note-btn {
+  opacity: 0.5;
+}
+
+.day-note-btn.has-note {
+  opacity: 1 !important;
+  filter: sepia(1) saturate(3) hue-rotate(5deg);
+}
+
+.day-note-popover {
+  position: fixed;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 9999;
+  width: 220px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+}
+
+.day-note-textarea {
+  display: block;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  resize: none;
+  box-sizing: border-box;
+  min-height: 70px;
+  margin-bottom: 8px;
+}
+
+.day-note-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+.day-note-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.day-note-actions .btn-ghost,
+.day-note-actions .btn-primary {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+}
+
+/* ── Undo toast ── */
+.undo-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  white-space: nowrap;
+  pointer-events: all;
+}
+
+.undo-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.undo-toast-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.undo-toast-btn:hover {
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════
+   PRINT STIJLEN
+═══════════════════════════════════════ */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  body.planner-page {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Verberg alles behalve de kalender */
+  .planner-header .toolbar-actions,
+  .rightcol,
+  .pomodoro-panel,
+  .modal,
+  #examen-timer,
+  .evt-menu-btn,
+  .evt-resize-handle {
+    display: none !important;
+  }
+
+  /* Header compact */
+  .planner-header {
+    position: static !important;
+    border-bottom: 1px solid #ccc;
+    padding: 6px 16px;
+    background: #fff !important;
+  }
+
+  .toolbar-nav #weekTitle { color: #000 !important; }
+  .btn-icon, .btn-today, .view-toggle { display: none !important; }
+
+  /* Kalender layout */
+  .module-planner { margin-top: 0 !important; }
+  .page { display: block !important; padding: 0 !important; }
+  .leftcol { width: 100% !important; }
+
+  .calendar-grid {
+    border: 1px solid #ddd !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
+
+  .col-head {
+    background: #f5f5f5 !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd !important;
+  }
+
+  .col-head.is-today {
+    background: #e3f2fd !important;
+    color: #1565c0 !important;
+    border-bottom-color: #1565c0 !important;
+  }
+
+  .day-col {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      #e0e0e0 0px, #e0e0e0 1px,
+      transparent 1px, transparent 59px
+    ) !important;
+    background-size: 100% 60px !important;
+  }
+
+  .event {
+    border: 1px solid rgba(0,0,0,0.2) !important;
+    box-shadow: none !important;
+  }
+
+  .now-line, .now-time-label { display: none !important; }
+
+  .time-slot, .time-half { color: #666 !important; }
 }

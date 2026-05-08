@@ -34,7 +34,7 @@
           <div class="main-grid">
             
             <section class="card left-panel">
-                <h2 style="margin-bottom:20px;">Agenda Builder</h2>
+                <h2>Agenda Builder</h2>
                 
                 <h3 class="section-label">1. Kies Agenda</h3>
                 <div id="container-calendars" class="chips">
@@ -58,9 +58,21 @@
 
                 <h3 class="section-label">3. Tijdstip</h3>
                 <div class="row">
-                    <div><label>Datum</label><input id="date" type="date" /></div>
+                    <div>
+                        <label>Datum</label>
+                        <input id="date" type="date" />
+                        <div class="date-quick-btns">
+                            <button class="ghost small" id="btnToday">Vandaag</button>
+                            <button class="ghost small" id="btnTomorrow">Morgen</button>
+                            <button class="ghost small" id="btnNextWeek">+1 week</button>
+                        </div>
+                    </div>
                     <div><label>Tijdzone</label><input id="tz" readonly style="opacity:0.6" /></div>
                 </div>
+
+                <label>Tijdstips</label>
+                <div id="container-timeslots" class="chips"></div>
+
                 <div class="row">
                     <div><label>Start</label><input id="start" type="time" /></div>
                     <div><label>Einde</label><input id="end" type="time" /></div>
@@ -68,6 +80,10 @@
                 <div class="row">
                     <div><label>Of Duur (u)</label><input id="durH" type="number" min="0" placeholder="0" /></div>
                     <div><label>Min (m)</label><input id="durM" type="number" min="0" step="5" placeholder="0" /></div>
+                </div>
+                <div class="row">
+                    <div><label>Herhalen (opeenvolgende dagen)</label><input id="repeatDays" type="number" min="1" max="30" value="1" /></div>
+                    <div></div>
                 </div>
 
                 <h3 class="section-label">4. Details</h3>
@@ -158,6 +174,19 @@
             <div class="row" style="margin-top:8px;">
                 <input id="new-location-name" placeholder="Nieuwe Locatie" />
                 <button id="btnAddLocation" class="btn small primary">Toevoegen</button>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h4>⏰ Tijdstips</h4>
+            <div id="list-timeslots" class="config-list"></div>
+            <div class="row" style="margin-top:8px;">
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input id="new-ts-start" type="time" style="flex:1" />
+                    <span style="opacity:0.5;">–</span>
+                    <input id="new-ts-end" type="time" style="flex:1" />
+                </div>
+                <button id="btnAddTimeslot" class="btn small primary">Toevoegen</button>
             </div>
         </div>
 
