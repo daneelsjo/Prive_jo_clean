@@ -36,6 +36,7 @@
                     <div class="toolbar-row">
                         <label>Maand: <input id="monthPicker" type="month"></label>
                         <button id="btnExportPdf" class="primary">📄 PDF Export</button>
+                        <button id="btnYearView" class="ghost">📊 Jaaroverzicht</button>
                         <div class="spacer"></div>
                         <div class="quick-actions">
                             <button class="ghost qa" data-type="sport">🏃 Sport</button>
@@ -48,12 +49,24 @@
                     </div>
                 </section>
 
-                <section class="card">
+                <section id="yearView" class="card" hidden></section>
+
+                <section class="card" id="monthView">
+                    <div id="filterBar" class="filter-bar"></div>
                     <div class="table-wrap">
                         <table id="timeTable" class="time-table">
+                            <colgroup>
+                                <col style="width:36px">
+                                <col style="width:68px">
+                                <col style="width:100px">
+                                <col style="width:92px">
+                                <col style="width:68px">
+                                <col style="width:60px">
+                                <col>
+                            </colgroup>
                             <thead>
                                 <tr>
-                                    <th style="width:30px;"></th>
+                                    <th></th>
                                     <th>Start</th><th>Pauze Start</th><th>Pauze Eind</th><th>Eind</th><th>Uur</th><th>Opmerking</th>
                                 </tr>
                             </thead>
@@ -84,7 +97,6 @@
                         <option value="andere">Andere</option>
                     </select>
                 </label>
-                </label>
                 <label class="fld fld-start">Start <input id="tr-start" type="time"></label>
                 <label class="fld fld-beginbreak">Start pauze <input id="tr-beginbreak" type="time"></label>
                 <label class="fld fld-endbreak">Einde pauze <input id="tr-endbreak" type="time"></label>
@@ -92,6 +104,7 @@
                 <label class="fld fld-remark">Opmerking <textarea id="tr-remark"></textarea></label>
             </div>
         </div>
+        <div id="tr-duration-preview" class="duration-preview" hidden></div>
         <div class="modal-footer">
             <button id="tr-save" class="primary">💾 Opslaan</button>
             <button id="tr-delete" class="danger" style="display:none;">🗑️ Verwijderen</button>

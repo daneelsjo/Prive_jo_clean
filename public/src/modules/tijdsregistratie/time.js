@@ -32,16 +32,58 @@ function confirmDialog(message) {
     });
 }
 
+function copyDialog(defaultDate) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--card,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;max-width:320px;width:90%;display:flex;flex-direction:column;gap:16px';
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.value = defaultDate;
+        input.style.cssText = 'padding:0.5rem;border:1px solid var(--border,#334155);border-radius:8px;background:var(--card);color:var(--fg);width:100%;box-sizing:border-box';
+        const label = document.createElement('p');
+        label.textContent = 'Kopieer naar datum';
+        label.style.cssText = 'margin:0;font-size:0.95rem;font-weight:600';
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display:flex;justify-content:flex-end;gap:10px';
+        const no = document.createElement('button');
+        no.textContent = 'Annuleren';
+        no.style.cssText = 'padding:6px 14px;border-radius:6px;border:1px solid var(--border,#334155);background:transparent;cursor:pointer;color:inherit';
+        const yes = document.createElement('button');
+        yes.textContent = 'Kopiëren';
+        yes.style.cssText = 'padding:6px 14px;border-radius:6px;border:none;background:var(--brand,#3b82f6);color:#fff;cursor:pointer';
+        btns.append(no, yes);
+        box.append(label, input, btns);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        const cleanup = result => { overlay.remove(); resolve(result); };
+        yes.onclick = () => cleanup(input.value || null);
+        no.onclick = () => cleanup(null);
+        overlay.onclick = e => { if (e.target === overlay) cleanup(null); };
+    });
+}
+
 // State
 let currentUser = null;
 let monthSegments = [];
+let firstLoad = true;
+let filterType = null;
+let viewMode = 'month';
 let monthPicker = document.getElementById("monthPicker");
 const timeTable = document.getElementById("timeTable")?.querySelector("tbody");
+let lastMonthStats = { diff: 0, over: 0, verlof: 0, recup: 0, optout: 0 };
 
 // Constanten
 const DAILY_EXPECTED_MIN = 7 * 60 + 36; // 7u36
 const WIN_START = 7 * 60;   // 07:00
 const WIN_END = 18 * 60;    // 18:00
+
+const TYPE_LABELS = {
+    standard: 'Standaard', overleg: 'Overleg', sport: 'Sport',
+    feestdag: 'Feestdag', verlof: 'Verlof', recup: 'Recup',
+    interventie: 'Interventie', oefening: 'Oefening', andere: 'Andere'
+};
 
 // --- HELPER FUNCTIES (Datum/Tijd) ---
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -64,7 +106,7 @@ function isoWeek(d) {
 function computeMinutes(entry) {
     let s = hmToMin(entry?.start), e = hmToMin(entry?.end);
     // Feestdagen auto-fill logic
-    if (entry?.type === "feestdag" && (!s || !e)) { s = hmToMin("07:00"); e = hmToMin("15:36"); }
+    if (entry?.type === "feestdag" && (!s || !e)) { s = hmToMin("08:00"); e = hmToMin("15:36"); }
     if (s == null || e == null) return 0;
     
     let total = e - s;
@@ -132,8 +174,8 @@ async function init() {
         // Start Data Stream
         subscribeToSegments(currentUser.uid, (data) => {
             monthSegments = data;
-            setWorkButtonLabel();
             renderTable();
+            if (firstLoad) { firstLoad = false; checkPreviousDayMissing(); }
         });
 
         setupUI();
@@ -148,9 +190,6 @@ function setupUI() {
         monthPicker.onchange = renderTable;
     }
     
-    // Header knop (Start/Stop)
-    ensureHeaderButton();
-    
     // PDF Export
     document.getElementById("btnExportPdf")?.addEventListener("click", exportMonthPdf);
 
@@ -162,82 +201,82 @@ function setupUI() {
     // Modal Knoppen
     document.getElementById("tr-save")?.addEventListener("click", saveSegmentFromModal);
     document.getElementById("tr-delete")?.addEventListener("click", deleteSegmentFromModal);
-    
+
     // Type change effect in modal
     document.getElementById("tr-type")?.addEventListener("change", applyTypeEffects);
+
+    // Real-time duurberekening in modal
+    ['tr-start', 'tr-end', 'tr-beginbreak', 'tr-endbreak'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', updateModalPreview);
+    });
+
+    // Jaaroverzicht toggle
+    document.getElementById('btnYearView')?.addEventListener('click', () => {
+        viewMode = viewMode === 'year' ? 'month' : 'year';
+        const yearEl = document.getElementById('yearView');
+        const monthEl = document.getElementById('monthView');
+        const btn = document.getElementById('btnYearView');
+        const isYear = viewMode === 'year';
+        if (yearEl) yearEl.hidden = !isYear;
+        if (monthEl) monthEl.hidden = isYear;
+        btn.classList.toggle('active', isYear);
+        if (isYear) renderYearView();
+    });
 }
 
-// --- HEADER KNOP (START/STOP) ---
-function ensureHeaderButton() {
-    const host = document.getElementById("quickLinks"); // Zorg dat dit ID bestaat in header.html of gebruik een andere plek
-    if (!host) return; // Als partial nog niet geladen is, faalt dit.
-    
-    // Check of knop al bestaat
-    if(document.getElementById("workTimerBtn")) return;
-
-    const btn = document.createElement("button");
-    btn.id = "workTimerBtn";
-    btn.className = "primary";
-    btn.textContent = "Laden...";
-    btn.style.whiteSpace = "nowrap";
-    btn.onclick = onWorkButtonClick;
-    host.prepend(btn);
+// --- MODAL LIVE PREVIEW ---
+function updateModalPreview() {
+    const preview = document.getElementById('tr-duration-preview');
+    if (!preview) return;
+    const start = document.getElementById('tr-start').value;
+    const end   = document.getElementById('tr-end').value;
+    const bb    = document.getElementById('tr-beginbreak').value;
+    const be    = document.getElementById('tr-endbreak').value;
+    if (!start || !end) { preview.hidden = true; return; }
+    const mins = computeMinutes({ start, end, beginbreak: bb || null, endbreak: be || null });
+    if (mins <= 0) { preview.hidden = true; return; }
+    const diff    = mins - DAILY_EXPECTED_MIN;
+    const diffStr = diff >= 0
+        ? `<span class="pos">+${minToHM(Math.abs(diff))}</span>`
+        : `<span class="neg">-${minToHM(Math.abs(diff))}</span>`;
+    preview.hidden = false;
+    preview.innerHTML = `⏱ <strong>${minToHM(mins)}</strong>&nbsp;&nbsp;(${diffStr} t.o.v. ${minToHM(DAILY_EXPECTED_MIN)})`;
 }
 
-function setWorkButtonLabel() {
-    const btn = document.getElementById("workTimerBtn");
-    if (!btn) return;
-    
-    const todayISO = fmtDateISO(new Date());
-    const seg = monthSegments.find(s => s.uid === currentUser?.uid && s.date === todayISO && s.type === "standard" && !s.end);
-    
-    if (!seg) { btn.textContent = "Start werktijd"; return; }
-    if (seg.start && !seg.beginbreak) { btn.textContent = "Neem pauze"; return; }
-    if (seg.beginbreak && !seg.endbreak) { btn.textContent = "Einde pauze"; return; }
-    btn.textContent = "Einde werkdag";
+// --- VORIGE WERKDAG CONTROLE ---
+function getPreviousWorkday() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    do { d.setDate(d.getDate() - 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    return fmtDateISO(d);
 }
 
-async function onWorkButtonClick() {
-    const todayISO = fmtDateISO(new Date());
-    // Zoek open segment
-    const seg = monthSegments
-        .filter(s => s.uid === currentUser?.uid && s.date === todayISO && s.type === "standard" && !s.end)
-        .sort((a, b) => (hmToMin(b.start || "00:00") || 0) - (hmToMin(a.start || "00:00") || 0))[0];
+function checkPreviousDayMissing() {
+    const prevISO = getPreviousWorkday();
+    const suppressKey = `time_prevday_suppress_${currentUser.uid}_${prevISO}`;
+    if (localStorage.getItem(suppressKey)) return;
 
-    try {
-        if (!seg) {
-            // Start Nieuw
-            await addSegment({
-                uid: currentUser.uid, date: todayISO, type: "standard",
-                start: nowHM(), beginbreak: null, endbreak: null, end: null,
-                remark: null, minutes: 0, createdAt: Date.now()
-            });
-            showToast("Werktijd gestart", "success");
-        } else if (!seg.beginbreak && !seg.end) {
-            // Pauze Start
-            await updateSegment(seg.id, { beginbreak: nowHM(), updatedAt: Date.now() });
-            showToast("Pauze gestart", "info");
-        } else if (seg.beginbreak && !seg.endbreak && !seg.end) {
-            // Pauze Einde
-            await updateSegment(seg.id, { endbreak: nowHM(), updatedAt: Date.now() });
-            showToast("Pauze beëindigd", "info");
-        } else if (!seg.end) {
-            // Stop
-            const end = nowHM();
-            const mins = computeMinutes({ ...seg, end });
-            await updateSegment(seg.id, { end, minutes: mins, updatedAt: Date.now() });
-            showToast("Werkdag beëindigd", "success");
-        }
-    } catch(e) {
-        console.error(e);
-        showToast("Er ging iets mis", "error");
-    }
+    const hasEntry = monthSegments.some(s =>
+        s.uid === currentUser.uid &&
+        s.date === prevISO &&
+        ['standard', 'verlof', 'recup', 'feestdag', 'interventie'].includes(s.type)
+    );
+    if (hasEntry) return;
+
+    // Open modal direct — de globale nav-banner heeft de gebruiker al hierheen gestuurd
+    openTimeModal({ date: prevISO });
 }
 
 // --- RENDERING (Tabel & Chips) ---
 function renderTable() {
     if (!timeTable || !monthPicker.value) return;
     const [Y, M] = monthPicker.value.split("-").map(Number);
+
+    // Onthoud welke weken ingeklapt zijn voor na de herrender
+    const collapsedWeeks = new Set(
+        [...timeTable.querySelectorAll('tr[data-week].week-collapsed')].map(r => r.dataset.week)
+    );
+
     timeTable.innerHTML = "";
     
     // Filter & Sorteer Data
@@ -304,10 +343,10 @@ function renderTable() {
         if(isWorkday) weekWorkdays++;
 
         // Render Dag Header
-        renderDayHeader(d, dayMinutes, dateISO, segs.length > 0);
-        
+        renderDayHeader(d, dayMinutes, dateISO, w);
+
         // Render Segmenten
-        segs.forEach(seg => renderSegmentRow(seg, dateISO));
+        segs.forEach(seg => renderSegmentRow(seg, dateISO, w));
     }
     
     // Laatste week afsluiten
@@ -318,17 +357,30 @@ function renderTable() {
         optOutExcessTotal += Math.max(0, weekOptOut - (10 * 60));
     }
 
+    // Herstel ingeklapte weken
+    if (collapsedWeeks.size > 0) {
+        collapsedWeeks.forEach(weekNo => {
+            timeTable.querySelectorAll(`tr[data-week="${weekNo}"]`).forEach(r => r.classList.add('week-collapsed'));
+            const header = timeTable.querySelector(`tr[data-week-header="${weekNo}"]`);
+            if (header) header.querySelector('.week-chevron').textContent = '▶';
+        });
+    }
+
     // Update Chips bovenaan
     updateMonthMeta(monthDiffTotal, overOtherTotal, verlofTotal, recupTotal, optOutExcessTotal);
 }
 
-function renderDayHeader(date, minutes, dateISO, hasSegs) {
+function renderDayHeader(date, minutes, dateISO, weekNo) {
     const tr = document.createElement("tr");
-    tr.className = "date-header";
+    const dow = date.getDay();
+    const isToday   = dateISO === fmtDateISO(new Date());
+    const isWeekend = dow === 0 || dow === 6;
+    tr.className = `date-header${isToday ? ' date-today' : ''}${isWeekend ? ' date-weekend' : ''}`;
+    tr.dataset.week = weekNo;
     tr.innerHTML = `
         <td colspan="7">
             <div class="datebar">
-                <div class="left">${weekdayShort(date)} ${date.getDate()}</div>
+                <div class="left">${weekdayShort(date)} ${date.getDate()}${isToday ? ' <span class="today-dot">●</span>' : ''}</div>
                 <div class="right">
                     <span class="muted">${minutes ? minToHM(minutes) : ""}</span>
                     <button class="icon-xs toggle" data-date="${dateISO}">▼</button>
@@ -350,20 +402,42 @@ function renderDayHeader(date, minutes, dateISO, hasSegs) {
     timeTable.appendChild(tr);
 }
 
-function renderSegmentRow(seg, dateISO) {
+function renderSegmentRow(seg, dateISO, weekNo) {
     const tr = document.createElement("tr");
     tr.className = `seg-row type-${seg.type}`;
     tr.dataset.date = dateISO;
-    // Standaard openen
+    tr.dataset.week = weekNo;
     tr.innerHTML = `
-        <td></td>
+        <td class="seg-copy-cell"><button class="seg-copy-btn" title="Kopieer naar andere datum">⧉</button></td>
         <td>${seg.start || ""}</td>
         <td>${seg.beginbreak || ""}</td>
         <td>${seg.endbreak || ""}</td>
         <td>${seg.end || ""}</td>
         <td>${minToHM(computeMinutes(seg))}</td>
-        <td><span class="badge">${seg.type}</span> ${escapeHtml(seg.remark)}</td>
+        <td><span class="badge badge-${seg.type}">${TYPE_LABELS[seg.type] || seg.type}</span> ${escapeHtml(seg.remark)}</td>
     `;
+    tr.querySelector('.seg-copy-btn').onclick = async (e) => {
+        e.stopPropagation();
+        const targetDate = await copyDialog(fmtDateISO(new Date()));
+        if (!targetDate) return;
+        try {
+            await addSegment({
+                uid: currentUser.uid,
+                date: targetDate,
+                type: seg.type,
+                start: seg.start || null,
+                beginbreak: seg.beginbreak || null,
+                endbreak: seg.endbreak || null,
+                end: seg.end || null,
+                remark: seg.remark || null,
+                minutes: seg.minutes || 0,
+                createdAt: Date.now()
+            });
+            showToast("Registratie gekopieerd", "success");
+        } catch (err) {
+            showToast("Kopiëren mislukt", "error");
+        }
+    };
     tr.onclick = () => openTimeModal({ id: seg.id });
     timeTable.appendChild(tr);
 }
@@ -372,45 +446,193 @@ function renderWeekRow(weekNo, worked, days, optOut) {
     const expected = days * DAILY_EXPECTED_MIN;
     const diff = worked - expected;
     const cls = diff >= 0 ? "diff pos" : "diff neg";
-    
+
     const tr = document.createElement("tr");
     tr.className = "week-total";
+    tr.dataset.weekHeader = weekNo;
     tr.innerHTML = `
-        <td colspan="7" style="text-align:center; padding-top:10px;">
-            Week ${weekNo}: ${minToHM(worked)} / ${minToHM(expected)} 
-            <span class="${cls}">(${diff>=0?"+":""}${minToHM(diff)})</span>
-            | Opt-out: ${minToHM(optOut)}
+        <td colspan="7">
+            <div class="week-bar">
+                <span class="week-chevron">▼</span>
+                <span>Week ${weekNo}: <strong>${minToHM(worked)}</strong> / ${minToHM(expected)}
+                    <span class="${cls}">(${diff >= 0 ? "+" : ""}${minToHM(diff)})</span>
+                </span>
+                <span class="week-optout">Opt-out: ${minToHM(optOut)}</span>
+            </div>
         </td>
     `;
+    tr.onclick = () => {
+        const rows = timeTable.querySelectorAll(`tr[data-week="${weekNo}"]`);
+        const collapsed = rows[0]?.classList.contains('week-collapsed');
+        rows.forEach(r => r.classList.toggle('week-collapsed', !collapsed));
+        tr.querySelector('.week-chevron').textContent = collapsed ? '▼' : '▶';
+    };
     timeTable.appendChild(tr);
 }
 
-// --- META CHIPS (Boven de tabel) ---
+// --- MAAND STATS BIJHOUDEN ---
 function updateMonthMeta(diff, over, verlof, recup, optout) {
-    // Zoek of maak container
-    let meta = document.getElementById("monthMeta");
-    if(!meta) {
-        meta = document.createElement("div");
-        meta.id = "monthMeta";
-        meta.className = "month-meta";
-        monthPicker.insertAdjacentElement("afterend", meta);
-    }
-    meta.innerHTML = ""; // Clear
+    lastMonthStats = { diff, over, verlof, recup, optout };
+    document.getElementById("monthMeta")?.remove();
+    renderFilterBar();
+    renderRightCol();
+    if (viewMode === 'year') renderYearView();
+}
 
-    const addPill = (text, type) => {
-        const sp = document.createElement("span");
-        sp.className = `pill ${type}`;
-        sp.textContent = text;
-        meta.appendChild(sp);
+// --- TYPE FILTER ---
+function renderFilterBar() {
+    const bar = document.getElementById('filterBar');
+    if (!bar || !monthPicker.value) return;
+    const [Y, M] = monthPicker.value.split('-').map(Number);
+
+    const typesInMonth = new Set(
+        monthSegments
+            .filter(s => { const d = new Date(s.date); return d.getFullYear() === Y && (d.getMonth() + 1) === M; })
+            .map(s => s.type)
+            .filter(Boolean)
+    );
+
+    if (typesInMonth.size === 0) { bar.innerHTML = ''; return; }
+
+    bar.innerHTML = '';
+    const makeBtn = (label, type) => {
+        const btn = document.createElement('button');
+        btn.className = `filter-btn${filterType === type ? ' active' : ''}`;
+        btn.textContent = label;
+        btn.onclick = () => applyFilter(filterType === type ? null : type);
+        bar.appendChild(btn);
     };
+    makeBtn('Alles', null);
+    typesInMonth.forEach(t => makeBtn(TYPE_LABELS[t] || t, t));
+}
 
-    // Glijtijd
-    addPill(`Glijtijd: ${minToHM(diff)}`, diff >= 0 ? "pos" : "neg");
-    
-    if(over > 0) addPill(`Over/Oef/Andere: ${minToHM(over)}`, "info");
-    if(verlof > 0) addPill(`Verlof: ${minToHM(verlof)}`, "verlof");
-    if(recup > 0) addPill(`Recup: ${minToHM(recup)}`, "recup");
-    if(optout > 0) addPill(`Opt-out teveel: ${minToHM(optout)}`, "warn");
+function applyFilter(type) {
+    filterType = type;
+    renderFilterBar();
+
+    timeTable.querySelectorAll('.seg-row').forEach(r => {
+        r.style.display = (!type || r.classList.contains(`type-${type}`)) ? '' : 'none';
+    });
+    timeTable.querySelectorAll('.date-header').forEach(header => {
+        if (!type) { header.style.display = ''; return; }
+        const date = header.querySelector('[data-date]')?.dataset.date;
+        const hasMatch = date && [...timeTable.querySelectorAll(`.seg-row[data-date="${date}"]`)]
+            .some(r => r.classList.contains(`type-${type}`));
+        header.style.display = hasMatch ? '' : 'none';
+    });
+}
+
+// --- JAAROVERZICHT ---
+function computeMonthStats(year, month) {
+    const segs = monthSegments.filter(s => {
+        if (!s.date) return false;
+        const d = new Date(s.date);
+        return d.getFullYear() === year && (d.getMonth() + 1) === month;
+    });
+    const byDate = new Map();
+    segs.forEach(s => { if (!byDate.has(s.date)) byDate.set(s.date, []); byDate.get(s.date).push(s); });
+
+    let worked = 0, verlof = 0, recup = 0, overOther = 0;
+    let runWeek = null, weekDays = 0, weekOptOut = 0, totalExpected = 0, totalOptout = 0;
+
+    const lastDay = new Date(year, month, 0).getDate();
+    for (let day = 1; day <= lastDay; day++) {
+        const d = new Date(year, month - 1, day);
+        const dow = d.getDay();
+        const w = isoWeek(d);
+        if (runWeek !== null && w !== runWeek) {
+            totalExpected += weekDays * DAILY_EXPECTED_MIN;
+            totalOptout += Math.max(0, weekOptOut - 10 * 60);
+            weekDays = 0; weekOptOut = 0;
+        }
+        runWeek = w;
+        (byDate.get(fmtDateISO(d)) || []).forEach(s => {
+            const t = (s.type || '').toLowerCase();
+            const mins = computeMinutes(s);
+            const { inside, outside } = computeTimeSplit(s);
+            if (t === 'verlof')      { verlof += mins; worked += mins; }
+            else if (t === 'recup') { recup += mins; worked += mins; }
+            else if (t === 'feestdag') { worked += mins; }
+            else if (t === 'sport') { /* niets */ }
+            else if (['overleg', 'oefening', 'andere'].includes(t)) { worked += inside; overOther += outside; }
+            else { worked += inside; weekOptOut += outside; }
+        });
+        if (dow >= 1 && dow <= 5) weekDays++;
+    }
+    if (runWeek !== null) {
+        totalExpected += weekDays * DAILY_EXPECTED_MIN;
+        totalOptout += Math.max(0, weekOptOut - 10 * 60);
+    }
+    return { worked, expected: totalExpected, diff: worked - totalExpected, verlof, recup, optout: totalOptout };
+}
+
+function renderYearView() {
+    const el = document.getElementById('yearView');
+    if (!el) return;
+    const year = monthPicker.value ? Number(monthPicker.value.split('-')[0]) : new Date().getFullYear();
+    const nowMonth = new Date().getFullYear() === year ? new Date().getMonth() + 1 : 12;
+
+    const monthNames = Array.from({ length: 12 }, (_, i) =>
+        new Date(year, i, 1).toLocaleDateString('nl-BE', { month: 'long' })
+    );
+
+    let totalDiff = 0;
+    const rows = monthNames.map((name, i) => {
+        const m = i + 1;
+        const isFuture = m > nowMonth;
+        const isCurrent = m === nowMonth;
+        const s = computeMonthStats(year, m);
+        if (!isFuture) totalDiff += s.diff;
+        const diffStr = isFuture ? '—'
+            : `<span class="${s.diff >= 0 ? 'pos' : 'neg'}">${s.diff >= 0 ? '+' : ''}${minToHM(s.diff)}</span>`;
+        return `<tr class="${isCurrent ? 'year-current' : ''}${isFuture ? ' year-future' : ''}">
+            <td><strong>${name}</strong></td>
+            <td>${isFuture ? '—' : minToHM(s.worked)}</td>
+            <td>${isFuture ? '—' : minToHM(s.expected)}</td>
+            <td>${diffStr}</td>
+            <td>${s.verlof > 0 ? minToHM(s.verlof) : '—'}</td>
+            <td>${s.recup > 0 ? minToHM(s.recup) : '—'}</td>
+            <td>${s.optout > 0 ? minToHM(s.optout) : '—'}</td>
+        </tr>`;
+    }).join('');
+
+    el.innerHTML = `
+        <div class="year-header">
+            <span>📊 Jaaroverzicht ${year}</span>
+            <span class="year-total ${totalDiff >= 0 ? 'pos' : 'neg'}">Totaal glijtijd: ${totalDiff >= 0 ? '+' : ''}${minToHM(totalDiff)}</span>
+        </div>
+        <div class="table-wrap">
+        <table class="time-table year-table">
+            <thead><tr>
+                <th>Maand</th><th>Gewerkt</th><th>Verwacht</th><th>Glijtijd</th><th>Verlof</th><th>Recup</th><th>Opt-out</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        </div>
+    `;
+}
+
+// --- RECHTERKOLOM ---
+function renderRightCol() {
+    const rc = document.querySelector('.rightcol');
+    if (!rc || !currentUser) return;
+    const { diff, over, verlof, recup, optout } = lastMonthStats;
+
+    rc.innerHTML = `
+        <div class="rc-card">
+            <div class="rc-title">📊 Maand samenvatting</div>
+            <div class="rc-month-rows">
+                <div class="rc-month-row">
+                    <span>Glijtijd saldo</span>
+                    <strong class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${minToHM(diff)}</strong>
+                </div>
+                ${over   > 0 ? `<div class="rc-month-row"><span>Overuren/Oef/Andere</span><strong>${minToHM(over)}</strong></div>`   : ''}
+                ${verlof > 0 ? `<div class="rc-month-row"><span>Verlof</span><strong>${minToHM(verlof)}</strong></div>` : ''}
+                ${recup  > 0 ? `<div class="rc-month-row"><span>Recup</span><strong>${minToHM(recup)}</strong></div>`  : ''}
+                ${optout > 0 ? `<div class="rc-month-row"><span>Opt-out teveel</span><strong class="neg">${minToHM(optout)}</strong></div>` : ''}
+            </div>
+        </div>
+    `;
 }
 
 // --- MODAL ---
@@ -435,17 +657,26 @@ function openTimeModal(opts = {}) {
     del.style.display = seg ? "inline-flex" : "none";
 
     applyTypeEffects();
+    updateModalPreview();
     if(window.Modal) window.Modal.open("modal-time");
 }
 
 function applyTypeEffects() {
     const type = document.getElementById("tr-type").value;
     const isStd = (type === "standard");
-    // Verberg pauze velden als het geen standaard werk is
     const bb = document.getElementById("tr-beginbreak").closest("label");
     const be = document.getElementById("tr-endbreak").closest("label");
     if(bb) bb.style.display = isStd ? "" : "none";
     if(be) be.style.display = isStd ? "" : "none";
+
+    // Auto-fill tijden bij feestdag
+    if (type === "feestdag") {
+        const start = document.getElementById("tr-start");
+        const end   = document.getElementById("tr-end");
+        if (!start.value) start.value = "08:00";
+        if (!end.value)   end.value   = "15:36";
+        updateModalPreview();
+    }
 }
 
 async function saveSegmentFromModal() {
@@ -464,9 +695,9 @@ async function saveSegmentFromModal() {
         updatedAt: Date.now()
     };
     
-    // Auto-fill feestdag
+    // Auto-fill feestdag (fallback als modal tijden nog leeg zijn)
     if(payload.type === "feestdag" && !payload.start) {
-        payload.start = "07:00"; payload.end = "15:36";
+        payload.start = "08:00"; payload.end = "15:36";
     }
     payload.minutes = computeMinutes(payload);
 

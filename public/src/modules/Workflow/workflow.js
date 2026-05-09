@@ -43,6 +43,13 @@ let activeFilters = {
 /** @type {Link[]} */            let currentLinks = [];
 /** @type {Log[]} */             let currentLogs = [];
 /** @type {ChecklistItem[]} */   let tempTemplateItems = [];
+/** @type {Array} */             let cardTemplates = [];
+
+let cardModalSnapshot = null;
+let tagModalSnapshot  = null;
+let viewMode = 'kanban'; // 'kanban' | 'list'
+let selectedCards = new Set();
+let bulkMode = false;
 
 /** @type {ApiSettings} */ let apiSettings = { webhookUrl: "", token: "" };
 
@@ -63,7 +70,218 @@ function confirmDialog(message) {
     });
 }
 
-const TAG_COLORS =["#3b82f6", "#ef4444", "#f97316", "#eab308", "#84cc16", "#10b981", "#06b6d4", "#6366f1", "#8b5cf6", "#d946ef"];
+function inputDialog(label, placeholder = "", defaultValue = "") {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--card,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;max-width:380px;width:90%;display:flex;flex-direction:column;gap:14px';
+        const lbl = document.createElement('p');
+        lbl.textContent = label;
+        lbl.style.cssText = 'margin:0;font-size:0.95rem;font-weight:600';
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = placeholder;
+        inp.value = defaultValue;
+        inp.style.cssText = 'padding:10px 12px;border-radius:8px;border:1px solid var(--border,#334155);background:var(--bg,#0f172a);color:var(--fg,#e2e8f0);font-size:0.95rem;width:100%;box-sizing:border-box';
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display:flex;justify-content:flex-end;gap:10px';
+        const no = document.createElement('button');
+        no.textContent = 'Annuleren';
+        no.style.cssText = 'padding:6px 14px;border-radius:6px;border:1px solid var(--border,#334155);background:transparent;cursor:pointer;color:inherit';
+        const yes = document.createElement('button');
+        yes.textContent = 'OK';
+        yes.style.cssText = 'padding:6px 14px;border-radius:6px;border:none;background:var(--brand,#3b82f6);color:#fff;cursor:pointer';
+        btns.append(no, yes);
+        box.append(lbl, inp, btns);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        inp.focus();
+        const cleanup = result => { overlay.remove(); resolve(result); };
+        yes.onclick = () => cleanup(inp.value.trim() || null);
+        no.onclick = () => cleanup(null);
+        overlay.onclick = e => { if(e.target === overlay) cleanup(null); };
+        inp.addEventListener('keydown', e => {
+            if(e.key === 'Enter') cleanup(inp.value.trim() || null);
+            if(e.key === 'Escape') cleanup(null);
+        });
+    });
+}
+
+function captureCardState() {
+    return JSON.stringify({
+        title:    $('inpTitle').value,
+        desc:     $('inpDesc').value,
+        date:     $('inpDate').value,
+        prio:     $('prio-tags-list').dataset.selected || "",
+        tags:     $('card-tags-list').dataset.selected || "[]",
+        color:    $('card-color-list')?.dataset.selected || "",
+        checklist: currentChecklist,
+        subtasks:  currentSubtasks,
+        links:     currentLinks,
+        logs:      currentLogs
+    });
+}
+function isCardDirty() { return cardModalSnapshot !== null && cardModalSnapshot !== captureCardState(); }
+
+function captureTagState() {
+    const checked = document.querySelector('input[name="tagType"]:checked');
+    return JSON.stringify({
+        name:  $('new-tag-name').value,
+        color: $('new-tag-color-val').value,
+        type:  checked ? checked.value : 'standard'
+    });
+}
+function isTagDirty() { return tagModalSnapshot !== null && tagModalSnapshot !== captureTagState(); }
+
+function unsavedChangesDialog() {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10000';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--card,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;max-width:400px;width:90%;display:flex;flex-direction:column;gap:12px';
+        const title = document.createElement('p');
+        title.textContent = 'Niet-opgeslagen wijzigingen';
+        title.style.cssText = 'margin:0;font-size:1rem;font-weight:700';
+        const msg = document.createElement('p');
+        msg.textContent = 'Je hebt wijzigingen die nog niet zijn opgeslagen. Wat wil je doen?';
+        msg.style.cssText = 'margin:0;font-size:0.875rem;opacity:0.75';
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:4px';
+        const mk = (text, css) => { const b = document.createElement('button'); b.textContent = text; b.style.cssText = css + ';padding:10px 14px;border-radius:8px;cursor:pointer;font-size:0.9rem;text-align:left'; return b; };
+        const saveBtn    = mk('💾 Opslaan & Sluiten', 'border:none;background:var(--brand,#3b82f6);color:#fff');
+        const discardBtn = mk('🗑️ Verwerpen & Sluiten', 'border:1px solid #ef4444;background:transparent;color:#ef4444');
+        const stayBtn    = mk('Blijven (niet sluiten)', 'border:1px solid var(--border,#334155);background:transparent;color:inherit');
+        btns.append(saveBtn, discardBtn, stayBtn);
+        box.append(title, msg, btns);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        const cleanup = r => { overlay.remove(); resolve(r); };
+        saveBtn.onclick    = () => cleanup('save');
+        discardBtn.onclick = () => cleanup('discard');
+        stayBtn.onclick    = () => cleanup('stay');
+        overlay.onclick    = e => { if(e.target === overlay) cleanup('stay'); };
+    });
+}
+
+const TAG_COLORS  = ["#3b82f6","#ef4444","#f97316","#eab308","#84cc16","#10b981","#06b6d4","#6366f1","#8b5cf6","#d946ef"];
+const CARD_COLORS = [null, "#3b82f6","#ef4444","#f97316","#eab308","#10b981","#8b5cf6","#ec4899","#64748b"];
+
+// --- MARKDOWN ---
+function applyInlineMarkdown(text) {
+    return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code class="wf-md-code">$1</code>');
+}
+function renderMarkdown(text) {
+    if (!text) return '<span style="opacity:0.5;font-style:italic;">Geen omschrijving.</span>';
+    const lines = escHtml(text).split('\n');
+    const out = []; let inList = false;
+    for (const line of lines) {
+        const li = line.match(/^[-*]\s+(.+)$/);
+        if (li) {
+            if (!inList) { out.push('<ul class="wf-md-list">'); inList = true; }
+            out.push(`<li>${applyInlineMarkdown(li[1])}</li>`);
+        } else {
+            if (inList) { out.push('</ul>'); inList = false; }
+            out.push(line.trim() === ''
+                ? '<div style="height:0.4rem"></div>'
+                : `<p style="margin:0 0 2px">${applyInlineMarkdown(line)}</p>`);
+        }
+    }
+    if (inList) out.push('</ul>');
+    return out.join('');
+}
+
+// --- CARD COLOR PICKER ---
+function renderCardColorPicker(selectedColor) {
+    const cont = $('card-color-list');
+    if (!cont) return;
+    cont.innerHTML = '';
+    CARD_COLORS.forEach(color => {
+        const sw = document.createElement('div');
+        sw.className = 'wf-card-color-swatch' + (selectedColor === color ? ' selected' : '');
+        if (color) { sw.style.backgroundColor = color; }
+        else       { sw.classList.add('none'); sw.textContent = '✕'; }
+        sw.title = color || 'Geen kleur';
+        sw.onclick = () => { cont.dataset.selected = color || ''; renderCardColorPicker(color); };
+        cont.appendChild(sw);
+    });
+    cont.dataset.selected = selectedColor || '';
+}
+
+// --- STATISTIEKEN ---
+function openStatsModal() {
+    const doneCol   = columns.find(c => c.title.toLowerCase() === 'afgewerkt');
+    const doneColId = doneCol ? doneCol.id : null;
+    const now       = new Date();
+    const weekAgo   = new Date(now - 7  * 864e5);
+    const monthAgo  = new Date(now - 30 * 864e5);
+    const today     = new Date(now); today.setHours(0,0,0,0);
+
+    const active = cards.filter(c => c.columnId !== doneColId);
+    const done   = cards.filter(c => c.columnId === doneColId);
+    const toDate = x => x?.toDate ? x.toDate() : (x ? new Date(x) : null);
+
+    const doneWeek  = done.filter(c => { const d = toDate(c.finishedAt); return d && d >= weekAgo; });
+    const doneMonth = done.filter(c => { const d = toDate(c.finishedAt); return d && d >= monthAgo; });
+    const overdue   = active.filter(c => { const d = toDate(c.dueDate); return d && d < today; });
+
+    const withBoth  = done.filter(c => c.createdAt && c.finishedAt);
+    let avgDays = '-';
+    if (withBoth.length) {
+        const total = withBoth.reduce((s, c) => s + (toDate(c.finishedAt) - toDate(c.createdAt)), 0);
+        avgDays = Math.round(total / withBoth.length / 864e5) + 'd';
+    }
+
+    const colBreakdown = columns.filter(c => c.id !== doneColId)
+        .sort((a, b) => a.order - b.order)
+        .map(col => ({
+            title: col.title,
+            count: cards.filter(c => c.columnId === col.id).length,
+            limit: col.wipLimit || 0
+        }));
+
+    $('stats-body').innerHTML = `
+        <div class="wf-stats-grid">
+            <div class="wf-stat-tile"><div class="wf-stat-value">${active.length}</div><div class="wf-stat-label">Actieve kaarten</div></div>
+            <div class="wf-stat-tile ok"><div class="wf-stat-value">${doneWeek.length}</div><div class="wf-stat-label">Afgewerkt deze week</div></div>
+            <div class="wf-stat-tile ok"><div class="wf-stat-value">${doneMonth.length}</div><div class="wf-stat-label">Afgewerkt deze maand</div></div>
+            <div class="wf-stat-tile ${overdue.length ? 'danger' : ''}"><div class="wf-stat-value">${overdue.length}</div><div class="wf-stat-label">Verlopen deadlines</div></div>
+            <div class="wf-stat-tile"><div class="wf-stat-value">${avgDays}</div><div class="wf-stat-label">Gem. doorlooptijd</div></div>
+        </div>
+        <div class="wf-stats-cols">
+            <h4>Kaarten per kolom</h4>
+            ${colBreakdown.map(c => `
+                <div class="wf-stats-col-row">
+                    <span>${escHtml(c.title)}</span>
+                    <div class="wf-stats-col-bar-wrap">
+                        <div class="wf-stats-col-bar" style="width:${active.length ? Math.round(c.count/active.length*100) : 0}%"></div>
+                    </div>
+                    <span class="wf-stats-col-count ${c.limit && c.count > c.limit ? 'over-limit' : ''}">${c.count}${c.limit ? '/' + c.limit : ''}</span>
+                </div>`).join('')}
+        </div>`;
+    window.Modal.open('modal-stats');
+}
+
+// --- HERORDENEN BINNEN KOLOM ---
+async function reorderCardsInColumn(draggedId, targetId, colId, insertBefore) {
+    let colCards = cards
+        .filter(c => c.columnId === colId)
+        .sort((a, b) => (a.cardOrder ?? 999999) - (b.cardOrder ?? 999999));
+    const draggedIdx = colCards.findIndex(c => c.id === draggedId);
+    if (draggedIdx === -1) return;
+    const [dragged] = colCards.splice(draggedIdx, 1);
+    const newTargetIdx = colCards.findIndex(c => c.id === targetId);
+    if (newTargetIdx === -1) return;
+    colCards.splice(insertBefore ? newTargetIdx : newTargetIdx + 1, 0, dragged);
+    try {
+        await Promise.all(colCards.map((card, idx) =>
+            updateDoc(doc(db, "workflowCards", card.id), { cardOrder: idx * 100 })
+        ));
+    } catch(err) { console.error(err); showToast("Volgorde opslaan mislukt", "error"); }
+}
 
 // --- INIT ---
 async function init() {
@@ -135,11 +353,19 @@ function startStreams() {
         if(!$('modal-settings').hidden) renderTemplateConfig();
         populateTemplateSelect();
     });
+    const qtpl = query(collection(db, "workflowCardTemplates"), where("uid", "==", currentUser.uid));
+    onSnapshot(qtpl, snap => {
+        cardTemplates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        populateCardTemplateSelect();
+        if (!$('modal-settings').hidden) renderCardTemplateConfig();
+    });
+
     const q = query(collection(db, "workflowCards"), where("boardId", "==", boardId), where("uid", "==", currentUser.uid));
     onSnapshot(q, (snap) => {
         cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderBoard();
         checkUrgentItems();
+        checkDeadlineNotifications();
     }, (err) => console.error(err));
 }
 
@@ -251,6 +477,47 @@ function renderUrgentModal(items) {
 
     $('modal-urgent').hidden = false;
 }
+// --- BROWSER NOTIFICATIES ---
+function updateNotifBtn() {
+    const btn = $('btnNotifToggle');
+    if (!btn || !('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+        btn.textContent = '🔔'; btn.title = 'Meldingen aan (klik om uit te schakelen)';
+        btn.classList.add('active-quick-filter');
+    } else {
+        btn.textContent = '🔕'; btn.title = 'Deadline meldingen inschakelen';
+        btn.classList.remove('active-quick-filter');
+    }
+}
+
+function checkDeadlineNotifications() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const storageKey = `wf_notif_${currentUser.uid}_${todayStr}`;
+    const notified = new Set(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+
+    const doneCol = columns.find(c => c.title.toLowerCase() === 'afgewerkt');
+    const doneColId = doneCol?.id;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+
+    let changed = false;
+    cards.forEach(card => {
+        if (card.columnId === doneColId || notified.has(card.id) || !card.dueDate) return;
+        let d = card.dueDate.toDate ? card.dueDate.toDate() : new Date(card.dueDate);
+        d.setHours(0,0,0,0);
+        let msg = null;
+        if (d < today) msg = `Vervallen deadline (${d.toLocaleDateString('nl-BE')})`;
+        else if (d.getTime() === today.getTime()) msg = 'Deadline is vandaag!';
+        else if (d.getTime() === tomorrow.getTime()) msg = 'Deadline is morgen';
+        if (msg) {
+            new Notification(`⚡ ${card.title}`, { body: msg, icon: '/IMG/JD_Web_Solutions.ico' });
+            notified.add(card.id); changed = true;
+        }
+    });
+    if (changed) localStorage.setItem(storageKey, JSON.stringify([...notified]));
+}
+
 /**
  * @param {string|null} prioId
  * @returns {number}
@@ -268,8 +535,132 @@ function getPriorityWeight(prioId) {
     return 50; // Andere prio namen
 }
 
+// --- LIJST VIEW ---
+function renderListView() {
+    const board = $('workflow-board');
+    board.innerHTML = "";
+
+    const doneCol   = columns.find(c => c.title.toLowerCase() === 'afgewerkt');
+    const doneColId = doneCol?.id;
+    const today     = new Date(); today.setHours(0,0,0,0);
+
+    let listCards = cards
+        .filter(c => c.columnId !== doneColId && shouldShowCard(c))
+        .sort((a, b) => {
+            const da = a.dueDate ? (a.dueDate.toDate ? a.dueDate.toDate() : new Date(a.dueDate)) : null;
+            const db2 = b.dueDate ? (b.dueDate.toDate ? b.dueDate.toDate() : new Date(b.dueDate)) : null;
+            if (da && db2) return da - db2;
+            if (da) return -1; if (db2) return 1;
+            return getPriorityWeight(a.priorityId) - getPriorityWeight(b.priorityId);
+        });
+
+    const table = document.createElement('table');
+    table.className = 'wf-list-table';
+    table.innerHTML = `<thead><tr>
+        <th>Prioriteit</th><th>Titel</th><th>Kolom</th><th>Labels</th><th>Deadline</th>
+    </tr></thead>`;
+    const tbody = document.createElement('tbody');
+
+    listCards.forEach(card => {
+        const col = columns.find(c => c.id === card.columnId);
+        let prioHtml = '<span class="muted">—</span>';
+        if (card.priorityId) {
+            const p = tags.find(t => t.id === card.priorityId);
+            if (p) prioHtml = `<span class="wf-badge" style="background:${p.color}">${escHtml(p.name)}</span>`;
+        }
+        let labelsHtml = (card.tags || []).map(tid => {
+            const t = tags.find(x => x.id === tid);
+            return t ? `<span class="wf-badge" style="background:${t.color}">${escHtml(t.name)}</span>` : '';
+        }).join('');
+
+        let dateHtml = '<span class="muted">—</span>';
+        if (card.dueDate) {
+            let d = card.dueDate.toDate ? card.dueDate.toDate() : new Date(card.dueDate);
+            d.setHours(0,0,0,0);
+            const isToday   = d.getTime() === today.getTime();
+            const isOverdue = d < today;
+            const fmt = d.toLocaleDateString('nl-BE', {day:'2-digit', month:'2-digit'});
+            const style = isOverdue ? 'color:#ef4444;font-weight:700' : isToday ? 'color:#f97316;font-weight:700' : '';
+            dateHtml = `<span style="${style}">📅 ${fmt}${isToday ? ' ⚡' : ''}</span>`;
+        }
+
+        const colorBar = card.cardColor ? `style="border-left:4px solid ${card.cardColor}; padding-left:8px;"` : '';
+        const tr = document.createElement('tr');
+        tr.className = 'wf-list-row';
+        tr.innerHTML = `
+            <td>${prioHtml}</td>
+            <td ${colorBar}><strong>${escHtml(card.title)}</strong></td>
+            <td><span class="wf-list-col-badge">${escHtml(col?.title || '—')}</span></td>
+            <td>${labelsHtml || '<span class="muted">—</span>'}</td>
+            <td>${dateHtml}</td>
+        `;
+        tr.onclick = () => openCardModal(card);
+        tbody.appendChild(tr);
+    });
+
+    if (!listCards.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;opacity:0.5;padding:2rem;">Geen actieve kaarten</td></tr>';
+    }
+
+    table.appendChild(tbody);
+    board.appendChild(table);
+}
+
+// --- HOVER PREVIEW ---
+function showCardPreview(card, anchorEl) {
+    const tooltip = $('card-preview-tooltip');
+    if (!tooltip) return;
+
+    const prio = card.priorityId ? tags.find(t => t.id === card.priorityId) : null;
+    const cardTagObjs = (card.tags || []).map(id => tags.find(t => t.id === id)).filter(Boolean);
+
+    let dateStr = '';
+    if (card.dueDate) {
+        const d = card.dueDate.toDate ? card.dueDate.toDate() : new Date(card.dueDate);
+        const today = new Date(); today.setHours(0,0,0,0);
+        d.setHours(0,0,0,0);
+        const isOverdue = d < today;
+        const isToday = d.getTime() === today.getTime();
+        const fmt = d.toLocaleDateString('nl-BE', {day:'2-digit', month:'2-digit', year:'numeric'});
+        dateStr = `<div class="wf-preview-meta" style="${isOverdue ? 'color:#ef4444' : isToday ? 'color:#f97316' : ''}">📅 ${fmt}${isToday ? ' ⚡' : ''}</div>`;
+    }
+
+    const desc = card.description ? escHtml(card.description.substring(0, 180)) + (card.description.length > 180 ? '…' : '') : '';
+    const checkDone  = (card.checklist || []).filter(i => i.done).length;
+    const checkTotal = (card.checklist || []).length;
+    const subDone    = (card.subtasks  || []).filter(i => i.done).length;
+    const subTotal   = (card.subtasks  || []).length;
+    const logCount   = (card.logs      || []).length;
+
+    tooltip.innerHTML = `
+        <div class="wf-preview-title">${escHtml(card.title)}</div>
+        ${prio ? `<div style="margin-bottom:4px"><span class="wf-badge" style="background:${prio.color}">${escHtml(prio.name)}</span></div>` : ''}
+        ${cardTagObjs.length ? `<div class="wf-preview-tags">${cardTagObjs.map(t => `<span class="wf-badge" style="background:${t.color}">${escHtml(t.name)}</span>`).join('')}</div>` : ''}
+        ${dateStr}
+        ${desc ? `<div class="wf-preview-desc">${desc}</div>` : ''}
+        ${checkTotal ? `<div class="wf-preview-meta">✅ ${checkDone}/${checkTotal} checklist</div>` : ''}
+        ${subTotal   ? `<div class="wf-preview-meta">📋 ${subDone}/${subTotal} sub-taken</div>`   : ''}
+        ${logCount   ? `<div class="wf-preview-meta">💬 ${logCount} log${logCount !== 1 ? 's' : ''}</div>` : ''}
+    `;
+
+    tooltip.hidden = false;
+    const rect = anchorEl.getBoundingClientRect();
+    const tipW = 270;
+    const spaceRight = window.innerWidth - rect.right;
+    tooltip.style.top  = `${rect.top + window.scrollY}px`;
+    tooltip.style.left = spaceRight >= tipW + 16
+        ? `${rect.right + window.scrollX + 8}px`
+        : `${rect.left  + window.scrollX - tipW - 8}px`;
+}
+
+function hideCardPreview() {
+    const t = $('card-preview-tooltip');
+    if (t) t.hidden = true;
+}
+
 // --- RENDERING BOARD ---
 function renderBoard() {
+    if (viewMode === 'list') { renderListView(); return; }
     const board = $('workflow-board');
     board.innerHTML = "";
     
@@ -404,23 +795,33 @@ function renderBoard() {
             colCards = colCards.filter(c => isNew(c));
         }
 
-        // D. Sorteren op Prioriteit
-        colCards.sort((a,b) => {
-            const weightA = getPriorityWeight(a.priorityId);
-            const weightB = getPriorityWeight(b.priorityId);
-            return weightA - weightB;
+        // D. Sorteren: handmatige volgorde primair, daarna prioriteit
+        colCards.sort((a, b) => {
+            const oa = a.cardOrder ?? 999999, ob = b.cardOrder ?? 999999;
+            if (oa !== ob) return oa - ob;
+            return getPriorityWeight(a.priorityId) - getPriorityWeight(b.priorityId);
         });
 
         // HTML Opbouw
-        const count = colCards.length;
-        colEl.innerHTML = `<div class="wf-column-header"><span>${escHtml(col.title)}</span><span class="wf-count-badge">${count}</span></div>`;
+        const count     = colCards.length;
+        const wipLimit  = col.wipLimit && col.wipLimit > 0 ? col.wipLimit : 0;
+        const overWip   = wipLimit > 0 && count > wipLimit;
+        const badgeHtml = wipLimit
+            ? `<span class="wf-count-badge${overWip ? ' over-wip' : ''}">${count}/${wipLimit}</span>`
+            : `<span class="wf-count-badge">${count}</span>`;
+        colEl.innerHTML = `<div class="wf-column-header${overWip ? ' wf-col-over-wip' : ''}"><span>${escHtml(col.title)}</span>${badgeHtml}</div>`;
         
         const cardsCont = document.createElement("div");
         cardsCont.className = "wf-column-cards";
         
-        colCards.forEach(card => { 
-            cardsCont.appendChild(createCardEl(card)); 
-        });
+        if(colCards.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "wf-empty-col";
+            empty.textContent = "Sleep een kaart hier naartoe";
+            cardsCont.appendChild(empty);
+        } else {
+            colCards.forEach(card => { cardsCont.appendChild(createCardEl(card)); });
+        }
         
         // Drag & Drop events
         cardsCont.addEventListener("dragover", e => { e.preventDefault(); cardsCont.classList.add("wf-drop-target"); });
@@ -436,7 +837,10 @@ function shouldShowCard(card) {
     const term = $('searchInput').value.toLowerCase();
     if(!term) return true;
     const cardTags = (card.tags || []).map(id => tags.find(t => t.id === id)?.name.toLowerCase()).join(" ");
-    return card.title.toLowerCase().includes(term) || cardTags.includes(term);
+    return card.title.toLowerCase().includes(term)
+        || cardTags.includes(term)
+        || (card.description || '').toLowerCase().includes(term)
+        || (card.logs || []).some(l => (l.content || '').toLowerCase().includes(term));
 }
 
 /**
@@ -472,10 +876,16 @@ function createCardEl(card) {
     if (card.dueDate) {
         let d = card.dueDate.toDate ? card.dueDate.toDate() : new Date(card.dueDate);
         if (!isNaN(d.getTime())) {
-            const isOverdue = d < new Date().setHours(0,0,0,0);
-            const day = String(d.getDate()).padStart(2,'0'); 
+            d.setHours(0,0,0,0);
+            const todayMid = new Date(); todayMid.setHours(0,0,0,0);
+            const isToday   = d.getTime() === todayMid.getTime();
+            const isOverdue = d < todayMid;
+            const day   = String(d.getDate()).padStart(2,'0');
             const month = String(d.getMonth()+1).padStart(2,'0');
-            dateHtml = `<span class="wf-card-date" style="${isOverdue?'color:#ef4444;font-weight:800;':''} margin-left:auto;">📅 ${day}/${month}</span>`;
+            const style = isOverdue ? 'color:#ef4444;font-weight:800;'
+                        : isToday   ? 'color:#f97316;font-weight:700;'
+                        : '';
+            dateHtml = `<span class="wf-card-date" style="${style}">📅 ${day}/${month}${isToday ? ' ⚡' : ''}</span>`;
         }
     }
 
@@ -497,6 +907,18 @@ function createCardEl(card) {
         subtaskHtml = `<span class="wf-subtask-count ${allDone ? 'done' : ''}">📋 ${done}/${total}</span>`;
     }
 
+    // 4c. VEROUDERING (aging)
+    let agingHtml = "";
+    if (!card.finishedAt) {
+        const lastAct = card.updatedAt || card.createdAt;
+        if (lastAct) {
+            const actDate = lastAct.toDate ? lastAct.toDate() : new Date(lastAct);
+            const daysDiff = Math.floor((Date.now() - actDate) / 864e5);
+            if (daysDiff >= 14) agingHtml = `<span class="wf-aging-badge danger" title="${daysDiff}d niet bijgewerkt">⏱ ${daysDiff}d</span>`;
+            else if (daysDiff >= 7) agingHtml = `<span class="wf-aging-badge warning" title="${daysDiff}d niet bijgewerkt">⏱ ${daysDiff}d</span>`;
+        }
+    }
+
     // 5. NIEUW LABEL LOGIC
     let newBadgeHtml = "";
     if (card.createdAt) {
@@ -513,85 +935,117 @@ function createCardEl(card) {
             <div class="wf-card-title" style="margin:0;">
                 ${newBadgeHtml} ${escHtml(card.title)}
             </div>
-            ${dateHtml}
+            <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">${agingHtml}${dateHtml}</div>
         </div>
         <div class="wf-tags" style="margin-top:0;">${tagsHtml}</div>
         ${progressHtml}
         ${subtaskHtml}
     `;
 
+    // Kaartkleur als linker accent-balk
+    if (card.cardColor) el.style.borderLeft = `4px solid ${card.cardColor}`;
+
     // Events
     el.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", card.id); el.style.opacity = "0.5"; });
-    el.addEventListener("dragend", () => { el.style.opacity = "1"; });
-    el.addEventListener("click", () => openCardModal(card));
-    
-    // RECHTERMUISKLIK MENU (Toegevoegd in vorige stap)
+    el.addEventListener("dragend", () => {
+        el.style.opacity = "1";
+        document.querySelectorAll('.drop-above,.drop-below').forEach(c => c.classList.remove('drop-above','drop-below'));
+    });
+    el.addEventListener("dragover", e => {
+        e.preventDefault(); e.stopPropagation();
+        document.querySelectorAll('.drop-above,.drop-below').forEach(c => c.classList.remove('drop-above','drop-below'));
+        const mid = el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2;
+        el.classList.toggle('drop-above', e.clientY < mid);
+        el.classList.toggle('drop-below', e.clientY >= mid);
+    });
+    el.addEventListener("dragleave", e => {
+        if (!el.contains(e.relatedTarget)) el.classList.remove('drop-above','drop-below');
+    });
+    el.addEventListener("click", () => {
+        if (!bulkMode) { openCardModal(card); return; }
+        if (selectedCards.has(card.id)) { selectedCards.delete(card.id); el.classList.remove('bulk-selected'); }
+        else { selectedCards.add(card.id); el.classList.add('bulk-selected'); }
+        const chk = el.querySelector('.wf-bulk-checkbox');
+        if (chk) chk.checked = selectedCards.has(card.id);
+        updateBulkBar();
+    });
     el.addEventListener("contextmenu", (e) => showContextMenu(e, card));
+
+    // Hover preview
+    let hoverTimer;
+    el.addEventListener('mouseenter', () => { hoverTimer = setTimeout(() => showCardPreview(card, el), 650); });
+    el.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); hideCardPreview(); });
+
+    // Bulk selectie: checkbox links, kaartinhoud schuift rechts
+    if (bulkMode) {
+        el.classList.toggle('bulk-selected', selectedCards.has(card.id));
+        el.classList.add('wf-in-bulk');
+        const overlay = document.createElement('div');
+        overlay.className = 'wf-bulk-overlay';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'wf-bulk-checkbox';
+        chk.checked = selectedCards.has(card.id);
+        overlay.appendChild(chk);
+        el.appendChild(overlay);
+    }
 
     return el;
 }
 
 async function handleDrop(e, colId) {
     e.preventDefault();
-    
-    // Verwijder de visuele 'drop target' styling
     document.querySelectorAll(".wf-drop-target").forEach(el => el.classList.remove("wf-drop-target"));
-    
+
     const cardId = e.dataTransfer.getData("text/plain");
-    
-    if(cardId) {
-        // 1. Zoek de doel-kolom
-        const targetCol = columns.find(c => c.id === colId);
+    if (!cardId) return;
 
-        // --- CHECK: IS DIT WEL EEN TICKET? ---
-        // We zoeken het kaartje in het lokale geheugen
-        const currentCard = cards.find(c => c.id === cardId);
-        
-        // We zoeken de ID van de tag "TICKETING" (ongeacht hoofdletters)
-        const ticketTag = tags.find(t => t.name.toUpperCase() === "TICKETING");
-        
-        // Is het een ticket? (Kaart bestaat + Tag bestaat + Kaart heeft die tag ID)
-        const isTicket = currentCard && ticketTag && (currentCard.tags || []).includes(ticketTag.id);
-        // -------------------------------------
-        
-        // Update object voor Firestore
-        const updateData = { columnId: colId };
+    const currentCard = cards.find(c => c.id === cardId);
+    if (!currentCard) return;
 
-        // Logica voor 'Afgewerkt' kolom (Archivering)
-        if (targetCol && targetCol.title.trim().toLowerCase() === "afgewerkt") {
-            updateData.finishedAt = new Date(); 
-            const deleteDate = new Date();
-            deleteDate.setFullYear(deleteDate.getFullYear() + 1);
-            updateData.deleteAt = deleteDate; 
-        } else {
-            // Reset als hij terug uit archief komt
-            updateData.finishedAt = null; 
-            updateData.deleteAt = null;
+    // Bepaal of we op een specifieke kaart droppen (voor herordenen)
+    const targetCardEl = e.target.closest('.wf-card');
+    const targetCardId = targetCardEl?.dataset.id;
+    const insertBefore = targetCardEl?.classList.contains('drop-above');
+
+    // Drop-indicatoren opruimen
+    document.querySelectorAll('.drop-above,.drop-below').forEach(el => el.classList.remove('drop-above','drop-below'));
+
+    // === HERORDENEN BINNEN ZELFDE KOLOM ===
+    if (currentCard.columnId === colId && targetCardId && targetCardId !== cardId) {
+        await reorderCardsInColumn(cardId, targetCardId, colId, insertBefore);
+        return;
+    }
+
+    // === VERPLAATSEN NAAR ANDERE KOLOM ===
+    if (currentCard.columnId === colId) return; // zelfde kolom, geen actie
+
+    const targetCol  = columns.find(c => c.id === colId);
+    const ticketTag  = tags.find(t => t.name.toUpperCase() === "TICKETING");
+    const isTicket   = ticketTag && (currentCard.tags || []).includes(ticketTag.id);
+    const fromColName = columns.find(c => c.id === currentCard.columnId)?.title || '?';
+    const histLog = { content: `[Systeem] Verplaatst van "${fromColName}" naar "${targetCol?.title || '?'}"`, timestamp: new Date().toISOString(), system: true };
+    const updateData = { columnId: colId, logs: [...(currentCard.logs || []), histLog] };
+
+    if (targetCol && targetCol.title.trim().toLowerCase() === "afgewerkt") {
+        updateData.finishedAt = new Date();
+        const deleteDate = new Date(); deleteDate.setFullYear(deleteDate.getFullYear() + 1);
+        updateData.deleteAt = deleteDate;
+    } else {
+        updateData.finishedAt = null; updateData.deleteAt = null;
+    }
+
+    try {
+        await updateDoc(doc(db, "workflowCards", cardId), updateData);
+        if (apiSettings.webhookUrl && isTicket) {
+            fetch(apiSettings.webhookUrl, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ trigger: "cardMoved", ticketId: cardId, columnId: colId })
+            }).catch(err => console.error("Webhook fail", err));
         }
-
-        // Update uitvoeren
-        try {
-            await updateDoc(doc(db, "workflowCards", cardId), updateData);
-            
-            // --- HIER STUREN WE HET SEINTJE NAAR MAKE (Scenario 2) ---
-            // We sturen dit ALLEEN als er een URL is EN als het kaartje de juiste tag heeft!
-            if(apiSettings.webhookUrl && isTicket) {
-                fetch(apiSettings.webhookUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        trigger: "cardMoved",
-                        ticketId: cardId,
-                        columnId: colId
-                    })
-                }).catch(err => console.error("Webhook fail", err));
-            }
-            // ---------------------------------------------------------
-
-        } catch (error) {
-            console.error("Fout bij verplaatsen kaart:", error);
-            showToast("Kon kaart niet verplaatsen", "error");
-        }
+    } catch (error) {
+        console.error("Fout bij verplaatsen kaart:", error);
+        showToast("Kon kaart niet verplaatsen", "error");
     }
 }
 
@@ -705,11 +1159,16 @@ function renderColConfig() {
         const input = document.createElement("input");
         input.value = col.title;
         input.placeholder = "Kolom naam...";
-        // Bij verlaten van veld -> Opslaan
-        input.onchange = () => {
-            updateColumn(col.id, { title: input.value });
-            showToast("Kolom naam gewijzigd", "success");
-        };
+        input.onchange = () => { updateColumn(col.id, { title: input.value }); showToast("Kolom naam gewijzigd", "success"); };
+
+        // WIP-limiet input
+        const wipInput = document.createElement("input");
+        wipInput.type = "number"; wipInput.min = "0"; wipInput.max = "99";
+        wipInput.value = col.wipLimit || "";
+        wipInput.placeholder = "Max";
+        wipInput.title = "WIP-limiet (0 of leeg = geen limiet)";
+        wipInput.style.cssText = "width:54px; text-align:center; flex-shrink:0;";
+        wipInput.onchange = () => updateColumn(col.id, { wipLimit: parseInt(wipInput.value) || 0 });
 
         // Actie knoppen container
         const actions = document.createElement("div");
@@ -748,6 +1207,7 @@ function renderColConfig() {
         actions.appendChild(delBtn);
 
         row.appendChild(input);
+        row.appendChild(wipInput);
         row.appendChild(actions);
         list.appendChild(row);
     });
@@ -874,11 +1334,19 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
     });
 
     renderCardTagsSelector(card ? (card.tags || []) : []);
+    renderCardColorPicker(card ? (card.cardColor || null) : null);
+    // Reset markdown view naar edit mode
+    const mdView = $('inpDescMarkdown'); const mdBtn = $('btnToggleMarkdown');
+    if (mdView && mdBtn) { mdView.hidden = true; $('inpDesc').style.display = ''; mdBtn.textContent = '👁️ Bekijken'; }
     renderSubtasks();
     renderChecklist();
     renderLinks();
     renderLogs();
     populateTemplateSelect();
+    populateCardTemplateSelect();
+    // Template loader: alleen tonen voor nieuwe kaarten
+    const templateLoader = $('card-template-loader');
+    if (templateLoader) templateLoader.style.display = card ? 'none' : 'flex';
     
     document.querySelectorAll('.wf-tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.wf-tab-content').forEach(c => c.classList.remove('active'));
@@ -886,10 +1354,34 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
     document.getElementById('tab-details').classList.add('active');
 
     const btnPlan = $('btnQuickPlan');
-    if(!card) { btnPlan.disabled=true; btnPlan.textContent="Eerst opslaan"; }
-    else { 
-        btnPlan.disabled=false; btnPlan.textContent="⚡ Snel Plannen in Agenda"; 
+    const btnMove = $('btnMoveCard');
+    const btnDup  = $('btnDuplicateCard');
+    const moveSelect = $('move-col-select');
+
+    const btnSaveAsTpl = $('btnSaveAsTemplate');
+    if(!card) {
+        btnPlan.disabled = true; btnPlan.textContent = "Eerst opslaan";
+        btnMove.disabled = true;
+        btnDup.disabled  = true;
+        moveSelect.innerHTML = '<option>—</option>';
+        if (btnSaveAsTpl) btnSaveAsTpl.disabled = true;
+    } else {
+        if (btnSaveAsTpl) btnSaveAsTpl.disabled = false;
+        btnPlan.disabled = false; btnPlan.textContent = "⚡ Snel Plannen in Agenda";
         btnPlan.onclick = () => { $('qp-date').value = $('inpDate').value || new Date().toISOString().split('T')[0]; $('modal-quick-plan').hidden=false; };
+
+        moveSelect.innerHTML = "";
+        columns.sort((a,b) => a.order - b.order).forEach(col => {
+            const opt = document.createElement("option");
+            opt.value = col.id;
+            opt.textContent = col.title;
+            if(col.id === card.columnId) opt.selected = true;
+            moveSelect.appendChild(opt);
+        });
+        btnMove.disabled = false;
+
+        btnDup.disabled = false;
+        btnDup.onclick = () => { duplicateCard(card); window.Modal.close(); };
     }
     const modalEl = document.getElementById('modal-card');
     if (readOnly) {
@@ -902,6 +1394,7 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
         modalEl.querySelectorAll('input, textarea').forEach(i => i.disabled = false);
     }
     window.Modal.open("modal-card");
+    cardModalSnapshot = captureCardState();
     if (afterOpen) afterOpen();
 }
 
@@ -911,23 +1404,27 @@ function openFilterModal() {
     prioCont.innerHTML = "";
     tagCont.innerHTML = "";
 
+    const doneCol = columns.find(c => c.title.toLowerCase() === 'afgewerkt');
+    const doneColId = doneCol?.id;
+
     // 1. Render Prioriteiten Opties
     const priorities = tags.filter(t => t.category === 'priority' && t.active !== false);
     priorities.forEach(p => {
+        const count = cards.filter(c => c.priorityId === p.id && c.columnId !== doneColId).length;
         const chip = document.createElement("div");
-        chip.textContent = p.name;
+        chip.innerHTML = `${escHtml(p.name)}${count ? `<span class="wf-filter-count">${count}</span>` : ''}`;
         const isSelected = activeFilters.priorities.includes(p.id);
         chip.className = `filter-chip ${isSelected ? 'selected' : ''}`;
         if(isSelected) chip.style.backgroundColor = p.color;
-        
+
         chip.onclick = () => {
             if(activeFilters.priorities.includes(p.id)) {
                 activeFilters.priorities = activeFilters.priorities.filter(id => id !== p.id);
             } else {
                 activeFilters.priorities.push(p.id);
             }
-            renderBoard(); // Direct updaten op achtergrond
-            openFilterModal(); // Re-render modal voor visuele update
+            renderBoard();
+            openFilterModal();
         };
         prioCont.appendChild(chip);
     });
@@ -935,12 +1432,13 @@ function openFilterModal() {
     // 2. Render Tags Opties
     const labels = tags.filter(t => t.category !== 'priority' && t.active !== false).sort((a,b)=>a.name.localeCompare(b.name));
     labels.forEach(t => {
+        const count = cards.filter(c => (c.tags||[]).includes(t.id) && c.columnId !== doneColId).length;
         const chip = document.createElement("div");
-        chip.textContent = t.name;
+        chip.innerHTML = `${escHtml(t.name)}${count ? `<span class="wf-filter-count">${count}</span>` : ''}`;
         const isSelected = activeFilters.tags.includes(t.id);
         chip.className = `filter-chip ${isSelected ? 'selected' : ''}`;
         if(isSelected) chip.style.backgroundColor = t.color;
-        
+
         chip.onclick = () => {
             if(activeFilters.tags.includes(t.id)) {
                 activeFilters.tags = activeFilters.tags.filter(id => id !== t.id);
@@ -1054,6 +1552,36 @@ function renderSubtasks() {
 
 // --- ARCHIEF FUNCTIES ---
 
+function restoreColDialog() {
+    return new Promise(resolve => {
+        const doneCol = columns.find(c => c.title.toLowerCase() === 'afgewerkt');
+        const activeCols = columns.filter(c => c.id !== doneCol?.id).sort((a,b) => a.order - b.order);
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10000';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--card,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;max-width:340px;width:90%;display:flex;flex-direction:column;gap:14px';
+        const lbl = document.createElement('p'); lbl.textContent = 'Terugzetten naar kolom:';
+        lbl.style.cssText = 'margin:0;font-weight:700;font-size:0.95rem';
+        const sel = document.createElement('select');
+        sel.style.cssText = 'width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border,#334155);background:var(--bg,#0f172a);color:var(--fg,#e2e8f0)';
+        activeCols.forEach(col => {
+            const opt = document.createElement('option'); opt.value = col.id; opt.textContent = col.title; sel.appendChild(opt);
+        });
+        const btns = document.createElement('div'); btns.style.cssText = 'display:flex;justify-content:flex-end;gap:10px';
+        const cancelBtn = document.createElement('button'); cancelBtn.textContent = 'Annuleren';
+        cancelBtn.style.cssText = 'padding:7px 14px;border-radius:7px;border:1px solid var(--border,#334155);background:transparent;cursor:pointer;color:inherit';
+        const okBtn = document.createElement('button'); okBtn.textContent = '↩ Terugzetten';
+        okBtn.style.cssText = 'padding:7px 14px;border-radius:7px;border:none;background:var(--brand,#3b82f6);color:#fff;cursor:pointer';
+        btns.append(cancelBtn, okBtn);
+        box.append(lbl, sel, btns);
+        overlay.appendChild(box); document.body.appendChild(overlay);
+        const cleanup = r => { overlay.remove(); resolve(r); };
+        okBtn.onclick = () => cleanup(sel.value);
+        cancelBtn.onclick = () => cleanup(null);
+        overlay.onclick = e => { if(e.target === overlay) cleanup(null); };
+    });
+}
+
 function openArchiveModal() {
     const tbody = $('archive-table-body');
     tbody.innerHTML = "";
@@ -1094,14 +1622,32 @@ function openArchiveModal() {
             dateStr = d.toLocaleDateString('nl-BE', {day:'2-digit', month:'2-digit', year:'numeric'});
         }
 
+        // Terugzetten knop
+        const restoreBtn = document.createElement('button');
+        restoreBtn.textContent = '↩ Terugzetten';
+        restoreBtn.className = 'wf-btn small';
+        restoreBtn.style.cssText = 'white-space:nowrap; font-size:0.75rem;';
+        restoreBtn.onclick = async (e) => {
+            e.stopPropagation();
+            const targetColId = await restoreColDialog();
+            if (!targetColId) return;
+            try {
+                await updateDoc(doc(db, "workflowCards", card.id), {
+                    columnId: targetColId, finishedAt: null, deleteAt: null
+                });
+                showToast("Kaart teruggezet", "success");
+                openArchiveModal(); // refresh
+            } catch(err) { console.error(err); showToast("Mislukt", "error"); }
+        };
+
         tr.innerHTML = `
             <td><strong>${escHtml(card.title)}</strong></td>
             <td>${prioHtml}</td>
             <td>${tagsHtml}</td>
             <td style="text-align:right; font-family:monospace;">${dateStr}</td>
+            <td></td>
         `;
-        
-        // Klikken opent details in READ-ONLY mode
+        tr.lastElementChild.appendChild(restoreBtn);
         tr.onclick = () => openCardModal(card, true);
         tbody.appendChild(tr);
     });
@@ -1133,6 +1679,90 @@ function toggleQuickTag(tagName) {
     // 3. Herlaad het bord (dit update ook de knop-stijlen)
     renderBoard();
 }
+// --- KAART TEMPLATES ---
+function populateCardTemplateSelect() {
+    const sel = $('selCardTemplate');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Kies een template —</option>';
+    cardTemplates.forEach(tpl => {
+        const opt = document.createElement('option'); opt.value = tpl.id; opt.textContent = tpl.name; sel.appendChild(opt);
+    });
+}
+
+function renderCardTemplateConfig() {
+    const list = $('list-card-templates');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!cardTemplates.length) { list.innerHTML = '<small style="opacity:0.5;">Geen templates. Maak een kaart aan en sla op als template via de Acties tab.</small>'; return; }
+    cardTemplates.forEach(tpl => {
+        const row = document.createElement('div'); row.className = 'template-row';
+        row.innerHTML = `<div><strong>${escHtml(tpl.name)}</strong><div class="template-items-preview">${(tpl.checklist||[]).length} checklist items</div></div>`;
+        const del = document.createElement('button'); del.innerHTML = '🗑️'; del.className = 'del-icon-btn';
+        del.onclick = async () => { if(await confirmDialog('Template verwijderen?')) await deleteDoc(doc(db, 'workflowCardTemplates', tpl.id)); };
+        row.appendChild(del); list.appendChild(row);
+    });
+}
+
+function applyCardTemplate(tplId) {
+    const tpl = cardTemplates.find(t => t.id === tplId);
+    if (!tpl) return;
+    if (tpl.description) $('inpDesc').value = tpl.description;
+    // Prioriteit
+    if (tpl.priorityName) {
+        const prioTag = tags.find(t => t.category === 'priority' && t.name.toLowerCase() === tpl.priorityName.toLowerCase());
+        if (prioTag) {
+            const prioCont = $('prio-tags-list');
+            prioCont.dataset.selected = prioTag.id;
+            prioCont.querySelectorAll('.wf-tag-option').forEach(chip => {
+                const isSelected = chip.textContent.trim().toLowerCase() === tpl.priorityName.toLowerCase();
+                chip.classList.toggle('selected', isSelected);
+                chip.style.backgroundColor = isSelected ? prioTag.color : 'transparent';
+                chip.style.borderColor = isSelected ? prioTag.color : 'var(--border)';
+                chip.style.color = isSelected ? 'white' : 'var(--muted)';
+            });
+        }
+    }
+    // Tags
+    if (tpl.tagNames?.length) {
+        const selectedIds = [];
+        tpl.tagNames.forEach(name => {
+            const tag = tags.find(t => t.category !== 'priority' && t.name.toLowerCase() === name.toLowerCase());
+            if (tag) selectedIds.push(tag.id);
+        });
+        renderCardTagsSelector(selectedIds);
+    }
+    // Checklist
+    if (tpl.checklist?.length) {
+        currentChecklist = [...currentChecklist, ...tpl.checklist.map(i => ({ text: i.text, done: false }))];
+        renderChecklist();
+    }
+    // Subtaken
+    if (tpl.subtasks?.length) {
+        currentSubtasks = [...currentSubtasks, ...tpl.subtasks.map(i => ({ text: i.text, done: false }))];
+        renderSubtasks();
+    }
+    showToast('Template geladen', 'success');
+}
+
+async function saveCardAsTemplate(card) {
+    const name = await inputDialog('Template naam', 'bv. Nieuwe Website Klant', card.title ? `Template: ${card.title}` : '');
+    if (!name) return;
+    const prioTag  = card.priorityId ? tags.find(t => t.id === card.priorityId) : null;
+    const tagNames = (card.tags || []).map(id => tags.find(t => t.id === id)?.name).filter(Boolean);
+    try {
+        await addDoc(collection(db, 'workflowCardTemplates'), {
+            uid: currentUser.uid,
+            name,
+            description: card.description || '',
+            priorityName: prioTag?.name || null,
+            tagNames,
+            checklist: (card.checklist || []).map(i => ({ text: i.text })),
+            subtasks:  (card.subtasks  || []).map(i => ({ text: i.text }))
+        });
+        showToast('Template opgeslagen', 'success');
+    } catch(err) { console.error(err); showToast('Opslaan mislukt', 'error'); }
+}
+
 function populateTemplateSelect() {
     const sel = $('selTemplate');
     sel.innerHTML = '<option value="">-- Kies een standaard lijst --</option>';
@@ -1161,7 +1791,8 @@ function renderLogs() {
     const cont = $('logs-container'); cont.innerHTML = "";
     if(currentLogs.length === 0) cont.innerHTML = '<span class="muted small">Nog geen logs.</span>';
     [...currentLogs].reverse().forEach(log => {
-        const div = document.createElement("div"); div.className = "wf-log-item";
+        const div = document.createElement("div");
+        div.className = log.system ? "wf-log-item wf-log-system" : "wf-log-item";
         const dateStr = new Date(log.timestamp).toLocaleString('nl', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
         div.innerHTML = `<div class="wf-log-meta"><span>${dateStr}</span></div><div class="wf-log-content">${escHtml(log.content)}</div>`;
         cont.appendChild(div);
@@ -1193,6 +1824,24 @@ function renderCardTagsSelector(selectedIds = []) {
     container.dataset.selected = JSON.stringify(selectedIds);
 }
 
+// --- BULK ACTIES ---
+function updateBulkBar() {
+    const bar = $('bulk-action-bar');
+    const countEl = $('bulk-count');
+    if (!bar) return;
+    const n = selectedCards.size;
+    bar.hidden = !bulkMode || n === 0;
+    if (countEl) countEl.textContent = `${n} kaart${n !== 1 ? 'en' : ''} geselecteerd`;
+    const sel = $('bulk-move-select');
+    if (sel) {
+        sel.innerHTML = '';
+        columns.sort((a,b) => a.order - b.order).forEach(col => {
+            const opt = document.createElement('option');
+            opt.value = col.id; opt.textContent = col.title; sel.appendChild(opt);
+        });
+    }
+}
+
 // --- SETUP EVENTS ---
 function setupUI() {
     let searchDebounce;
@@ -1201,7 +1850,7 @@ function setupUI() {
         searchDebounce = setTimeout(renderBoard, 200);
     });
     $('btnNewCard').onclick = () => openCardModal();
-    $('btnSettings').onclick = () => { renderTagConfig(); renderColConfig(); renderTemplateConfig(); window.Modal.open("modal-settings"); };
+    $('btnSettings').onclick = () => { renderTagConfig(); renderColConfig(); renderTemplateConfig(); renderCardTemplateConfig(); window.Modal.open("modal-settings"); };
     $('btnAddCol').onclick = () => {
         $('add-col-form').style.display = 'block';
         $('btnAddCol').style.display = 'none';
@@ -1232,6 +1881,13 @@ function setupUI() {
         if (e.key === 'Escape') $('btnCancelAddCol').click();
     });
     $('btnOpenArchive').onclick = () => openArchiveModal();
+    $('btnStats').onclick = () => openStatsModal();
+    $('btnToggleView').onclick = () => {
+        viewMode = viewMode === 'kanban' ? 'list' : 'kanban';
+        $('btnToggleView').textContent = viewMode === 'list' ? '⊞' : '☰';
+        $('btnToggleView').title = viewMode === 'list' ? 'Kanban bord' : 'Lijst weergave';
+        renderBoard();
+    };
     $('btnFilterTags').onclick = () => openFilterModal();
     // QUICK FILTERS
     $('btnQuickMail').onclick = () => toggleQuickTag('MAIL');
@@ -1250,6 +1906,21 @@ function setupUI() {
         activeFilters = { priorities:[], tags:[], showNewOnly: false };
         renderBoard(); 
         openFilterModal(); // Refresh modal view
+    };
+
+    // Markdown toggle (bekijken ↔ bewerken)
+    $('btnToggleMarkdown').onclick = () => {
+        const textarea = $('inpDesc');
+        const view     = $('inpDescMarkdown');
+        const btn      = $('btnToggleMarkdown');
+        if (textarea.style.display === 'none') {
+            // Terug naar bewerken
+            view.hidden = true; textarea.style.display = ''; btn.textContent = '👁️ Bekijken';
+        } else {
+            // Naar bekijken
+            view.innerHTML = renderMarkdown(textarea.value);
+            view.hidden = false; textarea.style.display = 'none'; btn.textContent = '✏️ Bewerken';
+        }
     };
 
     $('btnAddSubtask').onclick = () => {
@@ -1277,6 +1948,20 @@ function setupUI() {
             renderChecklist();
             showToast("Lijst toegevoegd", "success");
         }
+    };
+
+    // KAART TEMPLATE LOADER
+    $('btnLoadCardTemplate').onclick = () => {
+        const tplId = $('selCardTemplate').value;
+        if (!tplId) return showToast('Kies eerst een template', 'error');
+        applyCardTemplate(tplId);
+    };
+
+    // KAART OPSLAAN ALS TEMPLATE
+    $('btnSaveAsTemplate').onclick = () => {
+        if (!currentCardId) return showToast('Sla de kaart eerst op', 'error');
+        const card = cards.find(c => c.id === currentCardId);
+        if (card) saveCardAsTemplate(card);
     };
 
     // TEMPLATE ADMIN LOGIC
@@ -1351,8 +2036,9 @@ function setupUI() {
             colorsCont.appendChild(circle);
         });
         window.Modal.open("modal-new-tag");
+        tagModalSnapshot = captureTagState();
     };
-    
+
     // Nieuwe Tag aanmaken
     $('btnSaveNewTag').onclick = async () => {
         const btn = $('btnSaveNewTag');
@@ -1368,6 +2054,7 @@ function setupUI() {
             } else {
                 await addTag({uid: currentUser.uid, name, color, builtin: false, active: true, category});
             }
+            tagModalSnapshot = null;
             window.Modal.close();
         } finally {
             btn.disabled = false;
@@ -1394,6 +2081,16 @@ function setupUI() {
             dueTimestamp = d;
         }
 
+        // Auto-log bij prioriteitswijziging (alleen bij bestaande kaart)
+        if (currentCardId) {
+            const oldCard = cards.find(c => c.id === currentCardId);
+            if (oldCard && oldCard.priorityId !== priorityId) {
+                const oldName = oldCard.priorityId ? (tags.find(t => t.id === oldCard.priorityId)?.name || '?') : 'Geen';
+                const newName = priorityId ? (tags.find(t => t.id === priorityId)?.name || '?') : 'Geen';
+                currentLogs.push({ content: `[Systeem] Prioriteit: ${oldName} → ${newName}`, timestamp: new Date().toISOString(), system: true });
+            }
+        }
+
         const data = {
             uid: currentUser.uid,
             boardId,
@@ -1402,10 +2099,12 @@ function setupUI() {
             dueDate: dueTimestamp,
             priorityId: priorityId,
             tags: tagIds,
+            cardColor: $('card-color-list')?.dataset.selected || null,
             subtasks: currentSubtasks,
             checklist: currentChecklist,
             links: currentLinks,
-            logs: currentLogs
+            logs: currentLogs,
+            updatedAt: serverTimestamp()
         };
 
         btn.disabled = true;
@@ -1421,6 +2120,7 @@ function setupUI() {
                 await addDoc(collection(db, "workflowCards"), data);
                 showToast("Aangemaakt", "success");
             }
+            cardModalSnapshot = null;
             window.Modal.close();
         } finally {
             btn.disabled = false;
@@ -1444,10 +2144,37 @@ function setupUI() {
             colorsCont.appendChild(circle);
         });
         window.Modal.open("modal-new-tag");
+        tagModalSnapshot = captureTagState();
+    };
+
+    $('btnMoveCard').onclick = async () => {
+        const targetColId = $('move-col-select').value;
+        if(!currentCardId || !targetColId) return;
+        const currentCard = cards.find(c => c.id === currentCardId);
+        if(currentCard && currentCard.columnId === targetColId) return showToast("Kaart staat al in deze kolom", "error");
+        try {
+            const targetCol = columns.find(c => c.id === targetColId);
+            const fromColName = columns.find(c => c.id === currentCard?.columnId)?.title || '?';
+            const moveLog = { content: `[Systeem] Verplaatst van "${fromColName}" naar "${targetCol?.title || '?'}"`, timestamp: new Date().toISOString(), system: true };
+            const updateData = { columnId: targetColId, logs: [...(currentCard?.logs || []), moveLog] };
+            if(targetCol && targetCol.title.trim().toLowerCase() === "afgewerkt") {
+                updateData.finishedAt = new Date();
+                const deleteDate = new Date();
+                deleteDate.setFullYear(deleteDate.getFullYear() + 1);
+                updateData.deleteAt = deleteDate;
+            } else {
+                updateData.finishedAt = null;
+                updateData.deleteAt = null;
+            }
+            await updateDoc(doc(db, "workflowCards", currentCardId), updateData);
+            showToast("Kaart verplaatst", "success");
+            window.Modal.close();
+        } catch(err) { console.error(err); showToast("Verplaatsen mislukt", "error"); }
     };
 
     $('btnDeleteCard').onclick = async () => { if(await confirmDialog("Kaart verwijderen?")) { if(currentCardId) await deleteDoc(doc(db, "workflowCards", currentCardId)); window.Modal.close(); } };
     $('btnCloseQuick').onclick = () => $('modal-quick-plan').hidden = true;
+    $('btnCloseQuickCancel').onclick = () => $('modal-quick-plan').hidden = true;
     $('btnConfirmPlan').onclick = sendToAgenda;
 
     // Tabs
@@ -1459,6 +2186,102 @@ function setupUI() {
             document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
         };
     });
+
+    // Onopgeslagen wijzigingen – Kaart modal (X & Annuleren)
+    const handleCardClose = async () => {
+        if (isCardDirty()) {
+            const choice = await unsavedChangesDialog();
+            if (choice === 'save')    { $('btnSaveCard').click(); }
+            else if (choice === 'discard') { cardModalSnapshot = null; window.Modal.close(); }
+            // 'stay' → niks doen
+        } else {
+            window.Modal.close();
+        }
+    };
+    $('btnCloseCard').onclick  = handleCardClose;
+    $('btnCancelCard').onclick = handleCardClose;
+
+    // Onopgeslagen wijzigingen – Tag modal (X & Annuleren)
+    const handleTagClose = async () => {
+        if (isTagDirty()) {
+            const choice = await unsavedChangesDialog();
+            if (choice === 'save')    { $('btnSaveNewTag').click(); }
+            else if (choice === 'discard') { tagModalSnapshot = null; window.Modal.close(); }
+        } else {
+            window.Modal.close();
+        }
+    };
+    $('btnCloseTag').onclick  = handleTagClose;
+    $('btnCancelTag').onclick = handleTagClose;
+
+    // --- BULK MODUS ---
+    $('btnBulkMode').onclick = () => {
+        bulkMode = !bulkMode;
+        selectedCards.clear();
+        $('btnBulkMode').classList.toggle('active-quick-filter', bulkMode);
+        $('btnBulkMode').title = bulkMode ? 'Stop selectie modus' : 'Selectie modus';
+        $('bulk-action-bar').hidden = true;
+        renderBoard();
+    };
+    $('btnBulkCancel').onclick = () => {
+        bulkMode = false; selectedCards.clear();
+        $('btnBulkMode').classList.remove('active-quick-filter');
+        $('bulk-action-bar').hidden = true;
+        renderBoard();
+    };
+    $('btnBulkMove').onclick = async () => {
+        if (!selectedCards.size) return;
+        const targetColId = $('bulk-move-select').value;
+        if (!targetColId) return;
+        const targetCol = columns.find(c => c.id === targetColId);
+        const upd = { columnId: targetColId };
+        if (targetCol?.title.toLowerCase() === 'afgewerkt') {
+            upd.finishedAt = new Date();
+            const del = new Date(); del.setFullYear(del.getFullYear() + 1); upd.deleteAt = del;
+        } else { upd.finishedAt = null; upd.deleteAt = null; }
+        try {
+            await Promise.all([...selectedCards].map(id => updateDoc(doc(db, 'workflowCards', id), upd)));
+            showToast(`${selectedCards.size} kaarten verplaatst`, 'success');
+            selectedCards.clear(); $('bulk-action-bar').hidden = true; renderBoard();
+        } catch(err) { console.error(err); showToast('Verplaatsen mislukt', 'error'); }
+    };
+    $('btnBulkDelete').onclick = async () => {
+        if (!selectedCards.size) return;
+        if (!await confirmDialog(`${selectedCards.size} kaarten definitief verwijderen?`)) return;
+        try {
+            await Promise.all([...selectedCards].map(id => deleteDoc(doc(db, 'workflowCards', id))));
+            showToast(`${selectedCards.size} kaarten verwijderd`, 'success');
+            selectedCards.clear(); $('bulk-action-bar').hidden = true; renderBoard();
+        } catch(err) { console.error(err); showToast('Verwijderen mislukt', 'error'); }
+    };
+
+    // --- NOTIFICATIES TOGGLE ---
+    updateNotifBtn();
+    $('btnNotifToggle').onclick = async () => {
+        if (!('Notification' in window)) return showToast('Browser ondersteunt geen meldingen', 'error');
+        if (Notification.permission === 'granted') {
+            showToast('Meldingen staan aan. Schakel uit via browserinstellingen.', 'info');
+        } else if (Notification.permission === 'denied') {
+            showToast('Meldingen geblokkeerd. Sta ze toe via de adresbalk.', 'error');
+        } else {
+            const perm = await Notification.requestPermission();
+            updateNotifBtn();
+            if (perm === 'granted') { showToast('Deadline meldingen ingeschakeld 🔔', 'success'); checkDeadlineNotifications(); }
+            else showToast('Meldingen geweigerd', 'error');
+        }
+    };
+
+    // Escape-toets onderscheppen bij niet-opgeslagen wijzigingen
+    document.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Escape') return;
+        if (window.Modal.isOpen('modal-card') && isCardDirty()) {
+            e.stopImmediatePropagation();
+            await handleCardClose();
+        } else if (window.Modal.isOpen('modal-new-tag') && isTagDirty()) {
+            e.stopImmediatePropagation();
+            await handleTagClose();
+        }
+    }, true);
 }
 
 function showContextMenu(e, card) {
@@ -1483,41 +2306,37 @@ function showContextMenu(e, card) {
         openCardModal(card, false, () => $('btnQuickPlan').click());
     }));
 
-    // 2. Link Toevoegen (Via prompt)
+    // 2. Link Toevoegen
     menu.appendChild(createMenuItem("🔗 Link toevoegen", async () => {
-        const url = prompt("URL van de link:");
+        const url = await inputDialog("URL van de link", "https://...");
         if(!url) return;
-        const title = prompt("Titel van de link (optioneel):") || "Link";
-        
+        const title = await inputDialog("Naam van de link (optioneel)", "Link") || "Link";
         const newLinks = [...(card.links || []), { title, url }];
-        
         try {
             await updateDoc(doc(db, "workflowCards", card.id), { links: newLinks });
             showToast("Link toegevoegd", "success");
         } catch(err) { console.error(err); showToast("Fout bij opslaan", "error"); }
     }));
 
-    // 3. Log Toevoegen (Via prompt)
+    // 3. Log Toevoegen
     menu.appendChild(createMenuItem("💬 Log toevoegen", async () => {
-        const text = prompt("Notitie toevoegen:");
+        const text = await inputDialog("Notitie toevoegen", "Typ hier...");
         if(!text) return;
-
-        const newLogs = [...(card.logs || []), { 
-            content: text, 
-            timestamp: new Date().toISOString() 
-        }];
-
+        const newLogs = [...(card.logs || []), { content: text, timestamp: new Date().toISOString() }];
         try {
             await updateDoc(doc(db, "workflowCards", card.id), { logs: newLogs });
             showToast("Log toegevoegd", "success");
         } catch(err) { console.error(err); showToast("Fout bij opslaan", "error"); }
     }));
 
+    // 4. Dupliceren
+    menu.appendChild(createMenuItem("📋 Dupliceren", () => duplicateCard(card)));
+
     // Scheidingslijn
     const div = document.createElement("div"); div.className = "wf-context-divider";
     menu.appendChild(div);
 
-    // 4. Verwijderen
+    // 5. Verwijderen
     const delItem = createMenuItem("🗑️ Verwijderen", async () => {
         if(await confirmDialog(`"${card.title}" verwijderen?`)) {
             await deleteDoc(doc(db, "workflowCards", card.id));
@@ -1543,6 +2362,33 @@ function createMenuItem(text, onClick) {
         closeContextMenu();
     };
     return item;
+}
+
+async function duplicateCard(card) {
+    try {
+        const copy = {
+            uid: card.uid,
+            boardId: card.boardId,
+            columnId: card.columnId,
+            title: `Kopie van ${card.title}`,
+            description: card.description || "",
+            dueDate: card.dueDate || null,
+            priorityId: card.priorityId || null,
+            cardColor: card.cardColor || null,
+            tags: [...(card.tags || [])],
+            subtasks: (card.subtasks || []).map(s => ({ text: s.text, done: false })),
+            checklist: (card.checklist || []).map(i => ({ text: i.text, done: false })),
+            links: [...(card.links || [])],
+            logs: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        };
+        await addDoc(collection(db, "workflowCards"), copy);
+        showToast("Kaart gedupliceerd", "success");
+    } catch(err) {
+        console.error(err);
+        showToast("Dupliceren mislukt", "error");
+    }
 }
 
 function closeContextMenu() {

@@ -1,5 +1,5 @@
 // src/components/navigation.js
-import { db, collection, query, orderBy, onSnapshot } from "../services/db.js";
+import { db, collection, query, orderBy, onSnapshot, getDocs, where } from "../services/db.js";
 import { getCurrentUser, watchUser } from "../services/auth.js";
 
 console.log("🚦 Navigation.js met CMS geladen");
@@ -27,11 +27,14 @@ function initNavigation() {
             const q = query(collection(db, "globalLinks"), orderBy("order", "asc"));
             onSnapshot(q, (snapshot) => {
                 globalLinks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
+
                 // Bouw de menu's op
-                buildDynamicNavbar();  
-                buildDynamicSidebar(); 
+                buildDynamicNavbar();
+                buildDynamicSidebar();
             });
+
+            // Controleer vorige werkdag
+            checkPrevdayReminder(user);
         }
     });
 
@@ -389,6 +392,77 @@ function bootstrapNavigation() {
     initExternalLinks();
     renderQuickLinks();
     initUIComponents();
+}
+
+// --- VORIGE WERKDAG HERINNERING ---
+function getPreviousWorkday() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    do { d.setDate(d.getDate() - 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+async function checkPrevdayReminder(user) {
+    // Op de tijdspagina zelf opent time.js de modal direct — geen dubbele banner nodig
+    if (window.location.pathname.includes('time.html')) return;
+
+    const prevISO = getPreviousWorkday();
+    const suppressKey = `time_prevday_suppress_${user.uid}_${prevISO}`;
+    if (localStorage.getItem(suppressKey)) return;
+
+    try {
+        const q = query(
+            collection(db, 'timelogSegments'),
+            where('uid', '==', user.uid),
+            where('date', '==', prevISO)
+        );
+        const snap = await getDocs(q);
+        const hasEntry = snap.docs.some(d =>
+            ['standard', 'verlof', 'recup', 'feestdag', 'interventie'].includes(d.data().type)
+        );
+        if (!hasEntry) showPrevdayBanner(user.uid, prevISO, suppressKey);
+    } catch (e) {
+        console.warn('Prevday check mislukt', e);
+    }
+}
+
+function showPrevdayBanner(uid, prevISO, suppressKey) {
+    const doShow = () => {
+        if (document.getElementById('prevday-global-banner')) return;
+
+        const [y, m, day] = prevISO.split('-');
+        const d = new Date(Number(y), Number(m) - 1, Number(day));
+        const label = d.toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        const banner = document.createElement('div');
+        banner.id = 'prevday-global-banner';
+        banner.className = 'prevday-global-banner';
+        banner.innerHTML = `
+            <span class="prevday-icon">⏰</span>
+            <div class="prevday-text">
+                <strong>Geen registratie voor ${label}</strong>
+                <span class="prevday-sub">Wil je de uren van die dag invullen?</span>
+            </div>
+            <div class="prevday-actions">
+                <a id="prevday-fill" href="${getPathPrefix()}src/modules/tijdsregistratie/time.html" class="btn primary small">Invullen</a>
+                <button id="prevday-dismiss" class="ghost small">Niet nu</button>
+            </div>
+        `;
+
+        const topbar = document.querySelector('.topbar');
+        if (topbar) topbar.insertAdjacentElement('afterend', banner);
+        else document.body.prepend(banner);
+
+        document.getElementById('prevday-dismiss').onclick = () => {
+            banner.remove();
+            localStorage.setItem(suppressKey, '1');
+        };
+        // "Invullen" navigeert naar time.html — suppress key NIET zetten zodat time.js de modal opent
+    };
+
+    if (document.querySelector('.topbar')) doShow();
+    else document.addEventListener('partials:loaded', doShow, { once: true });
 }
 
 // --- START DE APPLICATIE ---
