@@ -14,6 +14,7 @@ let weekStart = startOfWeek(new Date());
 let viewMode = 'week'; 
 let dayDate = new Date();
 let dragData = null;
+let touchDragPlan = null; // touch drag-drop state
 let plansUnsub = null;
 let listenersReady = false;
 let timerInterval = null;
@@ -577,6 +578,24 @@ function renderEventBlock(col, p, layout) {
     });
     el.addEventListener("dragend", () => { el.style.opacity = "1"; });
 
+    // Touch drag voor kalender events verplaatsen
+    if (!p.done) {
+        el.addEventListener('touchstart', (e) => {
+            if (e.target.closest('.evt-resize-handle') || e.target.closest('.evt-menu-btn')) return;
+            const touch = e.touches[0];
+            touchDragPlan = {
+                kind: 'move',
+                id: p.id,
+                el,
+                startX: touch.clientX,
+                startY: touch.clientY,
+                moved: false,
+                ghost: null,
+                activeCol: null
+            };
+        }, { passive: true });
+    }
+
     if (!p.done) {
         el.querySelector('.evt-resize-handle').addEventListener('mousedown', (e) => {
             e.preventDefault();
@@ -881,6 +900,22 @@ function renderBacklog() {
                     document.body.classList.remove("is-dragging-backlog");
                     itemEl.classList.remove("is-dragging");
                 });
+
+                // Touch drag
+                itemEl.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    touchDragPlan = {
+                        kind: 'backlog',
+                        id: item.id,
+                        item,
+                        el: itemEl,
+                        startX: touch.clientX,
+                        startY: touch.clientY,
+                        moved: false,
+                        ghost: null,
+                        activeCol: null
+                    };
+                }, { passive: true });
                 itemEl.querySelector(".check-btn").onclick = async (e) => {
                     e.stopPropagation();
                     const doneAt = new Date();
@@ -1273,6 +1308,100 @@ function setupEventListeners() {
         createState.active = false;
         createState = null;
         openNewPlanModal(date, startTime, endTime, selEl);
+    });
+
+    // ── Touch drag-drop voor backlog → kalender en event verplaatsen ──
+    document.addEventListener('touchmove', (e) => {
+        if (!touchDragPlan) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - touchDragPlan.startX;
+        const dy = touch.clientY - touchDragPlan.startY;
+
+        if (!touchDragPlan.moved && Math.hypot(dx, dy) < 10) return;
+
+        if (!touchDragPlan.moved) {
+            touchDragPlan.moved = true;
+            const src = touchDragPlan.el;
+            const ghost = src.cloneNode(true);
+            const w = Math.min(src.offsetWidth, 200);
+            ghost.style.cssText = `position:fixed;opacity:0.8;pointer-events:none;z-index:9999;width:${w}px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);transform:rotate(2deg);transition:none;font-size:0.8rem;padding:6px 10px;background:#1e293b;color:#e2e8f0;border:1px solid rgba(255,255,255,0.15);overflow:hidden;`;
+            document.body.appendChild(ghost);
+            touchDragPlan.ghost = ghost;
+            src.style.opacity = '0.4';
+            if (touchDragPlan.kind === 'backlog') document.body.classList.add('is-dragging-backlog');
+        }
+
+        e.preventDefault();
+
+        const ghost = touchDragPlan.ghost;
+        ghost.style.left = `${touch.clientX - ghost.offsetWidth / 2}px`;
+        ghost.style.top  = `${touch.clientY - 20}px`;
+
+        // Dag-kolom onder de vinger oplichten
+        ghost.style.visibility = 'hidden';
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        ghost.style.visibility = '';
+
+        const newDayCol = target?.closest('.day-col');
+        if (newDayCol !== touchDragPlan.activeCol) {
+            if (touchDragPlan.activeCol) removeDropIndicator(touchDragPlan.activeCol);
+            touchDragPlan.activeCol = newDayCol || null;
+        }
+        if (newDayCol) {
+            showDropIndicator(newDayCol, yToTime(touch.clientY - newDayCol.getBoundingClientRect().top));
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchend', async (e) => {
+        if (!touchDragPlan) return;
+
+        const { kind, id, item, el, ghost, activeCol, moved } = touchDragPlan;
+        touchDragPlan = null;
+
+        el.style.opacity = '1';
+        ghost?.remove();
+        document.body.classList.remove('is-dragging-backlog');
+        if (activeCol) removeDropIndicator(activeCol);
+
+        if (!moved || !activeCol) return;
+
+        const touch = e.changedTouches[0];
+        const t = yToTime(touch.clientY - activeCol.getBoundingClientRect().top);
+        const newStart = new Date(activeCol.dataset.date);
+        newStart.setHours(t.h, t.m, 0, 0);
+
+        if (kind === 'backlog' && item) {
+            await addPlan({
+                itemId: item.id, title: item.title, type: item.type,
+                subjectId: item.subjectId, subjectName: item.subjectName,
+                color: item.color, symbol: sym(item.type),
+                start: newStart, durationHours: item.durationHours || 1, uid: SHARED_ID
+            });
+        } else if (kind === 'move') {
+            await updatePlan(id, { start: newStart });
+        }
+    });
+
+    document.addEventListener('touchcancel', () => {
+        if (!touchDragPlan) return;
+        touchDragPlan.el.style.opacity = '1';
+        touchDragPlan.ghost?.remove();
+        document.body.classList.remove('is-dragging-backlog');
+        if (touchDragPlan.activeCol) removeDropIndicator(touchDragPlan.activeCol);
+        touchDragPlan = null;
+    });
+
+    // ── Touch tap op lege kalenderruimte → nieuw plan modal ──
+    els.calRoot.addEventListener('touchend', (e) => {
+        if (touchDragPlan) return; // al afgehandeld hierboven
+        const touch = e.changedTouches[0];
+        const dayCol = e.target.closest('.day-col');
+        if (!dayCol) return;
+        if (e.target.closest('.event') || e.target.closest('.evt-menu-btn')) return;
+        const rect = dayCol.getBoundingClientRect();
+        const t = yToTime(touch.clientY - rect.top);
+        const date = new Date(dayCol.dataset.date);
+        openNewPlanModal(date, t, addMinutes(t, 60), null);
     });
 
     els.prevBtn.onclick = () => { if(viewMode==='day') dayDate=addDays(dayDate,-1); else weekStart=addDays(weekStart,-7); loadPlans(); };

@@ -1940,6 +1940,70 @@ body.planner-page {
 /* ═══════════════════════════════════════
    PRINT STIJLEN
 ═══════════════════════════════════════ */
+/* ════════════════════════════════════════
+   TABLET & TOUCH RESPONSIVE
+   ════════════════════════════════════════ */
+
+/* Touch-vriendelijke knoppen */
+@media (max-width: 1100px) {
+  .btn-icon,
+  .btn-outline,
+  .btn-today,
+  .btn-ghost,
+  .btn-primary {
+    min-height: 44px;
+  }
+
+  .view-toggle .btn-text {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Horizontaal scrollbare kalender op tablet */
+@media (max-width: 1050px) {
+  .leftcol {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .calendar-grid {
+    min-width: 620px; /* 56px tijdkolom + 7 * ~80px dag */
+  }
+}
+
+/* Toolbar wrapping op tablet portrait */
+@media (max-width: 768px) {
+  .planner-header {
+    padding: 0 12px;
+  }
+
+  .toolbar-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  .toolbar-nav {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .toolbar-nav #weekTitle {
+    min-width: 120px;
+    font-size: 0.85rem;
+  }
+
+  .toolbar-actions {
+    margin-left: 0;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>PWA Iconen Genereren</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #0f172a; color: #e2e8f0; }
+    h1 { color: #3b82f6; }
+    .step { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; margin: 16px 0; }
+    .step h2 { margin: 0 0 8px; font-size: 1rem; color: #94a3b8; }
+    canvas { display: none; }
+    .download-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .btn-dl { background: #3b82f6; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; text-decoration: none; }
+    .btn-dl:hover { background: #2563eb; }
+    .status { color: #10b981; margin-top: 10px; font-size: 0.85rem; }
+    .note { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; padding: 12px; margin-top: 20px; font-size: 0.85rem; color: #fbbf24; }
+    img.preview { width: 96px; height: 96px; border-radius: 12px; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+  <h1>PWA Iconen Generator</h1>
+  <p style="color:#94a3b8;">Genereer de vereiste PNG-iconen voor de PWA installatie op Android.</p>
+
+  <div class="step">
+    <h2>Stap 1 — Logo bron</h2>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+      <img id="preview" class="preview" hidden alt="Logo preview">
+      <span id="previewLabel" style="font-size:0.85rem;color:#64748b;"></span>
+    </div>
+    <p style="font-size:0.8rem;color:#64748b;">
+      Automatisch geladen: <code>IMG/JD_Web_Solutions.ico</code><br>
+      Wil je een ander bestand gebruiken? Selecteer het hieronder:
+    </p>
+    <input type="file" id="logoInput" accept="image/*">
+  </div>
+
+  <div class="step">
+    <h2>Stap 2 — Genereer en download de iconen</h2>
+    <button class="btn-dl" onclick="generateAll()">🔧 Genereer alle iconen</button>
+    <div id="status" class="status" hidden></div>
+    <div id="downloads" class="download-row" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="note">
+    📁 Sla de gedownloade bestanden op in <code>public/icons/</code> van je project en deploy opnieuw naar Firebase.
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const SIZES = [
+      { name: 'icon-192.png',          size: 192, maskable: false },
+      { name: 'icon-512.png',          size: 512, maskable: false },
+      { name: 'icon-maskable-192.png', size: 192, maskable: true  },
+      { name: 'icon-maskable-512.png', size: 512, maskable: true  },
+    ];
+
+    let sourceImage = null;
+
+    // Laad automatisch het bestaande ICO-bestand als bron
+    function loadDefaultIcon() {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        sourceImage = img;
+        document.getElementById('preview').src = img.src;
+        document.getElementById('preview').hidden = false;
+        document.getElementById('previewLabel').textContent = 'Bron: JD_Web_Solutions.ico';
+        document.getElementById('status').hidden = false;
+        document.getElementById('status').textContent = '✅ Logo geladen — klik "Genereer" om de iconen te maken.';
+      };
+      img.onerror = () => {
+        document.getElementById('status').hidden = false;
+        document.getElementById('status').textContent = '⚠️ ICO kon niet automatisch geladen worden. Selecteer het bestand handmatig.';
+      };
+      img.src = '/IMG/JD_Web_Solutions.ico';
+    }
+
+    // Optioneel: handmatig een ander bestand kiezen
+    document.getElementById('logoInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          sourceImage = img;
+          document.getElementById('preview').src = ev.target.result;
+          document.getElementById('preview').hidden = false;
+          document.getElementById('previewLabel').textContent = `Bron: ${file.name}`;
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function drawIcon(canvas, size, maskable) {
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.height = size;
+
+      ctx.fillStyle = '#1e293b';
+      if (maskable) {
+        // Maskable: volledig vierkant (Android past zelf de vorm toe)
+        ctx.fillRect(0, 0, size, size);
+      } else {
+        // Regulier: afgeronde hoeken
+        const r = size * 0.19;
+        ctx.beginPath();
+        ctx.moveTo(r, 0); ctx.lineTo(size - r, 0);
+        ctx.quadraticCurveTo(size, 0, size, r);
+        ctx.lineTo(size, size - r);
+        ctx.quadraticCurveTo(size, size, size - r, size);
+        ctx.lineTo(r, size);
+        ctx.quadraticCurveTo(0, size, 0, size - r);
+        ctx.lineTo(0, r);
+        ctx.quadraticCurveTo(0, 0, r, 0);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      if (sourceImage) {
+        // Maskable: 10% padding rondom (safe zone voor Android)
+        // Regulier: 8% padding
+        const pad = maskable ? size * 0.10 : size * 0.08;
+        const s = size - pad * 2;
+        ctx.drawImage(sourceImage, pad, pad, s, s);
+      } else {
+        // Fallback tekst als er geen logo is
+        const fontSize = Math.round(size * 0.43);
+        ctx.fillStyle = '#3b82f6';
+        ctx.font = `800 ${fontSize}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('JD', size / 2, size / 2 + fontSize * 0.05);
+      }
+    }
+
+    function generateAll() {
+      const canvas = document.getElementById('canvas');
+      const dlDiv = document.getElementById('downloads');
+      const status = document.getElementById('status');
+      dlDiv.innerHTML = '';
+      status.hidden = false;
+      status.textContent = 'Iconen worden gegenereerd...';
+
+      SIZES.forEach(({ name, size, maskable }) => {
+        drawIcon(canvas, size, maskable);
+        const dataUrl = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.className = 'btn-dl';
+        a.download = name;
+        a.href = dataUrl;
+        a.textContent = `⬇ ${name}`;
+        dlDiv.appendChild(a);
+      });
+
+      status.textContent = `✅ ${SIZES.length} iconen gereed — klik elk om te downloaden.`;
+    }
+
+    // Laad het standaard ICO bestand bij het openen van de pagina
+    window.addEventListener('load', loadDefaultIcon);
+  </script>
+</body>
+</html>

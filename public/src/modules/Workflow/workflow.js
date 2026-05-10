@@ -50,6 +50,7 @@ let tagModalSnapshot  = null;
 let viewMode = 'kanban'; // 'kanban' | 'list'
 let selectedCards = new Set();
 let bulkMode = false;
+let touchDrag = null; // touch drag-drop state
 
 /** @type {ApiSettings} */ let apiSettings = { webhookUrl: "", token: "" };
 
@@ -755,6 +756,7 @@ function renderBoard() {
     columns.forEach(col => {
         const colEl = document.createElement("div");
         colEl.className = "wf-column";
+        colEl.dataset.colId = col.id;
         
         // Basis set kaarten voor deze kolom
         let colCards = cards.filter(c => c.columnId === col.id);
@@ -961,6 +963,22 @@ function createCardEl(card) {
     el.addEventListener("dragleave", e => {
         if (!el.contains(e.relatedTarget)) el.classList.remove('drop-above','drop-below');
     });
+
+    // Touch drag-drop
+    el.addEventListener('touchstart', (e) => {
+        if (bulkMode) return;
+        const touch = e.touches[0];
+        touchDrag = {
+            cardId: card.id,
+            el,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            moved: false,
+            ghost: null,
+            activeCol: null
+        };
+    }, { passive: true });
+
     el.addEventListener("click", () => {
         if (!bulkMode) { openCardModal(card); return; }
         if (selectedCards.has(card.id)) { selectedCards.delete(card.id); el.classList.remove('bulk-selected'); }
@@ -993,23 +1011,14 @@ function createCardEl(card) {
     return el;
 }
 
-async function handleDrop(e, colId) {
-    e.preventDefault();
+async function performDrop(cardId, colId, targetCardEl = null, insertBefore = false) {
     document.querySelectorAll(".wf-drop-target").forEach(el => el.classList.remove("wf-drop-target"));
-
-    const cardId = e.dataTransfer.getData("text/plain");
-    if (!cardId) return;
+    document.querySelectorAll('.drop-above,.drop-below').forEach(el => el.classList.remove('drop-above','drop-below'));
 
     const currentCard = cards.find(c => c.id === cardId);
     if (!currentCard) return;
 
-    // Bepaal of we op een specifieke kaart droppen (voor herordenen)
-    const targetCardEl = e.target.closest('.wf-card');
     const targetCardId = targetCardEl?.dataset.id;
-    const insertBefore = targetCardEl?.classList.contains('drop-above');
-
-    // Drop-indicatoren opruimen
-    document.querySelectorAll('.drop-above,.drop-below').forEach(el => el.classList.remove('drop-above','drop-below'));
 
     // === HERORDENEN BINNEN ZELFDE KOLOM ===
     if (currentCard.columnId === colId && targetCardId && targetCardId !== cardId) {
@@ -1018,7 +1027,7 @@ async function handleDrop(e, colId) {
     }
 
     // === VERPLAATSEN NAAR ANDERE KOLOM ===
-    if (currentCard.columnId === colId) return; // zelfde kolom, geen actie
+    if (currentCard.columnId === colId) return;
 
     const targetCol  = columns.find(c => c.id === colId);
     const ticketTag  = tags.find(t => t.name.toUpperCase() === "TICKETING");
@@ -1047,6 +1056,86 @@ async function handleDrop(e, colId) {
         console.error("Fout bij verplaatsen kaart:", error);
         showToast("Kon kaart niet verplaatsen", "error");
     }
+}
+
+async function handleDrop(e, colId) {
+    e.preventDefault();
+    const cardId = e.dataTransfer.getData("text/plain");
+    if (!cardId) return;
+    const targetCardEl = e.target.closest('.wf-card');
+    const insertBefore = targetCardEl?.classList.contains('drop-above');
+    await performDrop(cardId, colId, targetCardEl, insertBefore);
+}
+
+// --- TOUCH DRAG-DROP ---
+function setupTouchDragDrop() {
+    document.addEventListener('touchmove', (e) => {
+        if (!touchDrag) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - touchDrag.startX;
+        const dy = touch.clientY - touchDrag.startY;
+
+        if (!touchDrag.moved && Math.hypot(dx, dy) < 8) return;
+
+        if (!touchDrag.moved) {
+            touchDrag.moved = true;
+            const ghost = touchDrag.el.cloneNode(true);
+            const w = touchDrag.el.offsetWidth;
+            ghost.style.cssText = `position:fixed;opacity:0.75;pointer-events:none;z-index:9999;width:${w}px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);transform:rotate(2deg);transition:none;`;
+            document.body.appendChild(ghost);
+            touchDrag.ghost = ghost;
+            touchDrag.el.style.opacity = '0.4';
+        }
+
+        e.preventDefault();
+
+        touchDrag.ghost.style.left = `${touch.clientX - touchDrag.ghost.offsetWidth / 2}px`;
+        touchDrag.ghost.style.top  = `${touch.clientY - 30}px`;
+
+        // Kolom onder de vinger bepalen
+        touchDrag.ghost.style.visibility = 'hidden';
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        touchDrag.ghost.style.visibility = '';
+
+        const newCol = target?.closest('.wf-column-cards');
+        if (newCol !== touchDrag.activeCol) {
+            touchDrag.activeCol?.classList.remove('wf-drop-target');
+            newCol?.classList.add('wf-drop-target');
+            touchDrag.activeCol = newCol || null;
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchend', async (e) => {
+        if (!touchDrag) return;
+
+        const { cardId, el, ghost, activeCol, moved } = touchDrag;
+        touchDrag = null;
+
+        el.style.opacity = '1';
+        ghost?.remove();
+        activeCol?.classList.remove('wf-drop-target');
+
+        if (!moved || !activeCol) return;
+
+        const colId = activeCol.closest('.wf-column')?.dataset.colId;
+        if (!colId) return;
+
+        const touch = e.changedTouches[0];
+        const targetCardEl = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.wf-card');
+        const insertBefore = targetCardEl
+            ? touch.clientY < targetCardEl.getBoundingClientRect().top + targetCardEl.offsetHeight / 2
+            : false;
+
+        await performDrop(cardId, colId, targetCardEl, insertBefore);
+    });
+
+    document.addEventListener('touchcancel', () => {
+        if (!touchDrag) return;
+        touchDrag.el.style.opacity = '1';
+        touchDrag.ghost?.remove();
+        touchDrag.activeCol?.classList.remove('wf-drop-target');
+        touchDrag = null;
+    });
 }
 
 // --- ADMIN RENDERERS ---
@@ -1844,6 +1933,8 @@ function updateBulkBar() {
 
 // --- SETUP EVENTS ---
 function setupUI() {
+    setupTouchDragDrop();
+
     let searchDebounce;
     $('searchInput').addEventListener('input', () => {
         clearTimeout(searchDebounce);

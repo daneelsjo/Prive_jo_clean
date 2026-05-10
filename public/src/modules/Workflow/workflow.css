@@ -1663,3 +1663,83 @@ input:checked + .wf-slider:before {
 .wf-log-system .wf-log-content {
   font-size: 0.78rem;
 }
+
+/* ════════════════════════════════════════
+   TABLET & TOUCH RESPONSIVE
+   ════════════════════════════════════════ */
+
+/* Board breakpoints: 5 → 3 → 2 → 1 kolom */
+@media (max-width: 1400px) {
+  .workflow-board { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 1000px) {
+  .workflow-board { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .workflow-board { grid-template-columns: 1fr; }
+}
+
+/* Tablet (≤1100px): toolbar wrapping + grotere touch-doelen */
+@media (max-width: 1100px) {
+  body.page-workflow .page {
+    padding: 12px 16px !important;
+  }
+
+  .wf-toolbar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .wf-toolbar-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .wf-search-input {
+    width: 160px;
+  }
+  .wf-search-input:focus {
+    width: 200px;
+  }
+
+  .wf-btn {
+    height: 44px !important;
+    min-width: 44px;
+  }
+  .wf-btn.icon-only {
+    width: 44px !important;
+  }
+  .quick-filters .wf-btn.icon-only {
+    min-width: 80px !important;
+  }
+}
+
+/* Tablet portrait (≤768px): toolbar op 2 rijen */
+@media (max-width: 768px) {
+  body.page-workflow .page {
+    padding: 10px 12px !important;
+  }
+
+  .wf-toolbar-left {
+    width: 100%;
+  }
+
+  .wf-search-input,
+  .wf-search-input:focus {
+    flex: 1;
+    width: auto !important;
+    min-width: 100px;
+  }
+
+  .wf-toolbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* Touch-apparaten: verberg hover-only elementen */
+@media (hover: none) and (pointer: coarse) {
+  .wf-card { cursor: default; }
+  .wf-card-preview { display: none !important; }
+}

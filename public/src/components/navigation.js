@@ -2,6 +2,14 @@
 import { db, collection, query, orderBy, onSnapshot, getDocs, where } from "../services/db.js";
 import { getCurrentUser, watchUser } from "../services/auth.js";
 
+// ── Service Worker registratie (PWA) ──────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .catch((err) => console.warn('SW registratie mislukt:', err));
+  });
+}
+
 console.log("🚦 Navigation.js met CMS geladen");
 
 // --- STATE ---
