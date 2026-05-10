@@ -1,4 +1,5 @@
 const functions = require("firebase-functions");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 admin.initializeApp();
 
@@ -113,10 +114,9 @@ exports.reportIssue = functions.https.onRequest(async (req, res) => {
 // ── Dagelijkse herinneringen: workflow kaarten met deadline vandaag ────────────
 // Draait elke werkdag om 08:00 (Europe/Brussels)
 // Vereist Blaze (pay-as-you-go) plan op Firebase
-exports.sendDailyReminders = functions.pubsub
-  .schedule("0 8 * * 1-5")
-  .timeZone("Europe/Brussels")
-  .onRun(async () => {
+exports.sendDailyReminders = onSchedule(
+  { schedule: "0 8 * * 1-5", timeZone: "Europe/Brussels" },
+  async () => {
     const db = admin.firestore();
     const messaging = admin.messaging();
 
@@ -167,5 +167,4 @@ exports.sendDailyReminders = functions.pubsub
     });
 
     await Promise.allSettled(sends);
-    return null;
   });
