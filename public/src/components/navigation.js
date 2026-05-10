@@ -87,7 +87,7 @@ function addInstallButton() {
 // ── Push notificaties (FCM) ───────────────────────────────────────────────────
 // Haal de VAPID key op via Firebase Console → Project Settings →
 // Cloud Messaging → Web Push certificates → "Sleutelpaar genereren"
-const FCM_VAPID_KEY = '';
+const FCM_VAPID_KEY = 'BCfppHDsw5TfqraC9SIkbgLkbjAlKiU-eyfVK4b5m_B5i2DP0jJQdQgaqUrssmAUZ4mFqK5njc1t3khNKzncR2A';
 
 async function initPushNotifications(uid) {
   if (!FCM_VAPID_KEY || !('Notification' in window) || Notification.permission === 'denied') return;
