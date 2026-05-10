@@ -1,13 +1,131 @@
 // src/components/navigation.js
-import { db, collection, query, orderBy, onSnapshot, getDocs, where } from "../services/db.js";
+import { db, collection, query, orderBy, onSnapshot, getDocs, where, doc, setDoc, serverTimestamp } from "../services/db.js";
 import { getCurrentUser, watchUser } from "../services/auth.js";
 
-// ── Service Worker registratie (PWA) ──────────────────────────────────────────
+// ── Service Worker + Update-detectie ─────────────────────────────────────────
+let swRegistration = null;
+
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .catch((err) => console.warn('SW registratie mislukt:', err));
+  window.addEventListener('load', async () => {
+    try {
+      swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+
+      // Staat er al een nieuwe SW klaar?
+      if (swRegistration.waiting) showUpdateBar(swRegistration.waiting);
+
+      // Nieuwe SW die begint te installeren
+      swRegistration.addEventListener('updatefound', () => {
+        const installing = swRegistration.installing;
+        installing.addEventListener('statechange', () => {
+          if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBar(installing);
+          }
+        });
+      });
+
+      // Pagina herladen zodra nieuwe SW de controle overneemt
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) { refreshing = true; window.location.reload(); }
+      });
+
+    } catch (err) {
+      console.warn('SW registratie mislukt:', err);
+    }
   });
+}
+
+// ── Update-balk (onderaan scherm) ─────────────────────────────────────────────
+function showUpdateBar(sw) {
+  if (document.getElementById('pwa-update-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'pwa-update-bar';
+  bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1d4ed8;color:#fff;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;z-index:9998;font-size:0.9rem;font-weight:500;';
+  bar.innerHTML = `<span>🔄 Nieuwe versie beschikbaar</span><button id="btn-do-update" style="background:#fff;color:#1d4ed8;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;">Vernieuwen</button><button id="btn-dismiss-update" style="background:transparent;color:#bfdbfe;border:none;cursor:pointer;font-size:1.2rem;line-height:1;">✕</button>`;
+  document.body.appendChild(bar);
+  document.getElementById('btn-do-update').addEventListener('click', () => sw.postMessage({ type: 'SKIP_WAITING' }));
+  document.getElementById('btn-dismiss-update').addEventListener('click', () => bar.remove());
+}
+
+// ── Install-knop (📲 in header) ────────────────────────────────────────────────
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  addInstallButton();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  document.getElementById('btn-install-pwa')?.remove();
+});
+
+function addInstallButton() {
+  const doAdd = () => {
+    if (document.getElementById('btn-install-pwa')) return;
+    const container = document.getElementById('quickLinks');
+    if (!container) return;
+    const btn = document.createElement('button');
+    btn.id = 'btn-install-pwa';
+    btn.className = 'icon-btn header-link';
+    btn.textContent = '📲';
+    btn.title = 'App installeren';
+    btn.style.cssText = 'margin-left:10px;background:transparent;border:none;font-size:1.2rem;cursor:pointer;';
+    btn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') { deferredInstallPrompt = null; btn.remove(); }
+    });
+    container.insertBefore(btn, container.firstChild);
+  };
+  if (document.getElementById('quickLinks')) doAdd();
+  else document.addEventListener('partials:loaded', doAdd, { once: true });
+}
+
+// ── Push notificaties (FCM) ───────────────────────────────────────────────────
+// Haal de VAPID key op via Firebase Console → Project Settings →
+// Cloud Messaging → Web Push certificates → "Sleutelpaar genereren"
+const FCM_VAPID_KEY = '';
+
+async function initPushNotifications(uid) {
+  if (!FCM_VAPID_KEY || !('Notification' in window) || Notification.permission === 'denied') return;
+  try {
+    const { getMessaging, getToken, onMessage } = await import('https://www.gstatic.com/firebasejs/10.5.2/firebase-messaging.js');
+    const { app } = await import('../services/config.js');
+    const messaging = getMessaging(app);
+
+    const permission = Notification.permission === 'granted'
+      ? 'granted'
+      : await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const swReg = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, { vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: swReg });
+
+    if (token) {
+      await setDoc(doc(db, 'fcmTokens', uid), { token, updatedAt: serverTimestamp(), ua: navigator.userAgent.slice(0, 120) });
+    }
+
+    // Toon push-berichten als de app wél open staat
+    onMessage(messaging, (payload) => {
+      const n = payload.notification || {};
+      showToastNotification(n.title || 'JD Portaal', n.body || '');
+    });
+
+  } catch (err) {
+    console.warn('Push notificaties setup mislukt:', err);
+  }
+}
+
+function showToastNotification(title, body) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:70px;right:16px;background:#1e293b;color:#f1f5f9;padding:12px 16px;border-radius:10px;border-left:4px solid #3b82f6;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:9997;max-width:320px;font-size:0.9rem;cursor:pointer;';
+  t.innerHTML = `<strong>${title}</strong>${body ? `<div style="opacity:.8;margin-top:4px;">${body}</div>` : ''}`;
+  document.body.appendChild(t);
+  t.addEventListener('click', () => t.remove());
+  setTimeout(() => t.remove(), 8000);
 }
 
 console.log("🚦 Navigation.js met CMS geladen");
@@ -43,6 +161,9 @@ function initNavigation() {
 
             // Controleer vorige werkdag
             checkPrevdayReminder(user);
+
+            // Push notificaties initialiseren
+            initPushNotifications(user.uid);
         }
     });
 

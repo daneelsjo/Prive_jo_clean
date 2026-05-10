@@ -1,4 +1,6 @@
-const functions = require("firebase-functions")
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+admin.initializeApp();
 
 // HTTP endpoint: maakt een issue aan in GitHub
 exports.reportIssue = functions.https.onRequest(async (req, res) => {
@@ -107,3 +109,63 @@ exports.reportIssue = functions.https.onRequest(async (req, res) => {
     res.status(500).json({ error: "Interne fout bij aanmaken issue" })
   }
 })
+
+// ── Dagelijkse herinneringen: workflow kaarten met deadline vandaag ────────────
+// Draait elke werkdag om 08:00 (Europe/Brussels)
+// Vereist Blaze (pay-as-you-go) plan op Firebase
+exports.sendDailyReminders = functions.pubsub
+  .schedule("0 8 * * 1-5")
+  .timeZone("Europe/Brussels")
+  .onRun(async () => {
+    const db = admin.firestore();
+    const messaging = admin.messaging();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const snap = await db.collection("workflowCards")
+      .where("dueDate", ">=", admin.firestore.Timestamp.fromDate(today))
+      .where("dueDate", "<",  admin.firestore.Timestamp.fromDate(tomorrow))
+      .where("finishedAt", "==", null)
+      .get();
+
+    if (snap.empty) return null;
+
+    // Groepeer per gebruiker
+    const byUser = {};
+    snap.forEach((d) => {
+      const { uid, title } = d.data();
+      if (!uid) return;
+      if (!byUser[uid]) byUser[uid] = [];
+      byUser[uid].push(title || "Taak");
+    });
+
+    const sends = Object.entries(byUser).map(async ([uid, titles]) => {
+      const tokenDoc = await db.doc(`fcmTokens/${uid}`).get();
+      if (!tokenDoc.exists) return;
+      const { token } = tokenDoc.data();
+      if (!token) return;
+
+      const count = titles.length;
+      await messaging.send({
+        token,
+        notification: {
+          title: `${count} deadline${count > 1 ? "s" : ""} vandaag`,
+          body: titles.slice(0, 3).join(", ") + (count > 3 ? ` +${count - 3} meer` : ""),
+        },
+        webpush: {
+          fcmOptions: { link: "/src/modules/Workflow/workflow.html" },
+          notification: {
+            icon: "/icons/icon-192.png",
+            badge: "/icons/icon-192.png",
+            tag: "workflow-deadline",
+          },
+        },
+      });
+    });
+
+    await Promise.allSettled(sends);
+    return null;
+  });

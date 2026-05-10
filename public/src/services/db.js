@@ -178,3 +178,7 @@ export const subscribeToChecklistTemplates = (uid, callback) => {
 export const addChecklistTemplate = (data) => addDoc(collection(db, "workflowChecklistTemplates"), data);
 export const deleteChecklistTemplate = (id) => deleteDoc(doc(db, "workflowChecklistTemplates", id));
 
+// --- 11. FCM Tokens ---
+export const saveFcmToken = (uid, token) =>
+    setDoc(doc(db, 'fcmTokens', uid), { token, updatedAt: serverTimestamp(), ua: navigator.userAgent.slice(0, 120) });
+

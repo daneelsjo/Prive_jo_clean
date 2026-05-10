@@ -1,13 +1,35 @@
 // ─── JD Portaal Service Worker ───────────────────────────────────────────────
-// Strategie:
-//   • App Shell (HTML/CSS/JS/afbeeldingen) → Cache First + achtergrond update
-//   • Firebase CDN (gstatic.com) → Network First met cache fallback
-//   • Alles overig → Network First
+
+// Firebase Messaging (achtergrond push notificaties via FCM)
+importScripts('https://www.gstatic.com/firebasejs/10.5.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.5.2/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+    apiKey: "AIzaSyBkVwWdSNwlPWjeNT_BRb7pFzkeVB2VT3Q",
+    authDomain: "prive-jo.firebaseapp.com",
+    projectId: "prive-jo",
+    messagingSenderId: "849510732758",
+    appId: "1:849510732758:web:6c506a7f7adcc5c1310a77"
+});
+
+const messaging = firebase.messaging();
+
+// Achtergrond push-berichten tonen als de app niet open staat
+messaging.onBackgroundMessage((payload) => {
+    const n = payload.notification || {};
+    self.registration.showNotification(n.title || 'JD Portaal', {
+        body: n.body || '',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        tag: payload.data?.tag || 'jd-portaal',
+        data: { url: payload.data?.url || '/' }
+    });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'jd-portaal-v1';
+const CACHE_VERSION = 'jd-portaal-v2';
 
-// Bestanden die meteen bij installatie worden gecached (app shell)
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -38,7 +60,8 @@ const PRECACHE_URLS = [
   '/src/modules/settings/settings.html',
   '/src/modules/settings/settings.css',
   '/IMG/JD_Web_Solutions.jpg',
-  '/icons/icon.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
   '/partials/header.html',
   '/partials/modals.html',
 ];
@@ -46,16 +69,12 @@ const PRECACHE_URLS = [
 // ── Install: precache app shell ───────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => {
-      // Gebruik addAll maar vang fouten per item op zodat 1 fout niet alles blokkeert
-      return Promise.allSettled(
-        PRECACHE_URLS.map((url) =>
-          cache.add(url).catch(() => {
-            // Stil mislukken voor optionele assets (b.v. nog niet gegenereerde iconen)
-          })
-        )
-      );
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_VERSION).then((cache) =>
+      Promise.allSettled(
+        PRECACHE_URLS.map((url) => cache.add(url).catch(() => {}))
+      )
+    )
+    // Geen self.skipWaiting() — nieuwe SW wacht tot gebruiker "Vernieuwen" klikt
   );
 });
 
@@ -64,12 +83,15 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys
-          .filter((key) => key !== CACHE_VERSION)
-          .map((key) => caches.delete(key))
+        keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
   );
+});
+
+// ── Message: update activeren op verzoek van de pagina ───────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ── Fetch: verzoeken afhandelen ───────────────────────────────────────────────
@@ -77,39 +99,30 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Sla niet-GET verzoeken over
   if (request.method !== 'GET') return;
 
-  // Firebase CDN (SDK bestanden) → Network First
   if (url.hostname === 'www.gstatic.com' || url.hostname.endsWith('.firebaseio.com') || url.hostname.endsWith('.googleapis.com')) {
     event.respondWith(networkFirstWithCache(request));
     return;
   }
 
-  // Chrome extensies / externe origins → gewoon doorgeven
   if (url.origin !== self.location.origin) return;
 
-  // Eigen statische assets → Stale-While-Revalidate
   event.respondWith(staleWhileRevalidate(request));
 });
 
-// ── Strategie: Stale-While-Revalidate ────────────────────────────────────────
-// Geeft meteen de gecachte versie terug én update op de achtergrond
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(CACHE_VERSION);
   const cached = await cache.match(request);
-
   const fetchPromise = fetch(request).then((response) => {
     if (response && response.status === 200 && response.type !== 'opaque') {
       cache.put(request, response.clone());
     }
     return response;
   }).catch(() => null);
-
   return cached || fetchPromise;
 }
 
-// ── Strategie: Network First met cache fallback ───────────────────────────────
 async function networkFirstWithCache(request) {
   const cache = await caches.open(CACHE_VERSION);
   try {
@@ -119,26 +132,11 @@ async function networkFirstWithCache(request) {
     }
     return response;
   } catch {
-    const cached = await cache.match(request);
-    return cached || Response.error();
+    return (await cache.match(request)) || Response.error();
   }
 }
 
-// ── Push notificaties (toekomstige uitbreiding) ───────────────────────────────
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  const data = event.data.json();
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'JD Portaal', {
-      body: data.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: data.tag || 'jd-portaal',
-      data: { url: data.url || '/' },
-    })
-  );
-});
-
+// ── Notificatie aanklikken → app openen ──────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = event.notification.data?.url || '/';
