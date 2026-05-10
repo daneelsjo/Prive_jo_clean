@@ -3,13 +3,13 @@ import {
   getFirebaseApp,
   // Auth
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
-  // Firestore
-  getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc, serverTimestamp, query, where, orderBy
 } from "../../../script/javascript/firebase-config.js";
-import { getDocs } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
+import {
+    db, collection, addDoc, onSnapshot, doc, setDoc, getDoc, updateDoc,
+    serverTimestamp, query, where, orderBy, getDocs
+} from "../../services/db.js";
 
 const app = getFirebaseApp();
-const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 

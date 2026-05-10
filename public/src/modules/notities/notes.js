@@ -3,16 +3,16 @@ import {
     getFirebaseApp,
     // Auth
     getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
-    // Firestore
-    getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,
-    query, where, orderBy
 } from "../../../script/javascript/firebase-config.js";
+import {
+    db, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,
+    query, where, orderBy
+} from "../../services/db.js";
 
 /* ────────────────────────────────────────────────────────────────────────────
    Firebase
    ──────────────────────────────────────────────────────────────────────────── */
 const app = getFirebaseApp();
-const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 

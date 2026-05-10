@@ -1,13 +1,16 @@
 // src/services/db.js
-import { 
-    getFirestore, collection, doc, onSnapshot, 
-    query, where, addDoc, updateDoc, deleteDoc, setDoc, orderBy, 
+import {
+    initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+    getFirestore, collection, doc, onSnapshot,
+    query, where, addDoc, updateDoc, deleteDoc, setDoc, orderBy,
     getDoc, getDocs, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
 import { app } from "./config.js";
 
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 
 // --- EXPORT FIREBASE PRIMITIVES ---
 // Hier maken we de functies beschikbaar voor de andere modules
