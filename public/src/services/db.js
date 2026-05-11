@@ -175,3 +175,12 @@ export const subscribeToChecklistTemplates = (uid, callback) => {
 export const addChecklistTemplate = (data) => addDoc(collection(db, "workflowChecklistTemplates"), data);
 export const deleteChecklistTemplate = (id) => deleteDoc(doc(db, "workflowChecklistTemplates", id));
 
+// --- 11. Workflow Card Types ---
+export const subscribeToCardTypes = (uid, callback) => {
+    const q = query(collection(db, "workflowCardTypes"), where("uid", "==", uid), orderBy("order", "asc"));
+    return onSnapshot(q, (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+};
+export const addCardType = (data) => addDoc(collection(db, "workflowCardTypes"), data);
+export const updateCardType = (id, data) => updateDoc(doc(db, "workflowCardTypes", id), data);
+export const deleteCardType = (id) => deleteDoc(doc(db, "workflowCardTypes", id));
+

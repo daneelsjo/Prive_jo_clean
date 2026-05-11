@@ -1888,3 +1888,131 @@ input:checked + .wf-slider:before {
   opacity: 1;
   color: #ef4444;
 }
+
+/* ==========================================================================
+   CARD TYPES
+   ========================================================================== */
+
+/* Badge op de kaart en in lijstweergave */
+.wf-card-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Bovenste rij op de kaart: type links, datum/aging rechts */
+.wf-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.wf-card-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Type selector chips in kaart modal */
+.wf-type-selector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.wf-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border, #334155);
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.wf-type-chip:hover {
+  border-color: var(--fg, #e2e8f0);
+  background: rgba(255,255,255,0.04);
+  color: var(--fg, #e2e8f0);
+}
+.wf-type-chip.selected {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.wf-type-chip.none {
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+.wf-type-chip.none.selected {
+  background: var(--bg, #0f172a) !important;
+  border-color: var(--border, #334155) !important;
+  color: var(--fg, #e2e8f0) !important;
+  box-shadow: none;
+  opacity: 1;
+}
+.wf-type-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* Types beheer in instellingen */
+.type-manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg, #0f172a);
+  border: 1px solid var(--border, #334155);
+  border-radius: 9px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  transition: border-color 0.15s;
+}
+.type-manage-row:hover {
+  border-color: rgba(255,255,255,0.12);
+}
+.type-editor-wrap {
+  border: 1px solid var(--border, #334155);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(255,255,255,0.02);
+  margin-top: 12px;
+}
+.type-icon-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.type-icon-preset-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--border, #334155);
+  background: var(--bg, #0f172a);
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.type-icon-preset-btn:hover {
+  border-color: var(--brand, #3b82f6);
+  background: rgba(59,130,246,0.1);
+  transform: scale(1.1);
+}

@@ -108,6 +108,11 @@
                     <label>Titel</label>
                     <input id="inpTitle" required placeholder="Titel van de taak..." style="font-weight:700; font-size:1.05rem;">
 
+                    <div id="card-type-selector-wrap" style="margin-top:14px;">
+                        <label>Type</label>
+                        <div id="card-type-selector" class="wf-type-selector-chips"></div>
+                    </div>
+
                     <div class="wf-form-row">
                         <div>
                             <label>Deadline</label>
@@ -268,6 +273,7 @@
     <div class="modal-body">
         <div class="wf-settings-tabs">
             <button class="wf-tab-btn active" onclick="switchSettingsTab('tags')">Tags</button>
+            <button class="wf-tab-btn" onclick="switchSettingsTab('types')">⬛ Types</button>
             <button class="wf-tab-btn" onclick="switchSettingsTab('cols')">Kolommen</button>
             <button class="wf-tab-btn" onclick="switchSettingsTab('lists')">Checklists</button>
             <button class="wf-tab-btn" onclick="switchSettingsTab('card-templates')">Kaart Templates</button>
@@ -278,6 +284,33 @@
             <h4>Standaard Tags</h4><div id="list-tags-standard"></div>
             <h4 style="margin-top:20px;">Eigen Tags</h4><div id="list-tags-custom"></div>
             <button id="btnOpenNewTag" class="wf-btn wf-btn-primary" style="margin-top:15px;">＋ Nieuwe Tag</button>
+        </div>
+
+        <div id="set-tab-types" class="wf-settings-content">
+            <h4>Kaart Types</h4>
+            <p style="color:var(--muted);font-size:0.85rem;margin:4px 0 12px 0;">Geef elke kaart een type (Bug, Feature, Taak...) voor direct visueel overzicht.</p>
+            <div id="list-card-types"></div>
+            <div id="type-editor" class="type-editor-wrap" style="display:none;">
+                <label>Naam</label>
+                <input id="type-name-inp" placeholder="bv. Bug, Feature, Verbetering...">
+                <div class="wf-form-row" style="margin-top:12px; gap:16px;">
+                    <div style="flex:1;">
+                        <label>Icoon <small style="font-weight:400;text-transform:none;opacity:0.7;">(emoji)</small></label>
+                        <div id="type-icon-presets" class="type-icon-presets"></div>
+                        <input id="type-icon-inp" placeholder="🐛" maxlength="4" style="margin-top:6px; width:80px; text-align:center; font-size:1.2rem;">
+                    </div>
+                    <div style="flex:2;">
+                        <label>Kleur</label>
+                        <div id="type-colors-cont" class="color-options"></div>
+                        <input type="hidden" id="type-color-val">
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+                    <button id="btnCancelType" class="ghost">Annuleren</button>
+                    <button id="btnSaveType" class="wf-btn wf-btn-primary">Opslaan</button>
+                </div>
+            </div>
+            <button id="btnOpenNewType" class="wf-btn wf-btn-primary" style="margin-top:14px;">＋ Nieuw Type</button>
         </div>
 
         <div id="set-tab-cols" class="wf-settings-content">
@@ -387,10 +420,11 @@
           document.querySelectorAll('#modal-settings .wf-settings-content').forEach(c => c.classList.remove('active'));
           const map = {
               tags:            [1, 'set-tab-tags'],
-              cols:            [2, 'set-tab-cols'],
-              lists:           [3, 'set-tab-lists'],
-              'card-templates':[4, 'set-tab-card-templates'],
-              quickfilters:    [5, 'set-tab-quickfilters']
+              types:           [2, 'set-tab-types'],
+              cols:            [3, 'set-tab-cols'],
+              lists:           [4, 'set-tab-lists'],
+              'card-templates':[5, 'set-tab-card-templates'],
+              quickfilters:    [6, 'set-tab-quickfilters']
           };
           const [nth, id] = map[tabName] || map.tags;
           document.querySelector(`#modal-settings .wf-tab-btn:nth-child(${nth})`).classList.add('active');
@@ -423,7 +457,9 @@
           <button class="modal-close" data-modal-close="modal-filter">✕</button>
       </div>
       <div class="modal-body">
-          <div class="wf-section-label">Op prioriteit</div>
+          <div class="wf-section-label">Op type</div>
+          <div id="filter-type-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+          <div class="wf-section-label" style="margin-top:16px;">Op prioriteit</div>
           <div id="filter-prio-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
           <div class="wf-section-label" style="margin-top:16px;">Op labels</div>
           <div id="filter-tag-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
