@@ -414,7 +414,8 @@ async function init() {
         fetchApiSettings(user.uid);
         Promise.all([
             ensureBoardByType(user.uid, 'workflow'),
-            ensureBoardByType(user.uid, 'websites')
+            ensureBoardByType(user.uid, 'websites'),
+            ensureStandardCardTypes(user.uid)
         ]).then(([wfId, webId]) => {
             boardIds = { workflow: wfId, websites: webId };
             boardId = boardIds[activeBoardType];
