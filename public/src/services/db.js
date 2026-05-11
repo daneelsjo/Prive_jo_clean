@@ -182,3 +182,12 @@ export const deleteChecklistTemplate = (id) => deleteDoc(doc(db, "workflowCheckl
 export const saveFcmToken = (uid, token) =>
     setDoc(doc(db, 'fcmTokens', uid), { token, updatedAt: serverTimestamp(), ua: navigator.userAgent.slice(0, 120) });
 
+// --- 12. Workflow Card Types ---
+export const subscribeToCardTypes = (uid, callback) => {
+    const q = query(collection(db, "workflowCardTypes"), where("uid", "==", uid), orderBy("order", "asc"));
+    return onSnapshot(q, (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+};
+export const addCardType = (data) => addDoc(collection(db, "workflowCardTypes"), data);
+export const updateCardType = (id, data) => updateDoc(doc(db, "workflowCardTypes", id), data);
+export const deleteCardType = (id) => deleteDoc(doc(db, "workflowCardTypes", id));
+

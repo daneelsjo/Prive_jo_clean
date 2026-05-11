@@ -4,6 +4,7 @@ import {
     subscribeToColumns, addColumn, updateColumn, deleteColumn,
     subscribeToTags, addTag, updateTag, deleteTag,
     subscribeToChecklistTemplates, addChecklistTemplate, deleteChecklistTemplate,
+    subscribeToCardTypes, addCardType, updateCardType, deleteCardType,
     getFirebaseApp, getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc,
     getDoc, getDocs, serverTimestamp, query, where, onSnapshot
 } from "../../services/db.js";
@@ -30,9 +31,11 @@ let currentUser = null;
 /** @type {Card[]} */      let cards = [];
 /** @type {Tag[]} */       let tags = [];
 /** @type {ChecklistTemplate[]} */ let checklistTemplates = [];
+/** @type {Array} */             let cardTypes = [];
 let activeFilters = {
     /** @type {string[]} */ priorities: [],
     /** @type {string[]} */ tags: [],
+    /** @type {string[]} */ types: [],
     showNewOnly: false
 };
 
@@ -55,6 +58,8 @@ let cardModalSnapshot = null;
 let tagModalSnapshot  = null;
 let currentTagPages   = [];   // temp state tag modal pages
 let currentCardPage   = null; // selected page in card modal
+let currentTypeId     = null; // selected type in card modal
+let editingTypeId     = null; // type being edited in settings
 let viewMode = 'kanban'; // 'kanban' | 'list'
 let selectedCards = new Set();
 let bulkMode = false;
@@ -126,6 +131,7 @@ function captureCardState() {
         tags:     $('card-tags-list').dataset.selected || "[]",
         color:    $('card-color-list')?.dataset.selected || "",
         page:     currentCardPage || "",
+        typeId:   currentTypeId || "",
         checklist: currentChecklist,
         subtasks:  currentSubtasks,
         links:     currentLinks,
@@ -262,6 +268,36 @@ function renderPageSelector(selectedTagIds) {
             chip.style.borderColor = ownerTag.color;
         }
         chip.onclick = () => { currentCardPage = page; renderPageSelector(selectedTagIds); };
+        cont.appendChild(chip);
+    });
+}
+
+function renderCardTypeSelector() {
+    const cont = $('card-type-selector');
+    if (!cont) return;
+    cont.innerHTML = '';
+
+    // "Geen type" chip
+    const noneChip = document.createElement('div');
+    noneChip.className = `wf-type-chip ${!currentTypeId ? 'selected none' : 'none'}`;
+    noneChip.textContent = '— Geen';
+    noneChip.onclick = () => { currentTypeId = null; renderCardTypeSelector(); };
+    cont.appendChild(noneChip);
+
+    cardTypes.forEach(type => {
+        const isSelected = currentTypeId === type.id;
+        const chip = document.createElement('div');
+        chip.className = `wf-type-chip ${isSelected ? 'selected' : ''}`;
+        chip.innerHTML = `<span class="wf-type-icon">${escHtml(type.icon)}</span><span>${escHtml(type.name)}</span>`;
+        if (isSelected) {
+            chip.style.backgroundColor = type.color;
+            chip.style.borderColor = type.color;
+            chip.style.color = '#fff';
+        } else {
+            chip.style.borderColor = type.color + '60';
+            chip.style.color = type.color;
+        }
+        chip.onclick = () => { currentTypeId = type.id; renderCardTypeSelector(); };
         cont.appendChild(chip);
     });
 }
@@ -433,7 +469,10 @@ async function ensureBoardByType(uid, type) {
     for (let i = 0; i < defaultCols.length; i++) {
         await addDoc(collection(db, "workflowColumns"), { uid, boardId: ref.id, title: defaultCols[i], order: i + 1 });
     }
-    if (type === 'workflow') await ensureStandardTags(uid);
+    if (type === 'workflow') {
+        await ensureStandardTags(uid);
+        await ensureStandardCardTypes(uid);
+    }
     return ref.id;
 }
 
@@ -448,6 +487,21 @@ async function ensureStandardTags(uid) {
         await addTag({ uid, name: "Low", color: "#10b981", builtin: true, active: true, category: "priority" });
         // Voorbeeld standaard tag
         await addTag({ uid, name: "Info", color: "#64748b", builtin: false, active: true, category: "standard" });
+    }
+}
+
+async function ensureStandardCardTypes(uid) {
+    const q = query(collection(db, "workflowCardTypes"), where("uid", "==", uid));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+        const defaults = [
+            { name: 'Taak',        icon: '📋', color: '#64748b', order: 1 },
+            { name: 'Bug',         icon: '🐛', color: '#ef4444', order: 2 },
+            { name: 'Feature',     icon: '✨', color: '#3b82f6', order: 3 },
+            { name: 'Verbetering', icon: '🔧', color: '#f97316', order: 4 },
+            { name: 'Onderzoek',   icon: '🔍', color: '#8b5cf6', order: 5 },
+        ];
+        for (const d of defaults) await addCardType({ uid, ...d });
     }
 }
 
@@ -476,6 +530,11 @@ function startStreams() {
         if (!$('modal-settings').hidden) renderTemplateConfig();
         populateTemplateSelect();
     });
+    const u6 = subscribeToCardTypes(currentUser.uid, (data) => {
+        cardTypes = data;
+        scheduleRender();
+        if (!$('modal-settings').hidden) renderTypeConfig();
+    });
     const qtpl = query(collection(db, "workflowCardTemplates"), where("uid", "==", currentUser.uid));
     const u5 = onSnapshot(qtpl, snap => {
         cardTemplates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -491,7 +550,7 @@ function startStreams() {
         checkDeadlineNotifications();
     }, (err) => console.error(err));
 
-    activeStreamUnsubscribers = [u1, u2, u3, u4, u5];
+    activeStreamUnsubscribers = [u1, u2, u3, u4, u5, u6];
 }
 
 // --- BOARD SWITCHER ---
@@ -507,7 +566,7 @@ async function switchBoard(type) {
     activeBoardType = type;
     localStorage.setItem('wf_active_board', type);
     boardId = boardIds[type];
-    activeFilters = { priorities: [], tags: [], showNewOnly: false };
+    activeFilters = { priorities: [], tags: [], types: [], showNewOnly: false };
     columns = [];
     cards = [];
     setupBoardTabs();
@@ -814,7 +873,7 @@ function renderListView() {
     const table = document.createElement('table');
     table.className = 'wf-list-table';
     table.innerHTML = `<thead><tr>
-        <th>Prioriteit</th><th>Titel</th><th>Kolom</th><th>Labels</th><th>Deadline</th>
+        <th>Type</th><th>Prioriteit</th><th>Titel</th><th>Kolom</th><th>Labels</th><th>Deadline</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
 
@@ -848,9 +907,15 @@ function renderListView() {
             const col2 = ownerTag ? `border-color:${ownerTag.color};color:${ownerTag.color};` : '';
             listPagePrefix = `<span class="wf-page-prefix" style="${col2} margin-right:6px;">${escHtml(card.cardPage)}</span>`;
         }
+        let typeHtml = '<span class="muted">—</span>';
+        if (card.typeId) {
+            const typeObj = cardTypes.find(t => t.id === card.typeId);
+            if (typeObj) typeHtml = `<span class="wf-card-type-badge" style="background:${typeObj.color}20; color:${typeObj.color}; border-color:${typeObj.color}40;">${escHtml(typeObj.icon)} ${escHtml(typeObj.name)}</span>`;
+        }
         const tr = document.createElement('tr');
         tr.className = 'wf-list-row';
         tr.innerHTML = `
+            <td>${typeHtml}</td>
             <td>${prioHtml}</td>
             <td ${colorBar}>${listPagePrefix}<strong>${escHtml(card.title)}</strong></td>
             <td><span class="wf-list-col-badge">${escHtml(col?.title || '—')}</span></td>
@@ -862,7 +927,7 @@ function renderListView() {
     });
 
     if (!listCards.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;opacity:0.5;padding:2rem;">Geen actieve kaarten</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;opacity:0.5;padding:2rem;">Geen actieve kaarten</td></tr>';
     }
 
     table.appendChild(tbody);
@@ -895,8 +960,10 @@ function showCardPreview(card, anchorEl) {
     const subTotal   = (card.subtasks  || []).length;
     const logCount   = (card.logs      || []).length;
 
+    const typeObj = card.typeId ? cardTypes.find(t => t.id === card.typeId) : null;
     tooltip.innerHTML = `
         <div class="wf-preview-title">${escHtml(card.title)}</div>
+        ${typeObj ? `<div style="margin-bottom:6px"><span class="wf-card-type-badge" style="background:${typeObj.color}20;color:${typeObj.color};border-color:${typeObj.color}40;">${escHtml(typeObj.icon)} ${escHtml(typeObj.name)}</span></div>` : ''}
         ${prio ? `<div style="margin-bottom:4px"><span class="wf-badge" style="background:${prio.color}">${escHtml(prio.name)}</span></div>` : ''}
         ${cardTagObjs.length ? `<div class="wf-preview-tags">${cardTagObjs.map(t => `<span class="wf-badge" style="background:${t.color}">${escHtml(t.name)}</span>`).join('')}</div>` : ''}
         ${dateStr}
@@ -972,12 +1039,12 @@ function renderBoard() {
     renderQuickFilterButtons();
 
     // C. Update Algemene Filter Knop Tekst
-    const hasFilters = activeFilters.priorities.length > 0 || activeFilters.tags.length > 0;
+    const hasFilters = activeFilters.priorities.length > 0 || activeFilters.tags.length > 0 || activeFilters.types.length > 0;
     const btnFilter = $('btnFilterTags');
     if(btnFilter) {
         if(hasFilters) {
             btnFilter.classList.add('active-filter');
-            btnFilter.innerHTML = `🏷️ Filter (${activeFilters.priorities.length + activeFilters.tags.length})`;
+            btnFilter.innerHTML = `🏷️ Filter (${activeFilters.types.length + activeFilters.priorities.length + activeFilters.tags.length})`;
         } else {
             btnFilter.classList.remove('active-filter');
             btnFilter.innerHTML = `🏷️ Filter`;
@@ -1013,6 +1080,9 @@ function renderBoard() {
         // B. Actieve Filters (Prioriteit & Tags)
         if (hasFilters) {
             colCards = colCards.filter(c => {
+                if (activeFilters.types.length > 0) {
+                    if (!activeFilters.types.includes(c.typeId)) return false;
+                }
                 if (activeFilters.priorities.length > 0) {
                     if (!c.priorityId) return false;
                     if (!activeFilters.priorities.includes(c.priorityId)) return false;
@@ -1167,23 +1237,33 @@ function createCardEl(card) {
         }
     }
 
+    // Type badge
+    let typeBadgeHtml = '';
+    if (card.typeId) {
+        const typeObj = cardTypes.find(t => t.id === card.typeId);
+        if (typeObj) {
+            typeBadgeHtml = `<span class="wf-card-type-badge" style="background:${typeObj.color}20; color:${typeObj.color}; border-color:${typeObj.color}40;">${escHtml(typeObj.icon)} ${escHtml(typeObj.name)}</span>`;
+        }
+    }
+
     // Page prefix (alleen op Websites bord)
     let pagePrefixHtml = '';
     if (card.cardPage && activeBoardType === 'websites') {
         const ownerTag = tags.find(t => (card.tags || []).includes(t.id) && t.pages && t.pages.includes(card.cardPage));
-        const prefixStyle = ownerTag ? `style="--page-color:${ownerTag.color}; border-color:${ownerTag.color}; color:${ownerTag.color};"` : '';
-        pagePrefixHtml = `<div class="wf-card-page-prefix"><span class="wf-page-prefix" ${prefixStyle}>${escHtml(card.cardPage)}</span></div>`;
+        const prefixStyle = ownerTag ? `style="border-color:${ownerTag.color}; color:${ownerTag.color};"` : '';
+        pagePrefixHtml = `<span class="wf-page-prefix" ${prefixStyle}>${escHtml(card.cardPage)}</span>`;
     }
 
+    // Bovenste balk: type (links) + aging + datum (rechts)
+    const topRowLeft  = typeBadgeHtml || pagePrefixHtml
+        ? `<div class="wf-card-meta-left">${typeBadgeHtml}${pagePrefixHtml}</div>`
+        : '<div></div>';
+    const topRowRight = `<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">${agingHtml}${dateHtml}</div>`;
+
     el.innerHTML = `
-        ${pagePrefixHtml}
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-            <div class="wf-card-title" style="margin:0;">
-                ${newBadgeHtml} ${escHtml(card.title)}
-            </div>
-            <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">${agingHtml}${dateHtml}</div>
-        </div>
-        <div class="wf-tags" style="margin-top:0;">${tagsHtml}</div>
+        <div class="wf-card-top-row">${topRowLeft}${topRowRight}</div>
+        <div class="wf-card-title">${newBadgeHtml} ${escHtml(card.title)}</div>
+        <div class="wf-tags" style="margin-top:4px;">${tagsHtml}</div>
         ${progressHtml}
         ${subtaskHtml}
     `;
@@ -1598,6 +1678,84 @@ function renderTemplateConfig() {
     });
 }
 
+const TYPE_ICON_PRESETS = ['📋','🐛','✨','🔧','🔍','🚀','💡','🔒','📱','🌐','🎯','⚡','🛠️','📝','🔄','⚠️','📌','🧪','🆕','✅'];
+
+function renderTypeConfig() {
+    const list = $('list-card-types');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!cardTypes.length) {
+        list.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;font-style:italic;">Nog geen types aangemaakt.</p>';
+        return;
+    }
+
+    cardTypes.forEach(type => {
+        const row = document.createElement('div');
+        row.className = 'type-manage-row';
+
+        const badge = document.createElement('span');
+        badge.className = 'wf-card-type-badge';
+        badge.style.cssText = `background:${type.color}20; color:${type.color}; border-color:${type.color}40; font-size:0.9rem;`;
+        badge.textContent = `${type.icon} ${type.name}`;
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex; gap:8px; align-items:center;';
+
+        const editBtn = document.createElement('button');
+        editBtn.innerHTML = '✏️'; editBtn.className = 'del-icon-btn'; editBtn.title = 'Bewerken';
+        editBtn.onclick = () => openTypeEditor(type);
+
+        const delBtn = document.createElement('button');
+        delBtn.innerHTML = '🗑️'; delBtn.className = 'del-icon-btn'; delBtn.title = 'Verwijderen';
+        delBtn.onclick = async () => {
+            if (await confirmDialog(`Type "${type.name}" verwijderen? Kaarten behouden het type-ID maar het badge verdwijnt.`)) {
+                await deleteCardType(type.id);
+            }
+        };
+
+        actions.append(editBtn, delBtn);
+        row.append(badge, actions);
+        list.appendChild(row);
+    });
+}
+
+function openTypeEditor(type = null) {
+    editingTypeId = type ? type.id : null;
+    $('type-name-inp').value = type ? type.name : '';
+    $('type-icon-inp').value = type ? type.icon : '📋';
+    $('type-color-val').value = type ? type.color : TAG_COLORS[0];
+    $('type-editor').style.display = '';
+    $('btnOpenNewType').style.display = 'none';
+
+    // Icon presets
+    const presetsCont = $('type-icon-presets');
+    presetsCont.innerHTML = '';
+    TYPE_ICON_PRESETS.forEach(icon => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'type-icon-preset-btn';
+        btn.textContent = icon;
+        btn.onclick = () => { $('type-icon-inp').value = icon; };
+        presetsCont.appendChild(btn);
+    });
+
+    // Color picker
+    const colorsCont = $('type-colors-cont');
+    colorsCont.innerHTML = '';
+    TAG_COLORS.forEach(c => {
+        const circle = document.createElement('div');
+        circle.className = `color-circle ${c === (type?.color || TAG_COLORS[0]) ? 'selected' : ''}`;
+        circle.style.backgroundColor = c;
+        circle.onclick = () => {
+            colorsCont.querySelectorAll('.color-circle').forEach(e => e.classList.remove('selected'));
+            circle.classList.add('selected');
+            $('type-color-val').value = c;
+        };
+        colorsCont.appendChild(circle);
+    });
+}
+
 function renderTemplateEditorItems() {
     const cont = $('tpl-items-container'); cont.innerHTML = "";
     tempTemplateItems.forEach((item, idx) => {
@@ -1623,6 +1781,7 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
     currentLogs = (card && Array.isArray(card.logs)) ? [...card.logs] : [];
     
     currentCardPage = card ? (card.cardPage || null) : null;
+    currentTypeId   = card ? (card.typeId  || null) : null;
     $('inpTitle').value = card ? card.title : "";
     $('inpDesc').value = card ? card.description || "" : "";
     
@@ -1689,6 +1848,7 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
         prioCont.appendChild(chip);
     });
 
+    renderCardTypeSelector();
     renderCardTagsSelector(card ? (card.tags || []) : []);
     renderCardColorPicker(card ? (card.cardColor || null) : null);
     // Reset markdown view naar edit mode
@@ -1755,10 +1915,27 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
 }
 
 function openFilterModal() {
+    const typeCont = $('filter-type-list');
     const prioCont = $('filter-prio-list');
-    const tagCont = $('filter-tag-list');
+    const tagCont  = $('filter-tag-list');
+    typeCont.innerHTML = "";
     prioCont.innerHTML = "";
-    tagCont.innerHTML = "";
+    tagCont.innerHTML  = "";
+
+    // 0. Render Type Opties
+    cardTypes.forEach(type => {
+        const chip = document.createElement('div');
+        const isSelected = activeFilters.types.includes(type.id);
+        chip.className = `filter-chip ${isSelected ? 'selected' : ''}`;
+        chip.innerHTML = `${escHtml(type.icon)} ${escHtml(type.name)}`;
+        if (isSelected) { chip.style.backgroundColor = type.color; chip.style.borderColor = type.color; }
+        chip.onclick = () => {
+            const i = activeFilters.types.indexOf(type.id);
+            i > -1 ? activeFilters.types.splice(i, 1) : activeFilters.types.push(type.id);
+            renderBoard(); openFilterModal();
+        };
+        typeCont.appendChild(chip);
+    });
 
     const doneCol = columns.find(c => c.title.toLowerCase() === 'afgewerkt');
     const doneColId = doneCol?.id;
@@ -2209,7 +2386,7 @@ function setupUI() {
         searchDebounce = setTimeout(renderBoard, 200);
     });
     $('btnNewCard').onclick = () => openCardModal();
-    $('btnSettings').onclick = () => { renderTagConfig(); renderColConfig(); renderTemplateConfig(); renderCardTemplateConfig(); renderQuickFilterConfig(); window.Modal.open("modal-settings"); };
+    $('btnSettings').onclick = () => { renderTagConfig(); renderColConfig(); renderTemplateConfig(); renderCardTemplateConfig(); renderQuickFilterConfig(); renderTypeConfig(); window.Modal.open("modal-settings"); };
     $('btnAddCol').onclick = () => {
         $('add-col-form').style.display = 'block';
         $('btnAddCol').style.display = 'none';
@@ -2256,8 +2433,8 @@ function setupUI() {
             renderBoard();};
     }
     
-    $('btnClearFilters').onclick = () => { 
-        activeFilters = { priorities:[], tags:[], showNewOnly: false };
+    $('btnClearFilters').onclick = () => {
+        activeFilters = { priorities:[], tags:[], types:[], showNewOnly: false };
         renderBoard(); 
         openFilterModal(); // Refresh modal view
     };
@@ -2462,7 +2639,8 @@ function setupUI() {
             priorityId: priorityId,
             tags: tagIds,
             cardColor: $('card-color-list')?.dataset.selected || null,
-            cardPage: currentCardPage || null,
+            cardPage:  currentCardPage || null,
+            typeId:    currentTypeId   || null,
             subtasks: currentSubtasks,
             checklist: currentChecklist,
             links: currentLinks,
@@ -2572,15 +2750,17 @@ function setupUI() {
         document.querySelectorAll('#modal-settings .wf-settings-content').forEach(c => c.classList.remove('active'));
         const map = {
             tags:            [1, 'set-tab-tags'],
-            cols:            [2, 'set-tab-cols'],
-            lists:           [3, 'set-tab-lists'],
-            'card-templates':[4, 'set-tab-card-templates'],
-            quickfilters:    [5, 'set-tab-quickfilters']
+            types:           [2, 'set-tab-types'],
+            cols:            [3, 'set-tab-cols'],
+            lists:           [4, 'set-tab-lists'],
+            'card-templates':[5, 'set-tab-card-templates'],
+            quickfilters:    [6, 'set-tab-quickfilters']
         };
         const [nth, id] = map[tabName] || map.tags;
         document.querySelector(`#modal-settings .wf-tab-btn:nth-child(${nth})`).classList.add('active');
         $(id).classList.add('active');
         if (tabName === 'quickfilters') renderQuickFilterConfig();
+        if (tabName === 'types') renderTypeConfig();
     };
 
     // Onopgeslagen wijzigingen – Kaart modal (X & Annuleren)
@@ -2608,6 +2788,36 @@ function setupUI() {
     };
     $('btnCloseTag').onclick  = handleTagClose;
     $('btnCancelTag').onclick = handleTagClose;
+
+    // --- TYPE EDITOR ---
+    $('btnOpenNewType').onclick = () => openTypeEditor(null);
+    $('btnCancelType').onclick = () => {
+        $('type-editor').style.display = 'none';
+        $('btnOpenNewType').style.display = '';
+    };
+    $('btnSaveType').onclick = async () => {
+        const btn = $('btnSaveType');
+        if (btn.disabled) return;
+        const name  = $('type-name-inp').value.trim();
+        const icon  = $('type-icon-inp').value.trim() || '📋';
+        const color = $('type-color-val').value || TAG_COLORS[0];
+        if (!name) return showToast('Naam verplicht', 'error');
+        btn.disabled = true;
+        try {
+            const isEdit = !!editingTypeId;
+            if (editingTypeId) {
+                await updateCardType(editingTypeId, { name, icon, color });
+            } else {
+                const maxOrder = cardTypes.reduce((m, t) => Math.max(m, t.order || 0), 0);
+                await addCardType({ uid: currentUser.uid, name, icon, color, order: maxOrder + 1 });
+            }
+            $('type-editor').style.display = 'none';
+            $('btnOpenNewType').style.display = '';
+            editingTypeId = null;
+            showToast(isEdit ? 'Type bijgewerkt' : 'Type aangemaakt', 'success');
+        } catch(e) { console.error(e); showToast('Opslaan mislukt', 'error'); }
+        finally { btn.disabled = false; }
+    };
 
     // --- PAGINA BEHEER IN TAG MODAL ---
     document.querySelectorAll('input[name="tagBoard"]').forEach(chk => {
