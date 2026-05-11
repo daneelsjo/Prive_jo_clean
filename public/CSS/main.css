@@ -13,6 +13,7 @@
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 
   --brand: #2563eb;
+  --brand-rgb: 37, 99, 235;
   --brand-600: #1d4ed8;
   --brand-700: #1e40af;
   --danger: #ef4444;
@@ -29,6 +30,7 @@
   --shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
 
   --brand: #60a5fa;
+  --brand-rgb: 96, 165, 250;
   --brand-600: #3b82f6;
   --brand-700: #2563eb;
 }
@@ -217,6 +219,15 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 0.6rem;
   padding: 0.5rem 0.65rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(var(--brand-rgb), 0.18);
 }
 
 select {
@@ -644,6 +655,58 @@ body.env-dev .brand::after {
   color: #fecaca; /* Lichtrood */
 }
 
+/* ==========================================================================
+   GLOBALE VORIGE WERKDAG BANNER
+   ========================================================================== */
+.prevday-global-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(59, 130, 246, 0.07);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+  flex-wrap: wrap;
+}
+
+[data-theme="dark"] .prevday-global-banner {
+  background: rgba(59, 130, 246, 0.1);
+  border-bottom-color: rgba(59, 130, 246, 0.25);
+}
+
+.prevday-global-banner .prevday-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.prevday-global-banner .prevday-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.prevday-global-banner .prevday-text strong {
+  font-size: 0.875rem;
+}
+
+.prevday-global-banner .prevday-sub {
+  font-size: 0.78rem;
+  opacity: 0.6;
+}
+
+.prevday-global-banner .prevday-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.prevday-global-banner .btn.small,
+.prevday-global-banner button.small {
+  padding: 0.28rem 0.7rem;
+  font-size: 0.8rem;
+}
+
 /* De info-box links onderin (optioneel als je die niet via JS doet) */
 #dev-debug-panel {
   background: #7f1d1d !important;
@@ -712,53 +775,25 @@ body.env-dev .brand::after {
 }
 
 /* ==========================================================================
-   DATUMPRIKKERS KOGELVRIJ IN DARK MODE
+   DATUMPRIKKERS – DARK MODE
    ========================================================================== */
 
-html[data-theme="dark"] input[type="date"],
-html[data-theme="dark"] input[type="time"],
-html[data-theme="dark"] input[type="month"],
-html[data-theme="dark"] input[type="datetime-local"] {
-  /* Dwingt de browser-popup zélf om de donkere variant te gebruiken */
-  color-scheme: dark !important;
-
-  /* Forceer lichte tekst op een donkere achtergrond in het veld */
-  background-color: var(--bg, #1e293b) !important;
-  color: var(--fg, #f1f5f9) !important;
-  border: 1px solid var(--border, #334155) !important;
-}
-
-/* Forceer het icoontje naar wit */
-html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
-html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
-html[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(2) !important;
-  opacity: 0.8 !important;
-  cursor: pointer !important;
-}
-
-/* ====== KALENDER ICOON FIX ====== */
+/* Laat de browser de native picker ook in dark mode renderen */
 [data-theme="dark"] input[type="date"],
 [data-theme="dark"] input[type="time"],
-[data-theme="dark"] input[type="month"] {
-  color-scheme: dark !important;
+[data-theme="dark"] input[type="month"],
+[data-theme="dark"] input[type="datetime-local"] {
+  color-scheme: dark;
+  background-color: var(--bg) !important;
+  color: var(--fg) !important;
+  border-color: var(--border) !important;
 }
 
+/* Kalender/klok icoontje: color-scheme:dark zorgt al voor wit icoon — geen filter nodig */
 [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
 [data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
-[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator {
-  filter: invert(100%) !important;
-  opacity: 0.9 !important;
-  cursor: pointer !important;
-}
-
-/* --- KOGELVRIJ WIT KALENDER ICOON --- */
-[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
-[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
-[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7v-5z"/></svg>') !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-  background-size: contain !important;
-  cursor: pointer !important;
+[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.8;
+  cursor: pointer;
 }
