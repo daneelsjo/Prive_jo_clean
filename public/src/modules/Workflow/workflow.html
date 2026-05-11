@@ -127,6 +127,11 @@
                     <label style="margin-top:12px;">Labels & Tags</label>
                     <div id="card-tags-list" class="wf-chip-container"></div>
 
+                    <div id="page-selector-wrap" style="display:none;">
+                        <label style="margin-top:12px;">🌐 Pagina <small style="font-weight:400; text-transform:none; opacity:0.7;">prefix op de kaart</small></label>
+                        <div id="card-page-selector" class="wf-page-selector-chips"></div>
+                    </div>
+
                     <label style="margin-top:12px;">Kaartkleur</label>
                     <div id="card-color-list" class="wf-color-picker-row"></div>
 
@@ -239,6 +244,15 @@
               <label class="wf-radio-pill">
                   <input type="checkbox" name="tagBoard" value="websites"> 🌐 Websites
               </label>
+          </div>
+
+          <div id="tag-pages-section" class="tag-pages-section" style="display:none;">
+              <label style="margin-top:14px;">🌐 Pagina's <small style="font-weight:400; text-transform:none; opacity:0.7;">prefix op kaarten (optioneel)</small></label>
+              <div id="tag-pages-list" class="tag-pages-list"></div>
+              <div class="wf-add-row" style="margin-top:8px;">
+                  <input id="new-page-name" placeholder="bv. Homepage, Blog, Contact...">
+                  <button type="button" id="btnAddTagPage" class="wf-btn small">＋</button>
+              </div>
           </div>
 
           <label style="margin-top:14px;">Kleur</label>

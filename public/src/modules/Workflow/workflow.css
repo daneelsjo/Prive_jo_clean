@@ -1864,3 +1864,107 @@ input:checked + .wf-slider:before {
   border-color: var(--brand, #3b82f6);
   background: rgba(59,130,246,0.05);
 }
+
+/* ==========================================================================
+   PAGE PREFIX — Websites bord
+   ========================================================================== */
+
+/* Prefix boven de kaarttitel op het bord */
+.wf-card-page-prefix {
+  margin-bottom: 5px;
+}
+.wf-page-prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--muted, #64748b);
+  color: var(--muted, #64748b);
+  background: transparent;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+/* Page selector chips in kaart modal */
+.wf-page-selector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.wf-page-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border, #334155);
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.wf-page-chip:hover {
+  border-color: var(--fg, #e2e8f0);
+  color: var(--fg, #e2e8f0);
+  background: rgba(255,255,255,0.04);
+}
+.wf-page-chip.selected {
+  background: var(--brand, #3b82f6);
+  border-color: var(--brand, #3b82f6);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+}
+
+/* Pagina's beheer in tag modal */
+.tag-pages-section {
+  border: 1px solid var(--border, #334155);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.02);
+}
+.tag-pages-section > label {
+  margin-top: 0 !important;
+}
+.tag-pages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 28px;
+}
+.tag-pages-empty {
+  color: var(--muted, #94a3b8);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+.tag-page-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg, #0f172a);
+  border: 1px solid var(--border, #334155);
+  border-radius: 7px;
+  padding: 6px 10px;
+  gap: 8px;
+}
+.tag-page-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--fg, #e2e8f0);
+  flex: 1;
+}
+.tag-page-row .del-icon-btn {
+  opacity: 0.5;
+  font-size: 0.8rem !important;
+}
+.tag-page-row .del-icon-btn:hover {
+  opacity: 1;
+  color: #ef4444;
+}
