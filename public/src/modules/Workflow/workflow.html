@@ -42,31 +42,30 @@
         
         <div class="wf-toolbar">
             <div class="wf-toolbar-left">
-                <h1>Workflow</h1>
+                <div class="wf-board-tabs">
+                    <button class="wf-board-tab active" data-board="workflow">⚙️ Workflow</button>
+                    <button class="wf-board-tab" data-board="websites">🌐 Websites</button>
+                </div>
                 <input type="text" class="wf-search-input" placeholder="Zoeken..." id="searchInput">
             </div>
-            
+
             <div class="wf-toolbar-actions">
-    <div class="quick-filters">
-        <button id="btnQuickMail" class="wf-btn icon-only" title="Toon Mail">📧</button>
-        <button id="btnQuickTicket" class="wf-btn icon-only" title="Toon Tickets">🎫</button>
-        <button id="btnQuickDev" class="wf-btn icon-only" title="Toon Dev/GitHub">🐙</button>
-        <button id="btnShowNew" class="wf-btn icon-only" title="Nieuwe taken (24u)" style="display:none; color:#ef4444; border-color:rgba(239,68,68,0.3);">
-            🔔 <span id="badge-new-count" style="margin-left:5px; font-weight:bold;">0</span>
-        </button>
-    </div>
+                <div id="quick-filter-btns" class="quick-filters"></div>
+                <button id="btnShowNew" class="wf-btn icon-only" title="Nieuwe taken (24u)" style="display:none; color:#ef4444; border-color:rgba(239,68,68,0.3);">
+                    🔔 <span id="badge-new-count" style="margin-left:5px; font-weight:bold;">0</span>
+                </button>
 
-    <div class="wf-v-separator"></div>
+                <div class="wf-v-separator"></div>
 
-    <button id="btnFilterTags" class="wf-btn">🏷️ Filter</button>
-    <button id="btnOpenArchive" class="wf-btn">🗄️ Archief</button>
-    <button id="btnStats" class="wf-btn">📊 Stats</button>
-    <button id="btnToggleView" class="wf-btn icon-only" title="Lijst/Kanban">☰</button>
-    <button id="btnBulkMode" class="wf-btn icon-only" title="Selectie modus">☑️</button>
-    <button id="btnNotifToggle" class="wf-btn icon-only" title="Deadline meldingen aan/uit">🔕</button>
-    <button id="btnSettings" class="wf-btn">⚙️ Instellingen</button>
-    <button id="btnNewCard" class="wf-btn wf-btn-primary">＋ Nieuwe Kaart</button>
-</div>
+                <button id="btnFilterTags" class="wf-btn">🏷️ Filter</button>
+                <button id="btnOpenArchive" class="wf-btn">🗄️ Archief</button>
+                <button id="btnStats" class="wf-btn">📊 Stats</button>
+                <button id="btnToggleView" class="wf-btn icon-only" title="Lijst/Kanban">☰</button>
+                <button id="btnBulkMode" class="wf-btn icon-only" title="Selectie modus">☑️</button>
+                <button id="btnNotifToggle" class="wf-btn icon-only" title="Deadline meldingen aan/uit">🔕</button>
+                <button id="btnSettings" class="wf-btn">⚙️ Instellingen</button>
+                <button id="btnNewCard" class="wf-btn wf-btn-primary">＋ Nieuwe Kaart</button>
+            </div>
         </div>
 
         <div id="bulk-action-bar" class="wf-bulk-bar" hidden>
@@ -232,6 +231,16 @@
               </label>
           </div>
 
+          <label style="margin-top:14px;">Beschikbaar op bord</label>
+          <div class="wf-radio-group" style="margin-top:6px;">
+              <label class="wf-radio-pill">
+                  <input type="checkbox" name="tagBoard" value="workflow" checked> ⚙️ Workflow
+              </label>
+              <label class="wf-radio-pill">
+                  <input type="checkbox" name="tagBoard" value="websites"> 🌐 Websites
+              </label>
+          </div>
+
           <label style="margin-top:14px;">Kleur</label>
           <div class="color-options" id="new-tag-colors"></div>
           <input type="hidden" id="new-tag-color-val">
@@ -253,6 +262,7 @@
             <button class="wf-tab-btn" onclick="switchSettingsTab('cols')">Kolommen</button>
             <button class="wf-tab-btn" onclick="switchSettingsTab('lists')">Checklists</button>
             <button class="wf-tab-btn" onclick="switchSettingsTab('card-templates')">Kaart Templates</button>
+            <button class="wf-tab-btn" onclick="switchSettingsTab('quickfilters')">⚡ Snelle Filters</button>
         </div>
 
         <div id="set-tab-tags" class="wf-settings-content active">
@@ -277,6 +287,23 @@
             <h4>Kaart Templates</h4>
             <div id="list-card-templates"></div>
             <small style="display:block; margin-top:10px; opacity:0.5;">Templates aanmaken doe je via de Acties tab van een bestaande kaart.</small>
+        </div>
+
+        <div id="set-tab-quickfilters" class="wf-settings-content">
+            <p style="color:var(--muted); font-size:0.9rem; margin:0 0 15px 0;">
+                Kies welke tags als snelfilter bovenaan de toolbar verschijnen (max. 4 per bord).
+                Klik op een tag om hem toe te voegen of te verwijderen.
+            </p>
+            <div class="qf-board-section">
+                <h4>⚙️ Workflow</h4>
+                <div class="qf-count-info" id="qf-count-workflow"></div>
+                <div id="qf-list-workflow" class="qf-config-list"></div>
+            </div>
+            <div class="qf-board-section" style="margin-top:20px;">
+                <h4>🌐 Websites</h4>
+                <div class="qf-count-info" id="qf-count-websites"></div>
+                <div id="qf-list-websites" class="qf-config-list"></div>
+            </div>
         </div>
 
         <div id="set-tab-lists" class="wf-settings-content">
@@ -350,16 +377,15 @@
           document.querySelectorAll('#modal-settings .wf-tab-btn').forEach(b => b.classList.remove('active'));
           document.querySelectorAll('#modal-settings .wf-settings-content').forEach(c => c.classList.remove('active'));
           const map = {
-              tags:            ['#modal-settings .wf-tab-btn:nth-child(1)', 'set-tab-tags'],
-              cols:            ['#modal-settings .wf-tab-btn:nth-child(2)', 'set-tab-cols'],
-              lists:           ['#modal-settings .wf-tab-btn:nth-child(3)', 'set-tab-lists'],
-              'card-templates':['#modal-settings .wf-tab-btn:nth-child(4)', 'set-tab-card-templates'],
+              tags:            [1, 'set-tab-tags'],
+              cols:            [2, 'set-tab-cols'],
+              lists:           [3, 'set-tab-lists'],
+              'card-templates':[4, 'set-tab-card-templates'],
+              quickfilters:    [5, 'set-tab-quickfilters']
           };
-          const entry = map[tabName];
-          if (entry) {
-              document.querySelector(entry[0]).classList.add('active');
-              document.getElementById(entry[1]).classList.add('active');
-          }
+          const [nth, id] = map[tabName] || map.tags;
+          document.querySelector(`#modal-settings .wf-tab-btn:nth-child(${nth})`).classList.add('active');
+          document.getElementById(id).classList.add('active');
       }
   </script>
   <div id="card-preview-tooltip" class="wf-card-preview" hidden></div>

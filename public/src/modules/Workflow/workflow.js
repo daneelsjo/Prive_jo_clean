@@ -1,11 +1,11 @@
 import { getCurrentUser, watchUser } from "../../services/auth.js";
 import { showToast } from "../../components/toast.js";
-import { 
+import {
     subscribeToColumns, addColumn, updateColumn, deleteColumn,
     subscribeToTags, addTag, updateTag, deleteTag,
     subscribeToChecklistTemplates, addChecklistTemplate, deleteChecklistTemplate,
-    getFirebaseApp, getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, 
-    getDoc, getDocs, serverTimestamp, query, where, onSnapshot 
+    getFirebaseApp, getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc,
+    getDoc, getDocs, serverTimestamp, query, where, onSnapshot
 } from "../../services/db.js";
 
 
@@ -35,6 +35,12 @@ let activeFilters = {
     /** @type {string[]} */ tags: [],
     showNewOnly: false
 };
+
+// Multi-board state
+let activeBoardType = localStorage.getItem('wf_active_board') || 'workflow';
+let boardIds = {};
+let quickFilterConfig = { workflow: [], websites: [] };
+let activeStreamUnsubscribers = [];
 
 // Temp state voor modals
 /** @type {string|null} */       let currentCardId = null;
@@ -291,8 +297,13 @@ async function init() {
         currentUser = user;
         document.getElementById("app").style.display = "block";
         fetchApiSettings(user.uid);
-        ensureBoard(user.uid).then(bid => {
-            boardId = bid;
+        Promise.all([
+            ensureBoardByType(user.uid, 'workflow'),
+            ensureBoardByType(user.uid, 'websites')
+        ]).then(([wfId, webId]) => {
+            boardIds = { workflow: wfId, websites: webId };
+            boardId = boardIds[activeBoardType];
+            setupBoardTabs();
             startStreams();
         });
         setupUI();
@@ -302,21 +313,48 @@ async function init() {
 async function fetchApiSettings(uid) {
     try {
         const snap = await getDoc(doc(db, "settings", uid));
-        if (snap.exists()) apiSettings = snap.data();
+        if (snap.exists()) {
+            const data = snap.data();
+            apiSettings = data;
+            if (data.quickFilters) {
+                quickFilterConfig = { workflow: [], websites: [], ...data.quickFilters };
+            }
+        }
     } catch (e) { console.warn(e); }
 }
 
-async function ensureBoard(uid) {
-    const q = query(collection(db, "workflowBoards"), where("uid", "==", uid));
+async function ensureBoardByType(uid, type) {
+    // Zoek bestaand board van dit type
+    const q = query(collection(db, "workflowBoards"), where("uid", "==", uid), where("type", "==", type));
     const snap = await getDocs(q);
     if (!snap.empty) return snap.docs[0].id;
-    const ref = await addDoc(collection(db, "workflowBoards"), { uid, title: "Mijn Board", createdAt: serverTimestamp() });
-    const colRef = collection(db, "workflowColumns");
-    await addDoc(colRef, { uid, boardId: ref.id, title: "Backlog", order: 1 });
-    await addDoc(colRef, { uid, boardId: ref.id, title: "Te bespreken", order: 2 });
-    await addDoc(colRef, { uid, boardId: ref.id, title: "In progress", order: 3 });
-    await addDoc(colRef, { uid, boardId: ref.id, title: "Afgewerkt", order: 4 });
-    await ensureStandardTags(uid);
+
+    // Migratie: oud workflow-board zonder type-veld toewijzen aan 'workflow'
+    if (type === 'workflow') {
+        const oldQ = query(collection(db, "workflowBoards"), where("uid", "==", uid));
+        const oldSnap = await getDocs(oldQ);
+        const legacy = oldSnap.docs.find(d => !d.data().type);
+        if (legacy) {
+            await updateDoc(doc(db, "workflowBoards", legacy.id), { type: 'workflow' });
+            return legacy.id;
+        }
+    }
+
+    // Nieuw board aanmaken
+    const defaultCols = type === 'websites'
+        ? ["Idee", "In ontwikkeling", "Review", "Live"]
+        : ["Backlog", "Te bespreken", "In progress", "Afgewerkt"];
+
+    const ref = await addDoc(collection(db, "workflowBoards"), {
+        uid,
+        title: type === 'websites' ? "Websites Board" : "Mijn Board",
+        type,
+        createdAt: serverTimestamp()
+    });
+    for (let i = 0; i < defaultCols.length; i++) {
+        await addDoc(collection(db, "workflowColumns"), { uid, boardId: ref.id, title: defaultCols[i], order: i + 1 });
+    }
+    if (type === 'workflow') await ensureStandardTags(uid);
     return ref.id;
 }
 
@@ -335,39 +373,178 @@ async function ensureStandardTags(uid) {
 }
 
 function startStreams() {
+    activeStreamUnsubscribers.forEach(fn => fn());
+    activeStreamUnsubscribers = [];
+
     let initRender;
     const scheduleRender = () => { clearTimeout(initRender); initRender = setTimeout(renderBoard, 50); };
 
-    subscribeToColumns(currentUser.uid, boardId, (data) => {
+    const u1 = subscribeToColumns(currentUser.uid, boardId, (data) => {
         columns = data;
         scheduleRender();
-        if(!$('modal-settings').hidden) renderColConfig();
+        if (!$('modal-settings').hidden) renderColConfig();
     });
-    subscribeToTags(currentUser.uid, (data) => {
+    const u2 = subscribeToTags(currentUser.uid, (data) => {
         tags = data;
         scheduleRender();
-        if(!$('modal-settings').hidden) renderTagConfig();
-        if(cards.length > 0) checkUrgentItems();
+        if (!$('modal-settings').hidden) renderTagConfig();
+        renderQuickFilterButtons();
+        renderQuickFilterConfig();
+        if (cards.length > 0) checkUrgentItems();
     });
-    subscribeToChecklistTemplates(currentUser.uid, (data) => {
+    const u3 = subscribeToChecklistTemplates(currentUser.uid, (data) => {
         checklistTemplates = data;
-        if(!$('modal-settings').hidden) renderTemplateConfig();
+        if (!$('modal-settings').hidden) renderTemplateConfig();
         populateTemplateSelect();
     });
     const qtpl = query(collection(db, "workflowCardTemplates"), where("uid", "==", currentUser.uid));
-    onSnapshot(qtpl, snap => {
+    const u5 = onSnapshot(qtpl, snap => {
         cardTemplates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         populateCardTemplateSelect();
         if (!$('modal-settings').hidden) renderCardTemplateConfig();
     });
 
     const q = query(collection(db, "workflowCards"), where("boardId", "==", boardId), where("uid", "==", currentUser.uid));
-    onSnapshot(q, (snap) => {
+    const u4 = onSnapshot(q, (snap) => {
         cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderBoard();
         checkUrgentItems();
         checkDeadlineNotifications();
     }, (err) => console.error(err));
+
+    activeStreamUnsubscribers = [u1, u2, u3, u4, u5];
+}
+
+// --- BOARD SWITCHER ---
+function setupBoardTabs() {
+    document.querySelectorAll('.wf-board-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.board === activeBoardType);
+        tab.onclick = () => switchBoard(tab.dataset.board);
+    });
+}
+
+async function switchBoard(type) {
+    if (type === activeBoardType || !boardIds[type]) return;
+    activeBoardType = type;
+    localStorage.setItem('wf_active_board', type);
+    boardId = boardIds[type];
+    activeFilters = { priorities: [], tags: [], showNewOnly: false };
+    columns = [];
+    cards = [];
+    setupBoardTabs();
+    startStreams();
+}
+
+// Helper: welke borden heeft een tag? Standaard 'workflow' voor oude tags zonder boards-veld.
+function getTagBoards(tag) {
+    return (tag.boards && tag.boards.length > 0) ? tag.boards : ['workflow'];
+}
+
+async function saveQuickFilterConfig() {
+    if (!currentUser) return;
+    try {
+        await setDoc(doc(db, "settings", currentUser.uid), { quickFilters: quickFilterConfig }, { merge: true });
+    } catch (e) { console.warn('saveQuickFilterConfig:', e); }
+}
+
+// --- QUICK FILTER BUTTONS (toolbar) ---
+function renderQuickFilterButtons() {
+    const container = $('quick-filter-btns');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const doneCol = columns.find(c => ['afgewerkt', 'live'].includes(c.title.toLowerCase()));
+    const doneColId = doneCol ? doneCol.id : null;
+    const configuredIds = quickFilterConfig[activeBoardType] || [];
+
+    configuredIds.forEach(tagId => {
+        const tag = tags.find(t => t.id === tagId);
+        if (!tag || tag.active === false) return;
+
+        const count = cards.filter(c => {
+            const hasTag = (c.tags || []).includes(tagId) || c.priorityId === tagId;
+            return hasTag && c.columnId !== doneColId;
+        }).length;
+
+        const isActive = activeFilters.tags.includes(tagId) || activeFilters.priorities.includes(tagId);
+
+        const btn = document.createElement('button');
+        btn.className = `wf-btn icon-only wf-quick-filter-btn${isActive ? ' active-quick-filter' : ''}`;
+        btn.title = `Filter: ${tag.name}`;
+        btn.innerHTML = `<span class="qf-dot" style="background:${tag.color}"></span>${tag.name}${count > 0 ? ` <span class="qf-count">${count}</span>` : ''}`;
+
+        btn.onclick = () => {
+            if (tag.category === 'priority') {
+                const i = activeFilters.priorities.indexOf(tagId);
+                i > -1 ? activeFilters.priorities.splice(i, 1) : activeFilters.priorities.push(tagId);
+            } else {
+                const i = activeFilters.tags.indexOf(tagId);
+                i > -1 ? activeFilters.tags.splice(i, 1) : activeFilters.tags.push(tagId);
+            }
+            renderBoard();
+        };
+
+        container.appendChild(btn);
+    });
+}
+
+// --- QUICK FILTER CONFIG (instellingen) ---
+function renderQuickFilterConfig() {
+    ['workflow', 'websites'].forEach(boardType => {
+        const list = $(`qf-list-${boardType}`);
+        const countEl = $(`qf-count-${boardType}`);
+        if (!list) return;
+        list.innerHTML = '';
+
+        const boardTags = tags.filter(t => t.active !== false && getTagBoards(t).includes(boardType));
+        const selected = quickFilterConfig[boardType] || [];
+
+        if (countEl) countEl.textContent = `${selected.length}/4 geselecteerd`;
+
+        if (boardTags.length === 0) {
+            list.innerHTML = '<span style="color:var(--muted); font-size:0.85rem; font-style:italic;">Geen tags beschikbaar voor dit bord.</span>';
+            return;
+        }
+
+        boardTags.sort((a, b) => {
+            if (a.category === 'priority' && b.category !== 'priority') return -1;
+            if (b.category === 'priority' && a.category !== 'priority') return 1;
+            return a.name.localeCompare(b.name);
+        }).forEach(tag => {
+            const isPinned = selected.includes(tag.id);
+            const atMax = selected.length >= 4 && !isPinned;
+
+            const row = document.createElement('div');
+            row.className = `qf-row${isPinned ? ' pinned' : ''}`;
+
+            const preview = document.createElement('span');
+            preview.className = 'tag-preview';
+            preview.style.backgroundColor = tag.color;
+            preview.textContent = `${tag.category === 'priority' ? '⚡' : '🏷️'} ${tag.name}`;
+
+            const btn = document.createElement('button');
+            btn.className = `wf-btn small${isPinned ? ' wf-btn-primary' : ''}`;
+            btn.textContent = isPinned ? '✓ Vastgezet' : '+ Vastzetten';
+            btn.disabled = atMax;
+            btn.title = atMax ? 'Maximum 4 snelle filters bereikt' : '';
+
+            btn.onclick = async () => {
+                const cfg = quickFilterConfig[boardType] || [];
+                if (isPinned) {
+                    quickFilterConfig[boardType] = cfg.filter(id => id !== tag.id);
+                } else if (cfg.length < 4) {
+                    quickFilterConfig[boardType] = [...cfg, tag.id];
+                }
+                await saveQuickFilterConfig();
+                renderQuickFilterConfig();
+                renderQuickFilterButtons();
+            };
+
+            row.appendChild(preview);
+            row.appendChild(btn);
+            list.appendChild(row);
+        });
+    });
 }
 
 // --- URGENTIE LOGICA ---
@@ -706,36 +883,8 @@ function renderBoard() {
         }
     }
 
-    // B. Update Quick Filter Buttons (Mail, Ticket, GitHub)
-    const updateQuickBtn = (btnId, tagName, icon) => {
-        const btn = $(btnId);
-        const tag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-        
-        if (btn && tag) {
-            if (activeFilters.tags.includes(tag.id)) {
-                btn.classList.add('active-quick-filter');
-            } else {
-                btn.classList.remove('active-quick-filter');
-            }
-
-            const count = cards.filter(c => {
-                const hasTag = (c.tags || []).includes(tag.id);
-                return hasTag && c.columnId !== doneColId;
-            }).length;
-
-            if (count > 0) {
-                btn.innerHTML = `${icon} <span style="font-size:0.8em; font-weight:bold; margin-left:4px;">${count}</span>`;
-                btn.style.opacity = "1";
-            } else {
-                btn.innerHTML = icon;
-                btn.style.opacity = "0.7";
-            }
-        }
-    };
-    
-    updateQuickBtn('btnQuickMail', 'Mail', '📧');
-    updateQuickBtn('btnQuickTicket', 'Ticketing', '🎫');
-    updateQuickBtn('btnQuickDev', 'WEB - GITHUB', '🐙'); 
+    // B. Update Quick Filter Buttons (dynamisch op basis van configuratie)
+    renderQuickFilterButtons();
 
     // C. Update Algemene Filter Knop Tekst
     const hasFilters = activeFilters.priorities.length > 0 || activeFilters.tags.length > 0;
@@ -1161,12 +1310,34 @@ function renderTagConfig() {
         preview.style.backgroundColor = tag.color; 
         preview.innerHTML = `${typeIcon} ${escHtml(tag.name)}`;
         
+        // Board-toewijzing: kleine checkboxes naast de preview
+        const boardsCol = document.createElement("div");
+        boardsCol.className = "tag-boards-col";
+        const tagBoards = getTagBoards(tag);
+        [['workflow', '⚙️'], ['websites', '🌐']].forEach(([bType, icon]) => {
+            const lbl = document.createElement("label");
+            lbl.className = "tag-board-check";
+            lbl.title = bType;
+            const chk = document.createElement("input");
+            chk.type = "checkbox";
+            chk.checked = tagBoards.includes(bType);
+            chk.onchange = () => {
+                const current = getTagBoards(tag);
+                const updated = chk.checked ? [...current, bType] : current.filter(b => b !== bType);
+                if (updated.length === 0) { chk.checked = true; return; } // minimaal 1 bord
+                updateTag(tag.id, { boards: updated });
+            };
+            lbl.appendChild(chk);
+            lbl.insertAdjacentHTML('beforeend', ` ${icon}`);
+            boardsCol.appendChild(lbl);
+        });
+
         // Actie knoppen container
-        const actions = document.createElement("div"); 
-        actions.style.display="flex"; 
-        actions.style.alignItems="center"; 
+        const actions = document.createElement("div");
+        actions.style.display="flex";
+        actions.style.alignItems="center";
         actions.style.gap="8px";
-        
+
         // CHECK: Is dit een vaste systeem-tag?
         if (tag.builtin) {
             // JA: Toon alleen een slotje en de active-toggle (optioneel, of zelfs die niet)
@@ -1223,9 +1394,9 @@ function renderTagConfig() {
             actions.appendChild(delBtn);
         }
         
-        row.append(preview, actions);
-        
-        if(tag.category === 'priority') stdList.appendChild(row);
+        row.append(preview, boardsCol, actions);
+
+        if (tag.category === 'priority') stdList.appendChild(row);
         else customList.appendChild(row);
     });
 
@@ -1371,8 +1542,8 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
     let currentPrioId = card ? (card.priorityId || null) : null;
     prioCont.dataset.selected = currentPrioId || "";
 
-    // 1. Filter
-    const prioTags = tags.filter(t => t.category === 'priority' && t.active !== false);
+    // 1. Filter (op actief bord)
+    const prioTags = tags.filter(t => t.category === 'priority' && t.active !== false && getTagBoards(t).includes(activeBoardType));
     
     // 2. Sorteer (Critical > High > Normal > Low)
     prioTags.sort((a, b) => {
@@ -1496,8 +1667,8 @@ function openFilterModal() {
     const doneCol = columns.find(c => c.title.toLowerCase() === 'afgewerkt');
     const doneColId = doneCol?.id;
 
-    // 1. Render Prioriteiten Opties
-    const priorities = tags.filter(t => t.category === 'priority' && t.active !== false);
+    // 1. Render Prioriteiten Opties (gefilterd op actief bord)
+    const priorities = tags.filter(t => t.category === 'priority' && t.active !== false && getTagBoards(t).includes(activeBoardType));
     priorities.forEach(p => {
         const count = cards.filter(c => c.priorityId === p.id && c.columnId !== doneColId).length;
         const chip = document.createElement("div");
@@ -1518,8 +1689,8 @@ function openFilterModal() {
         prioCont.appendChild(chip);
     });
 
-    // 2. Render Tags Opties
-    const labels = tags.filter(t => t.category !== 'priority' && t.active !== false).sort((a,b)=>a.name.localeCompare(b.name));
+    // 2. Render Tags Opties (gefilterd op actief bord)
+    const labels = tags.filter(t => t.category !== 'priority' && t.active !== false && getTagBoards(t).includes(activeBoardType)).sort((a,b)=>a.name.localeCompare(b.name));
     labels.forEach(t => {
         const count = cards.filter(c => (c.tags||[]).includes(t.id) && c.columnId !== doneColId).length;
         const chip = document.createElement("div");
@@ -1891,8 +2062,8 @@ function renderLogs() {
 function renderCardTagsSelector(selectedIds = []) {
     const container = $('card-tags-list'); container.innerHTML = "";
     
-    // Filter: Toon GEEN Priorities in deze lijst (die zitten in de dropdown)
-    const standardTags = tags.filter(t => t.active !== false && t.category !== 'priority');
+    // Filter: geen priorities, alleen tags van actief bord
+    const standardTags = tags.filter(t => t.active !== false && t.category !== 'priority' && getTagBoards(t).includes(activeBoardType));
     
     standardTags.sort((a,b) => a.name.localeCompare(b.name));
 
@@ -1941,7 +2112,7 @@ function setupUI() {
         searchDebounce = setTimeout(renderBoard, 200);
     });
     $('btnNewCard').onclick = () => openCardModal();
-    $('btnSettings').onclick = () => { renderTagConfig(); renderColConfig(); renderTemplateConfig(); renderCardTemplateConfig(); window.Modal.open("modal-settings"); };
+    $('btnSettings').onclick = () => { renderTagConfig(); renderColConfig(); renderTemplateConfig(); renderCardTemplateConfig(); renderQuickFilterConfig(); window.Modal.open("modal-settings"); };
     $('btnAddCol').onclick = () => {
         $('add-col-form').style.display = 'block';
         $('btnAddCol').style.display = 'none';
@@ -1980,12 +2151,7 @@ function setupUI() {
         renderBoard();
     };
     $('btnFilterTags').onclick = () => openFilterModal();
-    // QUICK FILTERS
-    $('btnQuickMail').onclick = () => toggleQuickTag('MAIL');
-    $('btnQuickTicket').onclick = () => toggleQuickTag('Ticketing');
-    
-    // Pas de naam 'Dev' aan naar 'GitHub' als je tag zo heet in je systeem!
-    $('btnQuickDev').onclick = () => toggleQuickTag('WEB - GITHUB');
+    // Board tabs worden opgezet vanuit setupBoardTabs() na het laden van boardIds
     const btnNew = $('btnShowNew');
     if(btnNew) {
         btnNew.onclick = () => {
@@ -2130,20 +2296,22 @@ function setupUI() {
         tagModalSnapshot = captureTagState();
     };
 
-    // Nieuwe Tag aanmaken
+    // Nieuwe Tag aanmaken / bewerken
     $('btnSaveNewTag').onclick = async () => {
         const btn = $('btnSaveNewTag');
-        if(btn.disabled) return;
+        if (btn.disabled) return;
         const name = $('new-tag-name').value;
         const color = $('new-tag-color-val').value;
         const category = document.querySelector('input[name="tagType"]:checked').value;
-        if(!name) return showToast("Naam verplicht", "error");
+        const boards = [...document.querySelectorAll('input[name="tagBoard"]:checked')].map(c => c.value);
+        if (!name) return showToast("Naam verplicht", "error");
+        if (boards.length === 0) return showToast("Kies minstens 1 bord", "error");
         btn.disabled = true;
         try {
-            if(editingTagId) {
-                await updateTag(editingTagId, {name, color, category});
+            if (editingTagId) {
+                await updateTag(editingTagId, { name, color, category, boards });
             } else {
-                await addTag({uid: currentUser.uid, name, color, builtin: false, active: true, category});
+                await addTag({ uid: currentUser.uid, name, color, builtin: false, active: true, category, boards });
             }
             tagModalSnapshot = null;
             window.Modal.close();
@@ -2218,20 +2386,33 @@ function setupUI() {
         }
     };
     
-    // Helper voor edit tag modal invullen (moet ook radio button zetten)
+    // Helper voor edit tag modal invullen
     window.openEditTagModal = (tag) => {
-        editingTagId = tag.id; 
-        $('new-tag-name').value=tag.name; 
-        $('new-tag-color-val').value=tag.color;
-        
-        // Zet radio button juist
-        const radios = document.getElementsByName('tagType');
-        for(let r of radios) { r.checked = (r.value === (tag.category || 'standard')); }
+        editingTagId = tag.id;
+        $('new-tag-name').value = tag.name;
+        $('new-tag-color-val').value = tag.color;
 
-        const colorsCont = $('new-tag-colors'); colorsCont.innerHTML="";
+        // Radio: type
+        const radios = document.getElementsByName('tagType');
+        for (let r of radios) { r.checked = (r.value === (tag.category || 'standard')); }
+
+        // Checkboxes: boards
+        const tagBoards = getTagBoards(tag);
+        document.querySelectorAll('input[name="tagBoard"]').forEach(chk => {
+            chk.checked = tagBoards.includes(chk.value);
+        });
+
+        const colorsCont = $('new-tag-colors');
+        colorsCont.innerHTML = "";
         TAG_COLORS.forEach(c => {
-            const circle = document.createElement("div"); circle.className = `color-circle ${c===tag.color?'selected':''}`; circle.style.backgroundColor=c;
-            circle.onclick=()=>{ document.querySelectorAll('.color-circle').forEach(e=>e.classList.remove('selected')); circle.classList.add('selected'); $('new-tag-color-val').value=c; };
+            const circle = document.createElement("div");
+            circle.className = `color-circle ${c === tag.color ? 'selected' : ''}`;
+            circle.style.backgroundColor = c;
+            circle.onclick = () => {
+                document.querySelectorAll('.color-circle').forEach(e => e.classList.remove('selected'));
+                circle.classList.add('selected');
+                $('new-tag-color-val').value = c;
+            };
             colorsCont.appendChild(circle);
         });
         window.Modal.open("modal-new-tag");
@@ -2278,13 +2459,29 @@ function setupUI() {
         };
     });
 
+    // Settings Tabs (tags=1, cols=2, lists=3, card-templates=4, quickfilters=5)
+    window.switchSettingsTab = (tabName) => {
+        document.querySelectorAll('#modal-settings .wf-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#modal-settings .wf-settings-content').forEach(c => c.classList.remove('active'));
+        const map = {
+            tags:            [1, 'set-tab-tags'],
+            cols:            [2, 'set-tab-cols'],
+            lists:           [3, 'set-tab-lists'],
+            'card-templates':[4, 'set-tab-card-templates'],
+            quickfilters:    [5, 'set-tab-quickfilters']
+        };
+        const [nth, id] = map[tabName] || map.tags;
+        document.querySelector(`#modal-settings .wf-tab-btn:nth-child(${nth})`).classList.add('active');
+        $(id).classList.add('active');
+        if (tabName === 'quickfilters') renderQuickFilterConfig();
+    };
+
     // Onopgeslagen wijzigingen – Kaart modal (X & Annuleren)
     const handleCardClose = async () => {
         if (isCardDirty()) {
             const choice = await unsavedChangesDialog();
             if (choice === 'save')    { $('btnSaveCard').click(); }
             else if (choice === 'discard') { cardModalSnapshot = null; window.Modal.close(); }
-            // 'stay' → niks doen
         } else {
             window.Modal.close();
         }

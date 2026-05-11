@@ -1743,3 +1743,124 @@ input:checked + .wf-slider:before {
   .wf-card { cursor: default; }
   .wf-card-preview { display: none !important; }
 }
+
+/* ==========================================================================
+   BOARD SWITCHER & QUICK FILTER CONFIG
+   ========================================================================== */
+
+/* Board Tabs */
+.wf-board-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+}
+.wf-board-tab {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 6px 16px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.wf-board-tab:hover {
+  color: var(--fg);
+  background: rgba(255,255,255,0.05);
+}
+.wf-board-tab.active {
+  background: var(--card);
+  color: var(--brand, #3b82f6);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+/* Dynamische Quick Filter Buttons */
+.wf-quick-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px !important;
+  width: auto !important;
+  height: 36px;
+  border-radius: 99px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.qf-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.qf-count {
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.wf-quick-filter-btn.active-quick-filter {
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Tag Beheer: board-kolom */
+.tag-boards-col {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.tag-board-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.tag-board-check input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--brand, #3b82f6);
+}
+
+/* Snelle Filter Config (Instellingen) */
+.qf-board-section h4 {
+  margin: 0 0 6px 0;
+  font-size: 0.95rem;
+  color: var(--fg);
+}
+.qf-count-info {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.qf-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: border-color 0.15s;
+}
+.qf-row.pinned {
+  border-color: var(--brand, #3b82f6);
+  background: rgba(59,130,246,0.05);
+}
