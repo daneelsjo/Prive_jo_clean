@@ -53,6 +53,8 @@ let activeStreamUnsubscribers = [];
 
 let cardModalSnapshot = null;
 let tagModalSnapshot  = null;
+let currentTagPages   = [];   // temp state tag modal pages
+let currentCardPage   = null; // selected page in card modal
 let viewMode = 'kanban'; // 'kanban' | 'list'
 let selectedCards = new Set();
 let bulkMode = false;
@@ -122,6 +124,7 @@ function captureCardState() {
         prio:     $('prio-tags-list').dataset.selected || "",
         tags:     $('card-tags-list').dataset.selected || "[]",
         color:    $('card-color-list')?.dataset.selected || "",
+        page:     currentCardPage || "",
         checklist: currentChecklist,
         subtasks:  currentSubtasks,
         links:     currentLinks,
@@ -135,7 +138,8 @@ function captureTagState() {
     return JSON.stringify({
         name:  $('new-tag-name').value,
         color: $('new-tag-color-val').value,
-        type:  checked ? checked.value : 'standard'
+        type:  checked ? checked.value : 'standard',
+        pages: [...currentTagPages]
     });
 }
 function isTagDirty() { return tagModalSnapshot !== null && tagModalSnapshot !== captureTagState(); }
@@ -215,6 +219,81 @@ function renderCardColorPicker(selectedColor) {
         cont.appendChild(sw);
     });
     cont.dataset.selected = selectedColor || '';
+}
+
+// --- PAGE SELECTOR (Websites bord) ---
+function renderPageSelector(selectedTagIds) {
+    const wrap = $('page-selector-wrap');
+    const cont = $('card-page-selector');
+    if (!wrap || !cont) return;
+
+    if (activeBoardType !== 'websites') { wrap.style.display = 'none'; return; }
+
+    const allPages = new Set();
+    selectedTagIds.forEach(tagId => {
+        const tag = tags.find(t => t.id === tagId);
+        if (tag && tag.pages && tag.pages.length > 0) tag.pages.forEach(p => allPages.add(p));
+    });
+
+    if (allPages.size === 0) { wrap.style.display = 'none'; currentCardPage = null; return; }
+
+    // Reset selection if chosen page no longer available
+    if (currentCardPage && !allPages.has(currentCardPage)) currentCardPage = null;
+
+    wrap.style.display = '';
+    cont.innerHTML = '';
+
+    // "Geen" chip
+    const noneChip = document.createElement('div');
+    noneChip.className = `wf-page-chip ${!currentCardPage ? 'selected' : ''}`;
+    noneChip.textContent = '— Geen';
+    noneChip.onclick = () => { currentCardPage = null; renderPageSelector(selectedTagIds); };
+    cont.appendChild(noneChip);
+
+    [...allPages].sort().forEach(page => {
+        const chip = document.createElement('div');
+        chip.className = `wf-page-chip ${currentCardPage === page ? 'selected' : ''}`;
+        chip.textContent = page;
+        // Find color from the tag that owns this page
+        const ownerTag = tags.find(t => t.id && selectedTagIds.includes(t.id) && t.pages && t.pages.includes(page));
+        if (ownerTag && currentCardPage === page) {
+            chip.style.backgroundColor = ownerTag.color;
+            chip.style.borderColor = ownerTag.color;
+        }
+        chip.onclick = () => { currentCardPage = page; renderPageSelector(selectedTagIds); };
+        cont.appendChild(chip);
+    });
+}
+
+function renderTagPagesList() {
+    const cont = $('tag-pages-list');
+    if (!cont) return;
+    cont.innerHTML = '';
+    if (currentTagPages.length === 0) {
+        cont.innerHTML = '<span class="tag-pages-empty">Nog geen pagina\'s. Voeg er een toe hieronder.</span>';
+        return;
+    }
+    currentTagPages.forEach((page, idx) => {
+        const row = document.createElement('div');
+        row.className = 'tag-page-row';
+        const name = document.createElement('span');
+        name.className = 'tag-page-name';
+        name.textContent = page;
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.innerHTML = '✕';
+        del.className = 'del-icon-btn';
+        del.style.fontSize = '0.85rem';
+        del.onclick = () => { currentTagPages.splice(idx, 1); renderTagPagesList(); };
+        row.append(name, del);
+        cont.appendChild(row);
+    });
+}
+
+function updateTagPagesVisibility() {
+    const websitesChecked = document.querySelector('input[name="tagBoard"][value="websites"]')?.checked;
+    const section = $('tag-pages-section');
+    if (section) section.style.display = websitesChecked ? '' : 'none';
 }
 
 // --- STATISTIEKEN ---
@@ -762,11 +841,17 @@ function renderListView() {
         }
 
         const colorBar = card.cardColor ? `style="border-left:4px solid ${card.cardColor}; padding-left:8px;"` : '';
+        let listPagePrefix = '';
+        if (card.cardPage && activeBoardType === 'websites') {
+            const ownerTag = tags.find(t => (card.tags || []).includes(t.id) && t.pages && t.pages.includes(card.cardPage));
+            const col2 = ownerTag ? `border-color:${ownerTag.color};color:${ownerTag.color};` : '';
+            listPagePrefix = `<span class="wf-page-prefix" style="${col2} margin-right:6px;">${escHtml(card.cardPage)}</span>`;
+        }
         const tr = document.createElement('tr');
         tr.className = 'wf-list-row';
         tr.innerHTML = `
             <td>${prioHtml}</td>
-            <td ${colorBar}><strong>${escHtml(card.title)}</strong></td>
+            <td ${colorBar}>${listPagePrefix}<strong>${escHtml(card.title)}</strong></td>
             <td><span class="wf-list-col-badge">${escHtml(col?.title || '—')}</span></td>
             <td>${labelsHtml || '<span class="muted">—</span>'}</td>
             <td>${dateHtml}</td>
@@ -989,6 +1074,7 @@ function shouldShowCard(card) {
     return card.title.toLowerCase().includes(term)
         || cardTags.includes(term)
         || (card.description || '').toLowerCase().includes(term)
+        || (card.cardPage || '').toLowerCase().includes(term)
         || (card.logs || []).some(l => (l.content || '').toLowerCase().includes(term));
 }
 
@@ -1079,7 +1165,16 @@ function createCardEl(card) {
         }
     }
 
+    // Page prefix (alleen op Websites bord)
+    let pagePrefixHtml = '';
+    if (card.cardPage && activeBoardType === 'websites') {
+        const ownerTag = tags.find(t => (card.tags || []).includes(t.id) && t.pages && t.pages.includes(card.cardPage));
+        const prefixStyle = ownerTag ? `style="--page-color:${ownerTag.color}; border-color:${ownerTag.color}; color:${ownerTag.color};"` : '';
+        pagePrefixHtml = `<div class="wf-card-page-prefix"><span class="wf-page-prefix" ${prefixStyle}>${escHtml(card.cardPage)}</span></div>`;
+    }
+
     el.innerHTML = `
+        ${pagePrefixHtml}
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <div class="wf-card-title" style="margin:0;">
                 ${newBadgeHtml} ${escHtml(card.title)}
@@ -1438,6 +1533,7 @@ function openCardModal(card = null, readOnly = false, afterOpen = null) {
     currentLinks = (card && Array.isArray(card.links)) ? [...card.links] : [];
     currentLogs = (card && Array.isArray(card.logs)) ? [...card.logs] : [];
     
+    currentCardPage = card ? (card.cardPage || null) : null;
     $('inpTitle').value = card ? card.title : "";
     $('inpDesc').value = card ? card.description || "" : "";
     
@@ -1972,10 +2068,10 @@ function renderLogs() {
 
 function renderCardTagsSelector(selectedIds = []) {
     const container = $('card-tags-list'); container.innerHTML = "";
-    
+
     // Filter: geen priorities, alleen tags van actief bord
     const standardTags = tags.filter(t => t.active !== false && t.category !== 'priority' && getTagBoards(t).includes(activeBoardType));
-    
+
     standardTags.sort((a,b) => a.name.localeCompare(b.name));
 
     standardTags.forEach(tag => {
@@ -1983,7 +2079,7 @@ function renderCardTagsSelector(selectedIds = []) {
         const chip = document.createElement("div"); chip.textContent = tag.name;
         chip.className = `wf-tag-option ${isSelected?'selected':''}`;
         if(isSelected) chip.style.backgroundColor = tag.color;
-        
+
         chip.onclick = () => {
             if(selectedIds.includes(tag.id)) selectedIds.splice(selectedIds.indexOf(tag.id), 1);
             else selectedIds.push(tag.id);
@@ -1993,6 +2089,7 @@ function renderCardTagsSelector(selectedIds = []) {
         container.appendChild(chip);
     });
     container.dataset.selected = JSON.stringify(selectedIds);
+    renderPageSelector(selectedIds);
 }
 
 // --- BULK ACTIES ---
@@ -2195,6 +2292,11 @@ function setupUI() {
     let editingTagId = null;
     $('btnOpenNewTag').onclick = () => {
         editingTagId = null; $('new-tag-name').value=""; $('new-tag-color-val').value=TAG_COLORS[0];
+        currentTagPages = [];
+        renderTagPagesList();
+        // Reset board checkboxes (default: workflow)
+        document.querySelectorAll('input[name="tagBoard"]').forEach(chk => { chk.checked = chk.value === 'workflow'; });
+        updateTagPagesVisibility();
         const colorsCont = $('new-tag-colors'); colorsCont.innerHTML="";
         TAG_COLORS.forEach((c, idx) => {
             const circle = document.createElement("div"); circle.className = `color-circle ${idx===0?'selected':''}`; circle.style.backgroundColor=c;
@@ -2217,10 +2319,11 @@ function setupUI() {
         if (boards.length === 0) return showToast("Kies minstens 1 bord", "error");
         btn.disabled = true;
         try {
+            const pages = [...currentTagPages];
             if (editingTagId) {
-                await updateTag(editingTagId, { name, color, category, boards });
+                await updateTag(editingTagId, { name, color, category, boards, pages });
             } else {
-                await addTag({ uid: currentUser.uid, name, color, builtin: false, active: true, category, boards });
+                await addTag({ uid: currentUser.uid, name, color, builtin: false, active: true, category, boards, pages });
             }
             tagModalSnapshot = null;
             window.Modal.close();
@@ -2268,6 +2371,7 @@ function setupUI() {
             priorityId: priorityId,
             tags: tagIds,
             cardColor: $('card-color-list')?.dataset.selected || null,
+            cardPage: currentCardPage || null,
             subtasks: currentSubtasks,
             checklist: currentChecklist,
             links: currentLinks,
@@ -2310,6 +2414,9 @@ function setupUI() {
         document.querySelectorAll('input[name="tagBoard"]').forEach(chk => {
             chk.checked = tagBoards.includes(chk.value);
         });
+        currentTagPages = [...(tag.pages || [])];
+        renderTagPagesList();
+        updateTagPagesVisibility();
 
         const colorsCont = $('new-tag-colors');
         colorsCont.innerHTML = "";
@@ -2410,6 +2517,23 @@ function setupUI() {
     };
     $('btnCloseTag').onclick  = handleTagClose;
     $('btnCancelTag').onclick = handleTagClose;
+
+    // --- PAGINA BEHEER IN TAG MODAL ---
+    document.querySelectorAll('input[name="tagBoard"]').forEach(chk => {
+        chk.addEventListener('change', updateTagPagesVisibility);
+    });
+    $('btnAddTagPage').onclick = () => {
+        const val = $('new-page-name').value.trim();
+        if (!val) return;
+        if (!currentTagPages.includes(val)) {
+            currentTagPages.push(val);
+            renderTagPagesList();
+        }
+        $('new-page-name').value = '';
+    };
+    $('new-page-name').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); $('btnAddTagPage').click(); }
+    });
 
     // --- BULK MODUS ---
     $('btnBulkMode').onclick = () => {
